@@ -131,8 +131,8 @@ async function initDatabase() {
             console.log('管理員帳號 admin 已建立 - 密碼: 123');
         }
 
-        // 自動建立10個學生帳號（01-10）
-        for (let i = 1; i <= 10; i++) {
+        // 自動建立12個學生帳號（01-12）
+        for (let i = 1; i <= 12; i++) {
             const username = String(i).padStart(2, '0');
             const [teamExists] = await connection.execute(
                 'SELECT id FROM users WHERE username = ? AND role = "team"',
