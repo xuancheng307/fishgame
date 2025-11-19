@@ -12,5 +12,28 @@ pnpm-debug.log*
 .env.railway
 .env.*
 
+# 臨時維護腳本
+backend/check_*.js
+backend/compare_*.js
+backend/show_*.js
+backend/add_missing_*.js
+backend/run_migrations*.js
+backend/import-*.js
+backend/patch-*.js
+backend/test-*.js
+check_*.js
+check_*.sql
+*_check.bat
+
+# 備份檔案
+*.backup
+*.broken
+*.fixed
+*.bak
+backend/修正驗證.txt
+
+# 臨時文件
+params-list.txt
+
 # misc
 .DS_Store
