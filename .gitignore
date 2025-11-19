@@ -9,6 +9,8 @@ pnpm-debug.log*
 .env
 /.env
 /backend/.env
+.env.railway
+.env.*
 
 # misc
 .DS_Store

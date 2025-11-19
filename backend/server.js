@@ -10,7 +10,7 @@ const Decimal = require('decimal.js');
 const QRCode = require('qrcode');
 require('dotenv').config();
 
-// 設定 Decimal.js 精度
+// 設�? Decimal.js 精度
 Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP });
 
 const app = express();
@@ -22,43 +22,47 @@ const io = socketIO(server, {
     }
 });
 
-// 預設遊戲參數
+// ?�設?�戲?�數
 let defaultGameParameters = {
     initialBudget: 1000000,
     loanInterestRate: 0.03,
+    maxLoanRatio: 0.50,          // ?�大貸款�?例�?50%�?
     unsoldFeePerKg: 10,
+    fixedUnsoldRatio: 2.50,      // ?��?滯銷比�?�?.5%�?
     distributorFloorPriceA: 100,
     targetPriceA: 150,
     distributorFloorPriceB: 100,
     targetPriceB: 120,
+    numTeams: 10,                // ?��??��??��?
     totalDays: 7,
-    buyingDuration: 7,  // 分鐘
-    sellingDuration: 4   // 分鐘
+    buyingDuration: 7,           // ?��?
+    sellingDuration: 4           // ?��?
 };
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..')));
+// Serve static frontend from bundled webroot (copied for deployment)
+app.use(express.static(path.join(__dirname, 'webroot')));
 
 let db;
 let pool;
 
-// 計時器管理
-const timers = new Map(); // 儲存每個遊戲的計時器
+// 計�??�管??
+const timers = new Map(); // ?��?每個�??��?計�???
 
-// 啟動計時器函數
+// ?��?計�??�函??
 function startTimer(gameId, duration, callback) {
-    // 清除舊的計時器
+    // 清除?��?計�???
     if (timers.has(gameId)) {
         clearInterval(timers.get(gameId).interval);
     }
     
-    const endTime = Date.now() + duration * 1000; // duration 是秒數
+    const endTime = Date.now() + duration * 1000; // duration ?��???
     
     const interval = setInterval(() => {
         const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
         
-        // 廣播剩餘時間給所有客戶端
+        // �?��?��??��?給�??�客?�端
         io.emit('timer', { 
             gameId: gameId,
             remaining: remaining 
@@ -69,18 +73,18 @@ function startTimer(gameId, duration, callback) {
             timers.delete(gameId);
             if (callback) callback();
         }
-    }, 1000); // 每秒更新一次
+    }, 1000); // 每�??�新一�?
     
     timers.set(gameId, { interval, endTime });
     
-    // 立即發送第一次更新
+    // 立即?�送第一次更??
     io.emit('timer', { 
         gameId: gameId,
         remaining: Math.floor(duration) 
     });
 }
 
-// 停止計時器
+// ?�止計�???
 function stopTimer(gameId) {
     if (timers.has(gameId)) {
         clearInterval(timers.get(gameId).interval);
@@ -91,7 +95,7 @@ function stopTimer(gameId) {
 
 async function initDatabase() {
     try {
-        // 使用連接池以支援事務
+        // 使用??��池以?�援事�?
         pool = mysql.createPool({
             host: process.env.DB_HOST || 'localhost',
             user: process.env.DB_USER || 'root',
@@ -106,12 +110,12 @@ async function initDatabase() {
         
         db = await pool.getConnection();
         
-        console.log('資料庫連接成功');
+        console.log('資�?庫�?��?��?');
         
-        // 資料庫結構已由 complete_database_structure.sql 建立
-        // 不再需要 CREATE TABLE 語句
+        // 資�?庫�?構已??complete_database_structure.sql 建�?
+        // 不�??��?CREATE TABLE 語句
         
-        // 建立管理員帳號
+        // 建�?管�??�帳??
         const [adminExists] = await db.execute(
             'SELECT id FROM users WHERE username = ? AND role = "admin"',
             ['admin']
@@ -123,10 +127,10 @@ async function initDatabase() {
                 'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
                 ['admin', hashedPassword, 'admin']
             );
-            console.log('預設管理員帳號已建立 - 帳號: admin, 密碼: 123');
+            console.log('?�設管�??�帳?�已建�? - 帳�?: admin, 密碼: 123');
         }
         
-        // 建立01-12的團隊帳號
+        // 建�?01-12?��??�帳??
         for (let i = 1; i <= 12; i++) {
             const username = String(i).padStart(2, '0');
             const [teamExists] = await db.execute(
@@ -135,17 +139,17 @@ async function initDatabase() {
             );
             
             if (teamExists.length === 0) {
-                const hashedPassword = await bcrypt.hash(username, 10);  // 密碼與帳號相同
+                const hashedPassword = await bcrypt.hash(username, 10);  // 密碼?�帳?�相??
                 await db.execute(
                     'INSERT INTO users (username, password_hash, team_name, role) VALUES (?, ?, ?, ?)',
-                    [username, hashedPassword, `第${i}組`, 'team']
+                    [username, hashedPassword, `�?{i}組`, 'team']
                 );
-                console.log(`團隊帳號 ${username} 已建立 - 密碼: ${username}`);
+                console.log(`?��?帳�? ${username} 已建�?- 密碼: ${username}`);
             }
         }
         
     } catch (error) {
-        console.error('資料庫初始化失敗:', error);
+        console.error('資�?庫�?始�?失�?:', error);
         process.exit(1);
     }
 }
@@ -171,12 +175,12 @@ function authenticateToken(req, res, next) {
 
 function requireAdmin(req, res, next) {
     if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: '需要管理員權限' });
+        return res.status(403).json({ error: '?�要管?�員權�?' });
     }
     next();
 }
 
-// 網路資訊 API
+// 網路資�? API
 app.get('/api/network-info', (req, res) => {
     const os = require('os');
     const networkInterfaces = os.networkInterfaces();
@@ -197,22 +201,22 @@ app.get('/api/network-info', (req, res) => {
     });
 });
 
-// QR Code 生成 API
+// QR Code ?��? API
 app.get('/api/qr/:gameId', async (req, res) => {
     const { gameId } = req.params;
     
     try {
-        // 獲取遊戲資訊
+        // ?��??�戲資�?
         const [games] = await db.execute(
-            'SELECT game_name FROM games WHERE id = ?',
+            'SELECT name FROM games WHERE id = ?',
             [gameId]
         );
 
         if (games.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
 
-        // 獲取網路 IP
+        // ?��?網路 IP
         const os = require('os');
         const networkInterfaces = os.networkInterfaces();
         let serverIP = 'localhost';
@@ -225,10 +229,10 @@ app.get('/api/qr/:gameId', async (req, res) => {
             });
         });
 
-        // 生成遊戲連結
+        // ?��??�戲???
         const gameUrl = `http://${serverIP}:${process.env.PORT || 3000}/team?gameId=${gameId}`;
         
-        // 生成 QR Code
+        // ?��? QR Code
         const qrCodeDataURL = await QRCode.toDataURL(gameUrl, {
             width: 300,
             margin: 2,
@@ -240,7 +244,7 @@ app.get('/api/qr/:gameId', async (req, res) => {
 
         res.json({
             gameId,
-            gameName: games[0].game_name,
+            gameName: games[0].name,
             gameUrl,
             qrCode: qrCodeDataURL,
             serverIP,
@@ -248,12 +252,12 @@ app.get('/api/qr/:gameId', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('生成 QR Code 錯誤:', error);
-        res.status(500).json({ error: '生成 QR Code 失敗' });
+        console.error('?��? QR Code ?�誤:', error);
+        res.status(500).json({ error: '?��? QR Code 失�?' });
     }
 });
 
-// 登入
+// ?�入
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     
@@ -264,17 +268,17 @@ app.post('/api/auth/login', async (req, res) => {
         );
         
         if (users.length === 0) {
-            return res.status(401).json({ error: '用戶名或密碼錯誤' });
+            return res.status(401).json({ error: '?�戶?��?密碼?�誤' });
         }
         
         const user = users[0];
         
-        // 使用 plain_password 欄位進行簡單比對（課堂版本）
+        // 使用 plain_password 欄�??��?簡單比�?（課?��??��?
         const validPassword = (user.plain_password && password === user.plain_password) || 
                              await bcrypt.compare(password, user.password_hash || '');
         
         if (!validPassword) {
-            return res.status(401).json({ error: '用戶名或密碼錯誤' });
+            return res.status(401).json({ error: '?�戶?��?密碼?�誤' });
         }
         
         const token = jwt.sign(
@@ -287,21 +291,21 @@ app.post('/api/auth/login', async (req, res) => {
             username: user.username, 
             role: user.role,
             teamName: user.team_name,
-            user: {                       // 給前端期待的 user 物件
+            user: {                       // 給�?端�?待�? user ?�件
                 username: user.username,
                 role: user.role,
                 teamName: user.team_name
             }
         });
     } catch (error) {
-        console.error('登入錯誤:', error);
-        res.status(500).json({ error: '登入失敗' });
+        console.error('?�入?�誤:', error);
+        res.status(500).json({ error: '?�入失�?' });
     }
 });
 
-// 驗證 Token API
+// 驗�? Token API
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
-    // req.user 來自 JWT（在 login 時已簽入 userId/username/role）
+    // req.user 來自 JWT（在 login ?�已簽入 userId/username/role�?
     return res.json({
         user: {
             username: req.user.username,
@@ -310,15 +314,16 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     });
 });
 
-// 創建遊戲（改進版）
+// ?�建?�戲（改?��?�?
 app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req, res) => {
-    // 兼容 snake_case 和 camelCase
+    // ?�容 snake_case ??camelCase
     const b = req.body;
     console.log('Received game creation request:', b);
     
     const gameName = b.gameName ?? b.name;
     const initialBudget = b.initialBudget ?? b.initial_budget;
     const loanInterestRate = b.loanInterestRate ?? b.loan_interest_rate;
+    const maxLoanRatio = b.maxLoanRatio ?? b.max_loan_ratio;
     const unsoldFeePerKg = b.unsoldFeePerKg ?? b.unsold_fee_per_kg;
     const fixedUnsoldRatio = b.fixedUnsoldRatio ?? b.fixed_unsold_ratio;
     const distributorFloorPriceA = b.distributorFloorPriceA ?? b.distributor_floor_price_a ?? 100;
@@ -329,32 +334,33 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
     const totalDays = b.totalDays ?? b.total_days;
     
     console.log('Parsed parameters:', {
-        gameName, initialBudget, loanInterestRate, unsoldFeePerKg,
+        gameName, initialBudget, loanInterestRate, maxLoanRatio, unsoldFeePerKg,
         fixedUnsoldRatio, distributorFloorPriceA, distributorFloorPriceB,
         targetPriceA, targetPriceB, numTeams, totalDays
     });
     
     try {
-        // 結束所有進行中或待開始的遊戲
+        // 結�??�?�進�?中�?待�?始�??�戲
         await db.execute(
-            `UPDATE games SET status = 'finished' WHERE status IN ('active', 'pending', 'paused')`
+            `UPDATE games SET status = 'completed' WHERE status IN ('active', 'pending')`
         );
         
         const teamCount = numTeams || 12;
         
-        // 創建新遊戲（使用預設參數或自定義參數）
+        // ?�建?��??��?使用?�設?�數?�自定義?�數�?
         const [result] = await db.execute(
             `INSERT INTO games (
-                game_name, initial_budget, loan_interest_rate, 
+                name, initial_budget, loan_interest_rate, max_loan_ratio,
                 unsold_fee_per_kg, fixed_unsold_ratio, distributor_floor_price_a, distributor_floor_price_b,
                 target_price_a, target_price_b, num_teams, total_days
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 gameName,
                 initialBudget ?? defaultGameParameters.initialBudget,
                 loanInterestRate ?? defaultGameParameters.loanInterestRate,
+                maxLoanRatio ?? defaultGameParameters.maxLoanRatio,
                 unsoldFeePerKg ?? defaultGameParameters.unsoldFeePerKg,
-                fixedUnsoldRatio ?? 2.5,  // 預設2.5%固定滯銷比例
+                fixedUnsoldRatio ?? defaultGameParameters.fixedUnsoldRatio,
                 distributorFloorPriceA ?? defaultGameParameters.distributorFloorPriceA,
                 distributorFloorPriceB ?? defaultGameParameters.distributorFloorPriceB,
                 targetPriceA ?? defaultGameParameters.targetPriceA,
@@ -366,19 +372,19 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         
         const gameId = result.insertId;
         
-        // 設定為 pending 狀態，第1天
+        // 設�???pending ?�?��?�?�?
         await db.execute(
             'UPDATE games SET status = "pending", current_day = 1 WHERE id = ?',
             [gameId]
         );
         
-        // 自動創建第1天的記錄
+        // ?��??�建�?天�?記�?
         const baselineSupplyA = teamCount * 150;
         const baselineSupplyB = teamCount * 300;
         const baselineBudgetA = baselineSupplyA * (targetPriceA || 150);
         const baselineBudgetB = baselineSupplyB * (targetPriceB || 120);
         
-        // 第1天使用標準參數
+        // �?天使?��?準�???
         const fishASupply = baselineSupplyA;
         const fishBSupply = baselineSupplyB;
         const fishABudget = baselineBudgetA;
@@ -392,9 +398,9 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
             [gameId, fishASupply, fishBSupply, fishABudget, fishBBudget]
         );
         
-        console.log(`遊戲 ${gameName} 創建成功，ID: ${gameId}，已進入第1天，等待學生加入`);
+        console.log(`?�戲 ${gameName} ?�建?��?，ID: ${gameId}，已?�入�?天�?等�?學�??�入`);
         
-        // 獲取伺服器IP和埠
+        // ?��?伺�??�IP?��?
         const os = require('os');
         const networkInterfaces = os.networkInterfaces();
         let serverIP = 'localhost';
@@ -413,7 +419,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         res.json({ 
             success: true, 
             gameId: gameId,
-            message: `遊戲創建成功！\n已自動進入第1天\n請通知學生登入並加入遊戲\n學生加入後即可開始買入投標`,
+            message: `?�戲?�建?��?！\n已自?�進入�?天\n請通知學�??�入並�??��??�\n學�??�入後即?��?始買?��?標`,
             numTeams: teamCount,
             gameName: gameName,
             day: 1,
@@ -424,18 +430,18 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
             port: port
         });
         
-        // 通知所有連線的客戶端
+        // ?�知?�?��???�客?�端
         io.emit('gameUpdate', { event: 'newGameCreated', gameId });
         
     } catch (error) {
-        console.error('創建遊戲錯誤:', error);
-        console.error('錯誤詳情:', error.message);
-        console.error('錯誤堆疊:', error.stack);
-        res.status(500).json({ error: '創建遊戲失敗: ' + error.message });
+        console.error('?�建?�戲?�誤:', error);
+        console.error('?�誤詳�?:', error.message);
+        console.error('?�誤?��?:', error.stack);
+        res.status(500).json({ error: '?�建?�戲失�?: ' + error.message });
     }
 });
 
-// 獲取遊戲列表
+// ?��??�戲?�表
 app.get('/api/admin/games', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const [games] = await db.execute(`
@@ -447,15 +453,15 @@ app.get('/api/admin/games', authenticateToken, requireAdmin, async (req, res) =>
         `);
         res.json(games);
     } catch (error) {
-        console.error('獲取遊戲列表錯誤:', error);
-        res.status(500).json({ error: '獲取遊戲列表失敗' });
+        console.error('?��??�戲?�表?�誤:', error);
+        res.status(500).json({ error: '?��??�戲?�表失�?' });
     }
 });
 
-// 獲取當前唯一的 active 遊戲
+// ?��??��??��???active ?�戲
 app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        // 查詢當前 active 或 pending 的遊戲 (優先 active)
+        // ?�詢?��? active ??pending ?��???(?��? active)
         const [games] = await db.execute(
             `SELECT * FROM games 
              WHERE status IN ('active', 'pending') 
@@ -470,20 +476,20 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
         
         if (games.length === 0) {
             return res.status(404).json({ 
-                error: '目前沒有正在進行中的遊戲', 
+                error: '?��?沒�?�?��?��?中�??�戲', 
                 code: 'NO_ACTIVE_GAME' 
             });
         }
         
         const game = games[0];
         
-        // 獲取當前日資料
+        // ?��??��??��???
         const [currentDay] = await db.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [game.id]
         );
         
-        // 獲取所有參與者資訊 (使用 LEFT JOIN 以處理沒有參與者的情況)
+        // ?��??�?��??�者�?�?(使用 LEFT JOIN 以�??��??��??�者�??��?)
         let participants = [];
         try {
             const [result] = await db.execute(`
@@ -499,11 +505,11 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
             participants = [];
         }
         
-        // 組合完整的遊戲資料
+        // 組�?完整?��??��???
         const activeGameData = {
             ...game,
             gameId: game.id,
-            gameName: game.game_name,
+            gameName: game.name,
             currentDayData: currentDay.length > 0 ? currentDay[0] : null,
             teams: participants,
             totalDays: game.total_days,
@@ -514,17 +520,17 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
         res.json(activeGameData);
         
     } catch (error) {
-        console.error('獲取 active 遊戲錯誤:', error);
+        console.error('?��? active ?�戲?�誤:', error);
         console.error('Error details:', error.message);
         console.error('Stack trace:', error.stack);
         res.status(500).json({ 
-            error: '獲取遊戲狀態失敗',
+            error: '?��??�戲?�?�失??,
             details: error.message 
         });
     }
 });
 
-// 獲取單一遊戲狀態
+// ?��??��??�戲?�??
 app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
@@ -540,17 +546,17 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
         `, [gameId]);
         
         if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
         
         res.json(game[0]);
     } catch (error) {
-        console.error('獲取遊戲狀態錯誤:', error);
-        res.status(500).json({ error: '獲取遊戲狀態失敗' });
+        console.error('?��??�戲?�?�錯�?', error);
+        res.status(500).json({ error: '?��??�戲?�?�失?? });
     }
 });
 
-// 獲取遊戲團隊狀態
+// ?��??�戲?��??�??
 app.get('/api/admin/games/:gameId/teams', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
@@ -565,12 +571,12 @@ app.get('/api/admin/games/:gameId/teams', authenticateToken, requireAdmin, async
         
         res.json(teams);
     } catch (error) {
-        console.error('獲取團隊狀態錯誤:', error);
-        res.status(500).json({ error: '獲取團隊狀態失敗' });
+        console.error('?��??��??�?�錯�?', error);
+        res.status(500).json({ error: '?��??��??�?�失?? });
     }
 });
 
-// 獲取伺服器時間和當前投標狀態
+// ?��?伺�??��??��??��??��??�??
 app.get('/api/games/:gameId/timer-status', async (req, res) => {
     const { gameId } = req.params;
     
@@ -610,12 +616,12 @@ app.get('/api/games/:gameId/timer-status', async (req, res) => {
             isActive: isActive
         });
     } catch (error) {
-        console.error('獲取計時器狀態錯誤:', error);
-        res.status(500).json({ error: '獲取計時器狀態失敗' });
+        console.error('?��?計�??��??�錯�?', error);
+        res.status(500).json({ error: '?��?計�??��??�失?? });
     }
 });
 
-// 獲取當前投標資料
+// ?��??��??��?資�?
 app.get('/api/admin/games/:gameId/current-bids', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
@@ -649,30 +655,30 @@ app.get('/api/admin/games/:gameId/current-bids', authenticateToken, requireAdmin
         
         res.json({ buyBids, sellBids });
     } catch (error) {
-        console.error('獲取投標資料錯誤:', error);
-        res.status(500).json({ error: '獲取投標資料失敗' });
+        console.error('?��??��?資�??�誤:', error);
+        res.status(500).json({ error: '?��??��?資�?失�?' });
     }
 });
 
-// 獲取指定天數的投標資料
+// ?��??��?天數?��?標�???
 app.get('/api/admin/games/:gameId/bids/:day', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId, day } = req.params;
     const { type } = req.query; // 'buy' or 'sell'
     
     try {
-        // 獲取指定天數的 game_day
+        // ?��??��?天數??game_day
         const [gameDays] = await db.execute(
             'SELECT id FROM game_days WHERE game_id = ? AND day_number = ?',
             [gameId, day]
         );
         
         if (gameDays.length === 0) {
-            return res.status(404).json({ error: '找不到該天資料' });
+            return res.status(404).json({ error: '?��??�該天�??? });
         }
         
         const dayId = gameDays[0].id;
         
-        // 構建查詢條件
+        // 構建?�詢條件
         let bidTypeCondition = '';
         if (type === 'buy' || type === 'sell') {
             bidTypeCondition = 'AND b.bid_type = ?';
@@ -689,7 +695,7 @@ app.get('/api/admin/games/:gameId/bids/:day', authenticateToken, requireAdmin, a
         const params = type ? [dayId, type] : [dayId];
         const [bids] = await db.execute(query, params);
         
-        // 分組結果
+        // ?��?結�?
         const buyBids = bids.filter(bid => bid.bid_type === 'buy');
         const sellBids = bids.filter(bid => bid.bid_type === 'sell');
         
@@ -700,224 +706,60 @@ app.get('/api/admin/games/:gameId/bids/:day', authenticateToken, requireAdmin, a
             requestedType: type || 'all'
         });
     } catch (error) {
-        console.error('獲取歷史投標資料錯誤:', error);
-        res.status(500).json({ error: '獲取投標資料失敗' });
+        console.error('?��?歷史?��?資�??�誤:', error);
+        res.status(500).json({ error: '?��??��?資�?失�?' });
     }
 });
 
-// 推進天數（可自訂參數）
-app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    const { params } = req.body;
-    // 兼容 camelCase 和 snake_case
-    const p = params || {};
-    let fishASupply = p.fishASupply ?? p.fish_a_supply;
-    let fishBSupply = p.fishBSupply ?? p.fish_b_supply;
-    let fishABudget = p.fishABudget ?? p.fish_a_budget ?? p.fish_a_restaurant_budget;
-    let fishBBudget = p.fishBBudget ?? p.fish_b_budget ?? p.fish_b_restaurant_budget;
-    
-    try {
-        const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        const currentDay = game[0].current_day;
-        if (currentDay >= 7) {
-            return res.status(400).json({ error: '遊戲已結束' });
-        }
-        
-        // 檢查當前天是否已經結算（第0天除外）
-        if (currentDay > 0) {
-            const [currentDayRecord] = await db.execute(
-                'SELECT * FROM game_days WHERE game_id = ? AND day_number = ?',
-                [gameId, currentDay]
-            );
-            
-            // 使用正確的 status 欄位和狀態名稱
-            if (currentDayRecord.length > 0 && currentDayRecord[0].status !== 'settled') {
-                return res.status(400).json({ error: `請先完成第${currentDay}天的結算` });
-            }
-        }
-        
-        const nextDay = currentDay + 1;
-        const numTeams = game[0].num_teams;
-        
-        // 如果沒有提供參數，使用自動生成
-        if (!fishASupply || !fishBSupply || !fishABudget || !fishBBudget) {
-            const baselineSupplyA = numTeams * 150;
-            const baselineSupplyB = numTeams * 300;
-            const baselineBudgetA = baselineSupplyA * game[0].target_price_a;
-            const baselineBudgetB = baselineSupplyB * game[0].target_price_b;
-            
-            // 根據天數的變化模式
-            let supplyMultiplierA = 1;
-            let supplyMultiplierB = 1;
-            let budgetMultiplierA = 1;
-            let budgetMultiplierB = 1;
-            
-            // 更新：供給量變動範圍從±30%改為±20%
-            switch(nextDay) {
-                case 1:
-                    supplyMultiplierA = 1.0;
-                    supplyMultiplierB = 1.0;
-                    budgetMultiplierA = 1.0;
-                    budgetMultiplierB = 1.0;
-                    break;
-                case 2:
-                    supplyMultiplierA = 0.85;  // 原0.7，現在改為更小的變動
-                    supplyMultiplierB = 1.05;
-                    budgetMultiplierA = 1.15;
-                    budgetMultiplierB = 0.95;
-                    break;
-                case 3:
-                    supplyMultiplierA = 1.05;
-                    supplyMultiplierB = 0.92;
-                    budgetMultiplierA = 0.95;
-                    budgetMultiplierB = 1.18;  // 原1.3，現在改為更小的變動
-                    break;
-                case 4:
-                    supplyMultiplierA = 1.15;  // 原1.3
-                    supplyMultiplierB = 1.20;  // 原1.4
-                    budgetMultiplierA = 1.08;
-                    budgetMultiplierB = 1.08;
-                    break;
-                case 5:
-                    supplyMultiplierA = 1.12;
-                    supplyMultiplierB = 1.12;
-                    budgetMultiplierA = 0.85;
-                    budgetMultiplierB = 0.82;
-                    break;
-                case 6:
-                    supplyMultiplierA = 0.88;
-                    supplyMultiplierB = 1.15;  // 原1.3
-                    budgetMultiplierA = 1.20;  // 原1.4
-                    budgetMultiplierB = 0.92;
-                    break;
-                case 7:
-                    supplyMultiplierA = 0.92;
-                    supplyMultiplierB = 0.90;
-                    budgetMultiplierA = 1.20;  // 原1.5
-                    budgetMultiplierB = 1.18;  // 原1.4
-                    break;
-            }
-            
-            // 隨機因子：±5%的額外變動
-            const randomFactorA = 0.95 + Math.random() * 0.1;
-            const randomFactorB = 0.95 + Math.random() * 0.1;
-            
-            fishASupply = Math.round(baselineSupplyA * supplyMultiplierA * randomFactorA);
-            fishBSupply = Math.round(baselineSupplyB * supplyMultiplierB * randomFactorB);
-            fishABudget = Math.ceil(baselineBudgetA * budgetMultiplierA * randomFactorA / 50000) * 50000;
-            fishBBudget = Math.ceil(baselineBudgetB * budgetMultiplierB * randomFactorB / 50000) * 50000;
-        }
-        
-        // 使用正確的欄位名稱和初始狀態
-        await db.execute(
-            `INSERT INTO game_days (
-                game_id, day_number, fish_a_supply, fish_b_supply,
-                fish_a_restaurant_budget, fish_b_restaurant_budget, status
-            ) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-            [gameId, nextDay, fishASupply, fishBSupply, fishABudget, fishBBudget]
-        );
-        
-        // 使用正確的狀態名稱
-        await db.execute(
-            'UPDATE games SET current_day = ?, status = "active" WHERE id = ?',
-            [nextDay, gameId]
-        );
-
-        // 重置所有團隊狀態 - 清空庫存，貸款利息複利計算
-        console.log(`重置第${nextDay}天的團隊狀態...`);
-        const [participants] = await db.execute(
-            'SELECT * FROM game_participants WHERE game_id = ?',
-            [gameId]
-        );
-
-        for (const participant of participants) {
-            const currentLoan = participant.total_loan || 0;
-            const interestRate = game[0].loan_interest_rate || 0.03; // 3%複利
-            const newTotalLoan = currentLoan * (1 + interestRate);
-
-            // 更新團隊狀態：清空庫存，更新貸款
-            await db.execute(
-                `UPDATE game_participants 
-                 SET fish_a_inventory = 0, 
-                     fish_b_inventory = 0, 
-                     total_loan = ?
-                 WHERE team_id = ? AND game_id = ?`,
-                [newTotalLoan, participant.team_id, gameId]
-            );
-        }
-        
-        console.log(`第${nextDay}天團隊狀態已重置`);
-        
-        res.json({
-            success: true,
-            dayNumber: nextDay,
-            parameters: {
-                fishASupply,
-                fishBSupply,
-                fishABudget,
-                fishBBudget
-            }
-        });
-        
-        io.emit('gameUpdate', { gameId, event: 'newDay', dayNumber: nextDay });
-    } catch (error) {
-        console.error('推進天數錯誤:', error);
-        res.status(500).json({ error: '推進天數失敗' });
-    }
-});
-
-// 推進天數（新版本 - 自動尋找 active 遊戲）
+// ?�進天?��??�自訂�??��?
+// ?�進天?��??��???- ?��?尋找 active ?�戲�?
 app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, res) => {
     const { params } = req.body;
     
     try {
-        // 自動尋找當前 active 遊戲
+        // ?��?尋找?��? active ?�戲
         const [games] = await db.execute('SELECT * FROM games WHERE status = ? LIMIT 1', ['active']);
         if (games.length === 0) {
-            return res.status(404).json({ error: '目前沒有正在進行中的遊戲', code: 'NO_ACTIVE_GAME' });
+            return res.status(404).json({ error: '?��?沒�?�?��?��?中�??�戲', code: 'NO_ACTIVE_GAME' });
         }
         
         const game = games[0];
         const gameId = game.id;
         
-        // 檢查當前日是否已結算（狀態機驗證）
+        // 檢查?��??�是?�已結�?（�??��?驗�?�?
         const [currentDayData] = await db.execute(
             'SELECT * FROM game_days WHERE game_id = ? AND day_number = ?', 
             [gameId, game.current_day]
         );
         
-        if (currentDayData.length > 0 && currentDayData[0].status !== 'settled') {
-            return res.status(400).json({ 
-                error: '請先完成當日的所有階段（買入、賣出、結算）', 
-                currentPhase: currentDayData[0].status 
+        if (currentDayData.length > 0 && currentDayData[0].status !== 'completed') {
+            return res.status(400).json({
+                error: '請�?完�??�日?��??��?段�?買入?�賣?�、�?算�?',
+                currentPhase: currentDayData[0].status
             });
         }
         
         const nextDay = game.current_day + 1;
         if (nextDay > game.total_days) {
-            // 遊戲結束
-            await db.execute('UPDATE games SET status = "finished" WHERE id = ?', [gameId]);
-            return res.json({ message: '遊戲已結束', gameCompleted: true });
+            // ?�戲結�?
+            await db.execute('UPDATE games SET status = "completed" WHERE id = ?', [gameId]);
+            return res.json({ message: '?�戲已�???, gameCompleted: true });
         }
         
-        // 解析參數（兼容 camelCase 和 snake_case）
+        // �???�數（兼�?camelCase ??snake_case�?
         const p = params || {};
         let fishASupply = p.fishASupply ?? p.fish_a_supply;
         let fishBSupply = p.fishBSupply ?? p.fish_b_supply;
         let fishABudget = p.fishABudget ?? p.fish_a_budget ?? p.fish_a_restaurant_budget;
         let fishBBudget = p.fishBBudget ?? p.fish_b_budget ?? p.fish_b_restaurant_budget;
         
-        // 如果沒有提供參數，使用系統自動生成
+        // 如�?沒�??��??�數，使?�系統自?��???
         if (!fishASupply || !fishBSupply || !fishABudget || !fishBBudget) {
             const teamCount = game.num_teams || 12;
             const baselineSupplyA = teamCount * 150;
             const baselineSupplyB = teamCount * 300;
             
-            // 根據天數調整係數
+            // ?��?天數調整係數
             let supplyMultiplierA = 1, supplyMultiplierB = 1;
             let budgetMultiplierA = 1, budgetMultiplierB = 1;
             
@@ -966,19 +808,44 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
             fishBBudget = fishBBudget || Math.round(fishBSupply * (game.target_price_b || 300) * budgetMultiplierB);
         }
         
-        // 更新遊戲天數
-        await db.execute('UPDATE games SET current_day = ? WHERE id = ?', [nextDay, gameId]);
-        
-        // 創建新的一天記錄
+        // ?�新?�戲天數和狀�?
+        await db.execute('UPDATE games SET current_day = ?, status = "active" WHERE id = ?', [nextDay, gameId]);
+
+        // ?�建?��?一天�???
         await db.execute(`
             INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
                 fish_a_restaurant_budget, fish_b_restaurant_budget, status
             ) VALUES (?, ?, ?, ?, ?, ?, 'pending')
         `, [gameId, nextDay, fishASupply, fishBSupply, fishABudget, fishBBudget]);
-        
+
+        // ?�置?�?��??��???- 清空庫�?，貸款利?��??��?�?
+        console.log(`?�置�?{nextDay}天�??��??�??..`);
+        const [participants] = await db.execute(
+            'SELECT * FROM game_participants WHERE game_id = ?',
+            [gameId]
+        );
+
+        for (const participant of participants) {
+            const currentLoan = participant.total_loan || 0;
+            const interestRate = game.loan_interest_rate || 0.03; // 3%複利
+            const newTotalLoan = currentLoan * (1 + interestRate);
+
+            // ?�新?��??�?��?清空庫�?，更?�貸�?
+            await db.execute(
+                `UPDATE game_participants
+                 SET fish_a_inventory = 0,
+                     fish_b_inventory = 0,
+                     total_loan = ?
+                 WHERE team_id = ? AND game_id = ?`,
+                [newTotalLoan, participant.team_id, gameId]
+            );
+        }
+
+        console.log(`�?{nextDay}天�??��??�已?�置`);
+
         res.json({
-            message: `已推進到第 ${nextDay} 天`,
+            message: `已推?�到�?${nextDay} 天`,
             day: nextDay,
             marketParams: {
                 fishASupply,
@@ -987,19 +854,21 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
                 fishBBudget
             }
         });
+
+        io.emit('gameUpdate', { gameId, event: 'newDay', dayNumber: nextDay });
         
     } catch (error) {
-        console.error('推進天數錯誤:', error);
-        res.status(500).json({ error: '推進天數失敗' });
+        console.error('?�進天?�錯�?', error);
+        res.status(500).json({ error: '?�進天?�失?? });
     }
 });
 
-// 開始買入投標 (新版本 - 自動尋找 active 遊戲)
+// ?��?買入?��? (?��???- ?��?尋找 active ?�戲)
 app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req, res) => {
-    const { duration } = req.body; // 允許自定義時間（分鐘）
+    const { duration } = req.body; // ?�許?��?義�??��??��?�?
     
     try {
-        // 自動尋找 active 或 pending 遊戲
+        // ?��?尋找 active ??pending ?�戲
         const [games] = await db.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
@@ -1007,7 +876,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
         
         if (games.length === 0) {
             return res.status(404).json({ 
-                error: '目前沒有正在進行中的遊戲', 
+                error: '?��?沒�?�?��?��?中�??�戲', 
                 code: 'NO_ACTIVE_GAME' 
             });
         }
@@ -1021,36 +890,36 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '請先推進到第一天' });
+            return res.status(400).json({ error: '請�??�進到第�?�? });
         }
         
-        // 狀態檢查 - 必須是 pending 狀態才能開始買入投標
+        // ?�?�檢??- 必�???pending ?�?��??��?始買?��?�?
         const dayStatus = currentDay[0].status;
         if (dayStatus !== 'pending') {
             let errorMessage = '';
             switch (dayStatus) {
                 case 'buying_open':
-                    errorMessage = '買入投標已經開放';
+                    errorMessage = '買入?��?已�??�放';
                     break;
                 case 'buying_closed':
-                    errorMessage = '買入投標已結束，請開始賣出投標';
+                    errorMessage = '買入?��?已�??��?請�?始賣?��?�?;
                     break;
                 case 'selling_open':
-                    errorMessage = '正在賣出投標中';
+                    errorMessage = '�?���?��?��?�?;
                     break;
                 case 'selling_closed':
-                    errorMessage = '請先執行結算';
+                    errorMessage = '請�??��?結�?';
                     break;
-                case 'settled':
-                    errorMessage = '當日已結算，請推進到下一天';
+                case 'completed':
+                    errorMessage = '?�日已�?算�?請推?�到下�?�?;
                     break;
                 default:
-                    errorMessage = `當前狀態(${dayStatus})不允許開始買入投標`;
+                    errorMessage = `?��??�??${dayStatus})不�?許�?始買?��?標`;
             }
             return res.status(400).json({ error: errorMessage });
         }
         
-        // 如果遊戲還在 pending 狀態，將其激活
+        // 如�??�戲?�在 pending ?�?��?將其激�?
         if (game.status === 'pending') {
             await db.execute(
                 'UPDATE games SET status = ? WHERE id = ?',
@@ -1058,45 +927,45 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
             );
         }
         
-        // 設定投標開始和結束時間（預設7分鐘，可自定義）
-        const biddingDuration = duration || 7; // 預設7分鐘
+        // 設�??��??��??��??��??��??�設7?��?，可?��?義�?
+        const biddingDuration = duration || 7; // ?�設7?��?
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000);
         
-        // 更新狀態為 buying_open 並儲存結束時間
+        // ?�新?�?�為 buying_open 並儲存�??��???
         await db.execute(
             'UPDATE game_days SET status = ?, buy_start_time = ?, buy_end_time = ? WHERE id = ?',
             ['buying_open', startTime, endTime, currentDay[0].id]
         );
         
-        // 啟動計時器
+        // ?��?計�???
         startTimer(gameId, biddingDuration * 60, async () => {
             try {
-                // 計時器結束時自動關閉買入投標
+                // 計�??��??��??��??��?買入?��?
                 await db.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['buying_closed', currentDay[0].id]
                 );
                 
-                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已自動結束`);
+                console.log(`?�戲 ${gameId} �?${currentDay[0].day_number} 天買?��?標已?��?結�?`);
                 
-                // 通知所有客戶端買入階段結束
+                // ?�知?�?�客?�端買入?�段結�?
                 io.emit('phaseChange', { 
                     gameId, 
                     phase: 'buying_closed',
                     dayNumber: currentDay[0].day_number,
-                    message: '買入投標時間結束'
+                    message: '買入?��??��?結�?'
                 });
             } catch (error) {
-                console.error('自動結束買入投標錯誤:', error);
+                console.error('?��?結�?買入?��??�誤:', error);
             }
         });
         
-        console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已開始`);
+        console.log(`?�戲 ${gameId} �?${currentDay[0].day_number} 天買?��?標已?��?`);
         
         res.json({ 
             success: true, 
-            message: `買入投標已開始（${biddingDuration}分鐘）`,
+            message: `買入?��?已�?始�?${biddingDuration}?��?）`,
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
             duration: biddingDuration,
@@ -1104,7 +973,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
             dayNumber: currentDay[0].day_number
         });
         
-        // 發送開始買入投標事件
+        // ?�送�?始買?��?標�?�?
         io.emit('phaseChange', { 
             gameId, 
             phase: 'buying_open',
@@ -1114,7 +983,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
             duration: biddingDuration * 60 * 1000
         });
         
-        // 同時發送 gameUpdate 事件以保持相容性
+        // ?��??��?gameUpdate 事件以�??�相容�?
         io.emit('gameUpdate', { 
             gameId, 
             event: 'buyingOpen', 
@@ -1126,21 +995,21 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
         });
         
     } catch (error) {
-        console.error('開始買入投標失敗:', error);
-        res.status(500).json({ error: '開始買入投標失敗' });
+        console.error('?��?買入?��?失�?:', error);
+        res.status(500).json({ error: '?��?買入?��?失�?' });
     }
 });
 
-// 開始買入投標 (舊版本 - 保留相容性)
+// ?��?買入?��? (?��???- 保�??�容??
 app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
-    const { duration } = req.body; // 允許自定義時間（分鐘）
+    const { duration } = req.body; // ?�許?��?義�??��??��?�?
     
     try {
-        // 先檢查遊戲是否存在
+        // ?�檢?��??�是?��???
         const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
         
         const [currentDay] = await db.execute(
@@ -1149,80 +1018,80 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '請先推進到第一天' });
+            return res.status(400).json({ error: '請�??�進到第�?�? });
         }
         
-        // 更詳細的狀態檢查 - 使用正確的 status 欄位
+        // ?�詳細�??�?�檢??- 使用�?��??status 欄�?
         const dayStatus = currentDay[0].status;
         if (dayStatus === 'buying_open') {
-            return res.status(400).json({ error: '買入投標已經開放' });
+            return res.status(400).json({ error: '買入?��?已�??�放' });
         } else if (dayStatus === 'buying_closed') {
-            return res.status(400).json({ error: '買入投標已結束，請開始賣出投標' });
+            return res.status(400).json({ error: '買入?��?已�??��?請�?始賣?��?�? });
         } else if (dayStatus === 'selling_open') {
-            return res.status(400).json({ error: '正在賣出投標中' });
+            return res.status(400).json({ error: '�?���?��?��?�? });
         } else if (dayStatus === 'selling_closed') {
-            return res.status(400).json({ error: '請先執行結算' });
-        } else if (dayStatus === 'settled') {
-            return res.status(400).json({ error: '當日已結算，請推進到下一天' });
+            return res.status(400).json({ error: '請�??��?結�?' });
+        } else if (dayStatus === 'completed') {
+            return res.status(400).json({ error: '?�日已�?算�?請推?�到下�?�? });
         } else if (dayStatus !== 'pending') {
-            return res.status(400).json({ error: `當前狀態(${dayStatus})不允許開始買入投標` });
+            return res.status(400).json({ error: `?��??�??${dayStatus})不�?許�?始買?��?標` });
         }
         
-        // 設定投標開始和結束時間（預設7分鐘，可自定義）
-        const biddingDuration = duration || 7; // 預設7分鐘
+        // 設�??��??��??��??��??��??�設7?��?，可?��?義�?
+        const biddingDuration = duration || 7; // ?�設7?��?
         const startTime = new Date();
-        const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
+        const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉�??�毫�?
         
-        // 更新狀態為 buying - 使用正確的 status 欄位並儲存時間
+        // ?�新?�?�為 buying - 使用�?��??status 欄�?並儲存�???
         await db.execute(
             'UPDATE game_days SET status = ?, buy_start_time = ?, buy_end_time = ? WHERE id = ?',
             ['buying_open', startTime, endTime, currentDay[0].id]
         );
         
-        // 啟動計時器
+        // ?��?計�???
         startTimer(gameId, biddingDuration * 60, async () => {
             try {
-                // 計時器結束時自動關閉買入投標
+                // 計�??��??��??��??��?買入?��?
                 await db.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['buying_closed', currentDay[0].id]
                 );
                 
-                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已自動結束`);
+                console.log(`?�戲 ${gameId} �?${currentDay[0].day_number} 天買?��?標已?��?結�?`);
                 
-                // 通知所有客戶端買入階段結束
+                // ?�知?�?�客?�端買入?�段結�?
                 io.emit('phaseChange', { 
                     gameId, 
                     phase: 'buying_closed',
                     dayNumber: currentDay[0].day_number,
-                    message: '買入投標時間結束'
+                    message: '買入?��??��?結�?'
                 });
             } catch (error) {
-                console.error('自動結束買入投標錯誤:', error);
+                console.error('?��?結�?買入?��??�誤:', error);
             }
         });
         
-        console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已開始`);
+        console.log(`?�戲 ${gameId} �?${currentDay[0].day_number} 天買?��?標已?��?`);
         
         res.json({ 
             success: true, 
-            message: `買入投標已開始（${biddingDuration}分鐘）`,
+            message: `買入?��?已�?始�?${biddingDuration}?��?）`,
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
             duration: biddingDuration
         });
         
-        // 發送開始買入投標事件，包含時間資訊
+        // ?�送�?始買?��?標�?件�??�含?��?資�?
         io.emit('phaseChange', { 
             gameId, 
             phase: 'buying_open',
             dayNumber: currentDay[0].day_number,
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
-            duration: biddingDuration * 60 * 1000 // 轉換為毫秒
+            duration: biddingDuration * 60 * 1000 // 轉�??�毫�?
         });
         
-        // 同時發送 gameUpdate 事件以保持相容性
+        // ?��??��?gameUpdate 事件以�??�相容�?
         io.emit('gameUpdate', { 
             gameId, 
             event: 'buyingOpen', 
@@ -1232,15 +1101,15 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
             duration: biddingDuration * 60 * 1000
         });
     } catch (error) {
-        console.error('開始買入投標錯誤:', error);
-        res.status(500).json({ error: `開始買入投標失敗: ${error.message}` });
+        console.error('?��?買入?��??�誤:', error);
+        res.status(500).json({ error: `?��?買入?��?失�?: ${error.message}` });
     }
 });
 
-// 結束買入投標 (新版本 - 自動尋找 active 遊戲)
+// 結�?買入?��? (?��???- ?��?尋找 active ?�戲)
 app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        // 自動尋找 active 或 pending 遊戲
+        // ?��?尋找 active ??pending ?�戲
         const [games] = await db.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
@@ -1248,7 +1117,7 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
         
         if (games.length === 0) {
             return res.status(404).json({ 
-                error: '目前沒有正在進行中的遊戲', 
+                error: '?��?沒�?�?��?��?中�??�戲', 
                 code: 'NO_ACTIVE_GAME' 
             });
         }
@@ -1262,42 +1131,42 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '找不到遊戲天數記錄' });
+            return res.status(400).json({ error: '?��??��??�天?��??? });
         }
         
-        // 狀態檢查 - 必須是 buying_open 狀態才能結束買入投標
+        // ?�?�檢??- 必�???buying_open ?�?��??��??�買?��?�?
         const dayStatus = currentDay[0].status;
         if (dayStatus !== 'buying_open') {
             let errorMessage = '';
             switch (dayStatus) {
                 case 'pending':
-                    errorMessage = '買入投標尚未開始';
+                    errorMessage = '買入?��?尚未?��?';
                     break;
                 case 'buying_closed':
-                    errorMessage = '買入投標已經結束';
+                    errorMessage = '買入?��?已�?結�?';
                     break;
                 case 'selling_open':
-                    errorMessage = '正在賣出投標中';
+                    errorMessage = '�?���?��?��?�?;
                     break;
                 case 'selling_closed':
-                    errorMessage = '賣出投標已結束';
+                    errorMessage = '�?��?��?已�???;
                     break;
-                case 'settled':
-                    errorMessage = '當日已結算';
+                case 'completed':
+                    errorMessage = '?�日已�?�?;
                     break;
                 default:
-                    errorMessage = `當前狀態(${dayStatus})不允許結束買入投標`;
+                    errorMessage = `?��??�??${dayStatus})不�?許�??�買?��?標`;
             }
             return res.status(400).json({ error: errorMessage });
         }
         
-        // 停止計時器
+        // ?�止計�???
         stopTimer(gameId);
         
-        // 結算買入投標
+        // 結�?買入?��?
         await processBuyBids(currentDay[0]);
         
-        // 獲取結算結果
+        // ?��?結�?結�?
         const [buyResults] = await db.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
@@ -1307,7 +1176,7 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
             [currentDay[0].id]
         );
         
-        // 更新為 buying_closed 狀態
+        // ?�新??buying_closed ?�??
         await db.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buying_closed', currentDay[0].id]
@@ -1315,22 +1184,22 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
         
         res.json({ 
             success: true, 
-            message: '買入投標已結束並結算',
+            message: '買入?��?已�??�並結�?',
             results: buyResults,
             gameId: gameId,
             dayNumber: currentDay[0].day_number
         });
         
-        // 發送階段變更通知
+        // ?�送�?段�??�通知
         io.emit('phaseChange', { 
             gameId, 
             phase: 'buying_closed',
             dayNumber: currentDay[0].day_number,
-            message: '買入投標手動結束',
+            message: '買入?��??��?結�?',
             results: buyResults
         });
         
-        // 保持相容性
+        // 保�??�容??
         io.emit('buyingResults', { 
             gameId, 
             dayId: currentDay[0].id,
@@ -1338,12 +1207,12 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
         });
         
     } catch (error) {
-        console.error('結束買入投標錯誤:', error);
-        res.status(500).json({ error: '結束買入投標失敗' });
+        console.error('結�?買入?��??�誤:', error);
+        res.status(500).json({ error: '結�?買入?��?失�?' });
     }
 });
 
-// 結束買入投標並結算 (舊版本 - 保留相容性)
+// 結�?買入?��?並�?�?(?��???- 保�??�容??
 app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
@@ -1353,18 +1222,18 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             [gameId]
         );
         
-        // 使用正確的 status 欄位
+        // 使用�?��??status 欄�?
         if (currentDay.length === 0 || currentDay[0].status !== 'buying_open') {
-            return res.status(400).json({ error: '當前沒有進行中的買入投標' });
+            return res.status(400).json({ error: '?��?沒�??��?中�?買入?��?' });
         }
         
-        // 停止計時器
+        // ?�止計�???
         stopTimer(gameId);
         
-        // 結算買入投標
+        // 結�?買入?��?
         await processBuyBids(currentDay[0]);
         
-        // 獲取結算結果
+        // ?��?結�?結�?
         const [buyResults] = await db.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
@@ -1374,7 +1243,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             [currentDay[0].id]
         );
         
-        // 更新為 buy_ended 狀態 - 使用正確的 status 欄位
+        // ?�新??buy_ended ?�??- 使用�?��??status 欄�?
         await db.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buying_closed', currentDay[0].id]
@@ -1382,37 +1251,37 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
         
         res.json({ 
             success: true, 
-            message: '買入投標已結束並結算',
+            message: '買入?��?已�??�並結�?',
             results: buyResults
         });
         
-        // 發送階段變更通知
+        // ?�送�?段�??�通知
         io.emit('phaseChange', { 
             gameId, 
             phase: 'buying_closed',
             dayNumber: currentDay[0].day_number,
-            message: '買入投標手動結束',
+            message: '買入?��??��?結�?',
             results: buyResults
         });
         
-        // 保持相容性
+        // 保�??�容??
         io.emit('buyingResults', { 
             gameId, 
             dayId: currentDay[0].id,
             results: buyResults 
         });
     } catch (error) {
-        console.error('結束買入投標錯誤:', error);
-        res.status(500).json({ error: '結束買入投標失敗' });
+        console.error('結�?買入?��??�誤:', error);
+        res.status(500).json({ error: '結�?買入?��?失�?' });
     }
 });
 
-// 開始賣出投標 (新版本 - 自動尋找 active 遊戲)
+// ?��?�?��?��? (?��???- ?��?尋找 active ?�戲)
 app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req, res) => {
-    const { duration } = req.body; // 允許自定義時間（分鐘）
+    const { duration } = req.body; // ?�許?��?義�??��??��?�?
     
     try {
-        // 自動尋找 active 或 pending 遊戲
+        // ?��?尋找 active ??pending ?�戲
         const [games] = await db.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
@@ -1420,7 +1289,7 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
         
         if (games.length === 0) {
             return res.status(404).json({ 
-                error: '目前沒有正在進行中的遊戲', 
+                error: '?��?沒�?�?��?��?中�??�戲', 
                 code: 'NO_ACTIVE_GAME' 
             });
         }
@@ -1434,74 +1303,74 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '找不到遊戲天數記錄' });
+            return res.status(400).json({ error: '?��??��??�天?��??? });
         }
         
-        // 狀態檢查 - 必須是 buying_closed 狀態才能開始賣出投標
+        // ?�?�檢??- 必�???buying_closed ?�?��??��?始賣?��?�?
         const dayStatus = currentDay[0].status;
         if (dayStatus !== 'buying_closed') {
             let errorMessage = '';
             switch (dayStatus) {
                 case 'pending':
-                    errorMessage = '請先開始買入投標';
+                    errorMessage = '請�??��?買入?��?';
                     break;
                 case 'buying_open':
-                    errorMessage = '請先完成買入投標';
+                    errorMessage = '請�?完�?買入?��?';
                     break;
                 case 'selling_open':
-                    errorMessage = '賣出投標已經開放';
+                    errorMessage = '�?��?��?已�??�放';
                     break;
                 case 'selling_closed':
-                    errorMessage = '賣出投標已結束，請執行結算';
+                    errorMessage = '�?��?��?已�??��?請執行�?�?;
                     break;
-                case 'settled':
-                    errorMessage = '當日已結算，請推進到下一天';
+                case 'completed':
+                    errorMessage = '?�日已�?算�?請推?�到下�?�?;
                     break;
                 default:
-                    errorMessage = `當前狀態(${dayStatus})不允許開始賣出投標`;
+                    errorMessage = `?��??�??${dayStatus})不�?許�?始賣?��?標`;
             }
             return res.status(400).json({ error: errorMessage });
         }
         
-        // 設定賣出投標開始和結束時間（預設5分鐘，可自定義）
-        const sellingDuration = duration || 5; // 預設5分鐘
+        // 設�?�?��?��??��??��??��??��??�設5?��?，可?��?義�?
+        const sellingDuration = duration || 5; // ?�設5?��?
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + sellingDuration * 60 * 1000);
         
-        // 更新狀態為 selling_open 並儲存結束時間
+        // ?�新?�?�為 selling_open 並儲存�??��???
         await db.execute(
             'UPDATE game_days SET status = ?, sell_start_time = ?, sell_end_time = ? WHERE id = ?',
             ['selling_open', startTime, endTime, currentDay[0].id]
         );
         
-        // 啟動計時器
+        // ?��?計�???
         startTimer(gameId, sellingDuration * 60, async () => {
             try {
-                // 計時器結束時自動關閉賣出投標
+                // 計�??��??��??��??��?�?��?��?
                 await db.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['selling_closed', currentDay[0].id]
                 );
                 
-                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天賣出投標已自動結束`);
+                console.log(`?�戲 ${gameId} �?${currentDay[0].day_number} 天賣?��?標已?��?結�?`);
                 
-                // 通知所有客戶端賣出階段結束
+                // ?�知?�?�客?�端�?��?�段結�?
                 io.emit('phaseChange', { 
                     gameId, 
                     phase: 'selling_closed',
                     dayNumber: currentDay[0].day_number,
-                    message: '賣出投標時間結束'
+                    message: '�?��?��??��?結�?'
                 });
             } catch (error) {
-                console.error('自動結束賣出投標錯誤:', error);
+                console.error('?��?結�?�?��?��??�誤:', error);
             }
         });
         
-        console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天賣出投標已開始`);
+        console.log(`?�戲 ${gameId} �?${currentDay[0].day_number} 天賣?��?標已?��?`);
         
         res.json({ 
             success: true, 
-            message: `賣出投標已開始（${sellingDuration}分鐘）`,
+            message: `�?��?��?已�?始�?${sellingDuration}?��?）`,
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
             duration: sellingDuration,
@@ -1509,7 +1378,7 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
             dayNumber: currentDay[0].day_number
         });
         
-        // 發送開始賣出投標事件
+        // ?�送�?始賣?��?標�?�?
         io.emit('phaseChange', { 
             gameId, 
             phase: 'selling_open',
@@ -1519,7 +1388,7 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
             duration: sellingDuration * 60 * 1000
         });
         
-        // 同時發送 gameUpdate 事件以保持相容性
+        // ?��??��?gameUpdate 事件以�??�相容�?
         io.emit('gameUpdate', { 
             gameId, 
             event: 'sellingOpen', 
@@ -1531,15 +1400,15 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
         });
         
     } catch (error) {
-        console.error('開始賣出投標失敗:', error);
-        res.status(500).json({ error: '開始賣出投標失敗' });
+        console.error('?��?�?��?��?失�?:', error);
+        res.status(500).json({ error: '?��?�?��?��?失�?' });
     }
 });
 
-// 開始賣出投標 (舊版本 - 保留相容性)
+// ?��?�?��?��? (?��???- 保�??�容??
 app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
-    const { duration } = req.body; // 允許自定義時間（分鐘）
+    const { duration } = req.body; // ?�許?��?義�??��??��?�?
     
     try {
         const [currentDay] = await db.execute(
@@ -1548,67 +1417,67 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '請先推進到第一天' });
+            return res.status(400).json({ error: '請�??�進到第�?�? });
         }
         
-        // 使用正確的 status 欄位
+        // 使用�?��??status 欄�?
         if (currentDay[0].status !== 'buying_closed') {
-            return res.status(400).json({ error: '請先完成買入投標' });
+            return res.status(400).json({ error: '請�?完�?買入?��?' });
         }
         
-        // 設定賣出投標開始和結束時間（預設4分鐘，可自定義）
-        const biddingDuration = duration || 4; // 預設4分鐘
+        // 設�?�?��?��??��??��??��??��??�設4?��?，可?��?義�?
+        const biddingDuration = duration || 4; // ?�設4?��?
         const startTime = new Date();
-        const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
+        const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉�??�毫�?
         
-        // 更新狀態為 selling - 使用正確的 status 欄位並儲存時間
+        // ?�新?�?�為 selling - 使用�?��??status 欄�?並儲存�???
         await db.execute(
             'UPDATE game_days SET status = ?, sell_start_time = ?, sell_end_time = ? WHERE id = ?',
             ['selling_open', startTime, endTime, currentDay[0].id]
         );
         
-        // 啟動計時器
+        // ?��?計�???
         startTimer(`${gameId}-selling`, biddingDuration * 60, async () => {
             try {
-                // 計時器結束時自動關閉賣出投標
+                // 計�??��??��??��??��?�?��?��?
                 await db.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['selling_closed', currentDay[0].id]
                 );
                 
-                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天賣出投標已自動結束`);
+                console.log(`?�戲 ${gameId} �?${currentDay[0].day_number} 天賣?��?標已?��?結�?`);
                 
-                // 通知所有客戶端賣出階段結束
+                // ?�知?�?�客?�端�?��?�段結�?
                 io.emit('phaseChange', { 
                     gameId, 
                     phase: 'selling_closed',
                     dayNumber: currentDay[0].day_number,
-                    message: '賣出投標時間結束'
+                    message: '�?��?��??��?結�?'
                 });
             } catch (error) {
-                console.error('自動結束賣出投標錯誤:', error);
+                console.error('?��?結�?�?��?��??�誤:', error);
             }
         });
         
         res.json({ 
             success: true, 
-            message: `賣出投標已開始（${biddingDuration}分鐘）`,
+            message: `�?��?��?已�?始�?${biddingDuration}?��?）`,
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
             duration: biddingDuration
         });
         
-        // 發送開始賣出投標事件，包含時間資訊
+        // ?�送�?始賣?��?標�?件�??�含?��?資�?
         io.emit('phaseChange', { 
             gameId, 
             phase: 'selling_open',
             dayNumber: currentDay[0].day_number,
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
-            duration: biddingDuration * 60 * 1000 // 轉換為毫秒
+            duration: biddingDuration * 60 * 1000 // 轉�??�毫�?
         });
         
-        // 同時發送 gameUpdate 事件以保持相容性
+        // ?��??��?gameUpdate 事件以�??�相容�?
         io.emit('gameUpdate', { 
             gameId, 
             event: 'sellingOpen', 
@@ -1618,15 +1487,15 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
             duration: biddingDuration * 60 * 1000
         });
     } catch (error) {
-        console.error('開始賣出投標錯誤:', error);
-        res.status(500).json({ error: '開始賣出投標失敗' });
+        console.error('?��?�?��?��??�誤:', error);
+        res.status(500).json({ error: '?��?�?��?��?失�?' });
     }
 });
 
-// 結束賣出投標 (新版本 - 自動尋找 active 遊戲)
+// 結�?�?��?��? (?��???- ?��?尋找 active ?�戲)
 app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        // 自動尋找 active 或 pending 遊戲
+        // ?��?尋找 active ??pending ?�戲
         const [games] = await db.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
@@ -1634,7 +1503,7 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
         
         if (games.length === 0) {
             return res.status(404).json({ 
-                error: '目前沒有正在進行中的遊戲', 
+                error: '?��?沒�?�?��?��?中�??�戲', 
                 code: 'NO_ACTIVE_GAME' 
             });
         }
@@ -1648,42 +1517,42 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '找不到遊戲天數記錄' });
+            return res.status(400).json({ error: '?��??��??�天?��??? });
         }
         
-        // 狀態檢查 - 必須是 selling_open 狀態才能結束賣出投標
+        // ?�?�檢??- 必�???selling_open ?�?��??��??�賣?��?�?
         const dayStatus = currentDay[0].status;
         if (dayStatus !== 'selling_open') {
             let errorMessage = '';
             switch (dayStatus) {
                 case 'pending':
-                    errorMessage = '請先開始買入投標';
+                    errorMessage = '請�??��?買入?��?';
                     break;
                 case 'buying_open':
-                    errorMessage = '請先完成買入投標';
+                    errorMessage = '請�?完�?買入?��?';
                     break;
                 case 'buying_closed':
-                    errorMessage = '賣出投標尚未開始';
+                    errorMessage = '�?��?��?尚未?��?';
                     break;
                 case 'selling_closed':
-                    errorMessage = '賣出投標已經結束';
+                    errorMessage = '�?��?��?已�?結�?';
                     break;
-                case 'settled':
-                    errorMessage = '當日已結算';
+                case 'completed':
+                    errorMessage = '?�日已�?�?;
                     break;
                 default:
-                    errorMessage = `當前狀態(${dayStatus})不允許結束賣出投標`;
+                    errorMessage = `?��??�??${dayStatus})不�?許�??�賣?��?標`;
             }
             return res.status(400).json({ error: errorMessage });
         }
         
-        // 停止計時器
+        // ?�止計�???
         stopTimer(gameId);
         
-        // 結算賣出投標
+        // 結�?�?��?��?
         await processSellBids(currentDay[0]);
         
-        // 獲取結算結果
+        // ?��?結�?結�?
         const [sellResults] = await db.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
@@ -1693,7 +1562,7 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
             [currentDay[0].id]
         );
         
-        // 更新為 selling_closed 狀態
+        // ?�新??selling_closed ?�??
         await db.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling_closed', currentDay[0].id]
@@ -1701,22 +1570,22 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
         
         res.json({ 
             success: true, 
-            message: '賣出投標已結束並結算',
+            message: '�?��?��?已�??�並結�?',
             results: sellResults,
             gameId: gameId,
             dayNumber: currentDay[0].day_number
         });
         
-        // 發送階段變更通知
+        // ?�送�?段�??�通知
         io.emit('phaseChange', { 
             gameId, 
             phase: 'selling_closed',
             dayNumber: currentDay[0].day_number,
-            message: '賣出投標手動結束',
+            message: '�?��?��??��?結�?',
             results: sellResults
         });
         
-        // 保持相容性
+        // 保�??�容??
         io.emit('sellingResults', { 
             gameId, 
             dayId: currentDay[0].id,
@@ -1724,12 +1593,12 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
         });
         
     } catch (error) {
-        console.error('結束賣出投標錯誤:', error);
-        res.status(500).json({ error: '結束賣出投標失敗' });
+        console.error('結�?�?��?��??�誤:', error);
+        res.status(500).json({ error: '結�?�?��?��?失�?' });
     }
 });
 
-// 結束賣出投標 (舊版本 - 保留相容性)
+// 結�?�?��?��? (?��???- 保�??�容??
 app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
@@ -1739,18 +1608,18 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
             [gameId]
         );
         
-        // 使用正確的 status 欄位
+        // 使用�?��??status 欄�?
         if (currentDay.length === 0 || currentDay[0].status !== 'selling_open') {
-            return res.status(400).json({ error: '當前沒有進行中的賣出投標' });
+            return res.status(400).json({ error: '?��?沒�??��?中�?�?��?��?' });
         }
         
-        // 停止計時器
+        // ?�止計�???
         stopTimer(`${gameId}-selling`);
         
-        // 結算賣出投標
+        // 結�?�?��?��?
         await processSellBids(currentDay[0]);
         
-        // 獲取結算結果
+        // ?��?結�?結�?
         const [sellResults] = await db.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
@@ -1760,7 +1629,7 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
             [currentDay[0].id]
         );
         
-        // 更新為 sell_ended 狀態 - 使用正確的 status 欄位
+        // ?�新??sell_ended ?�??- 使用�?��??status 欄�?
         await db.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling_closed', currentDay[0].id]
@@ -1768,35 +1637,35 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
         
         res.json({ 
             success: true, 
-            message: '賣出投標已結束並結算',
+            message: '�?��?��?已�??�並結�?',
             results: sellResults
         });
         
-        // 發送階段變更通知
+        // ?�送�?段�??�通知
         io.emit('phaseChange', { 
             gameId, 
             phase: 'selling_closed',
             dayNumber: currentDay[0].day_number,
-            message: '賣出投標手動結束',
+            message: '�?��?��??��?結�?',
             results: sellResults
         });
         
-        // 保持相容性
+        // 保�??�容??
         io.emit('sellingResults', { 
             gameId, 
             dayId: currentDay[0].id,
             results: sellResults 
         });
     } catch (error) {
-        console.error('結束賣出投標錯誤:', error);
-        res.status(500).json({ error: '結束賣出投標失敗' });
+        console.error('結�?�?��?��??�誤:', error);
+        res.status(500).json({ error: '結�?�?��?��?失�?' });
     }
 });
 
-// 每日結算 (新版本 - 自動尋找 active 遊戲)
+// 每日結�? (?��???- ?��?尋找 active ?�戲)
 app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        // 自動尋找 active 或 pending 遊戲
+        // ?��?尋找 active ??pending ?�戲
         const [games] = await db.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
@@ -1804,7 +1673,7 @@ app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) 
         
         if (games.length === 0) {
             return res.status(404).json({ 
-                error: '目前沒有正在進行中的遊戲', 
+                error: '?��?沒�?�?��?��?中�??�戲', 
                 code: 'NO_ACTIVE_GAME' 
             });
         }
@@ -1818,45 +1687,45 @@ app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) 
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '沒有可結算的天數' });
+            return res.status(400).json({ error: '沒�??��?算�?天數' });
         }
         
-        // 狀態檢查 - 必須是 selling_closed 狀態才能執行結算
+        // ?�?�檢??- 必�???selling_closed ?�?��??�執行�?�?
         const dayStatus = currentDay[0].status;
         if (dayStatus !== 'selling_closed') {
             let errorMessage = '';
             switch (dayStatus) {
                 case 'pending':
-                    errorMessage = '請先完成當日的投標流程';
+                    errorMessage = '請�?完�??�日?��?標�?�?;
                     break;
                 case 'buying_open':
-                    errorMessage = '請先完成買入投標';
+                    errorMessage = '請�?完�?買入?��?';
                     break;
                 case 'buying_closed':
-                    errorMessage = '請先完成賣出投標';
+                    errorMessage = '請�?完�?�?��?��?';
                     break;
                 case 'selling_open':
-                    errorMessage = '請先結束賣出投標';
+                    errorMessage = '請�?結�?�?��?��?';
                     break;
-                case 'settled':
-                    errorMessage = '當日已經結算完成';
+                case 'completed':
+                    errorMessage = '?�日已�?結�?完�?';
                     break;
                 default:
-                    errorMessage = `當前狀態(${dayStatus})不允許執行結算`;
+                    errorMessage = `?��??�??${dayStatus})不�?許執行�?算`;
             }
             return res.status(400).json({ error: errorMessage });
         }
         
-        // 執行結算邏輯
+        // ?��?結�??�輯
         await enhancedDailySettlement(pool, gameId, currentDay[0].id, currentDay[0].day_number);
         
-        // 更新狀態為 settled
+        // ?�新?�?�為 settled
         await db.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['settled', currentDay[0].id]
+            ['completed', currentDay[0].id]
         );
         
-        // 獲取結算後的團隊狀態
+        // ?��?結�?後�??��??�??
         const [updatedTeams] = await db.execute(
             `SELECT gp.*, u.team_name
              FROM game_participants gp
@@ -1868,22 +1737,22 @@ app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) 
         
         res.json({ 
             success: true, 
-            message: '每日結算完成',
+            message: '每日結�?完�?',
             gameId: gameId,
             dayNumber: currentDay[0].day_number,
             teams: updatedTeams
         });
         
-        // 發送結算完成通知
+        // ?�送�?算�??�通知
         io.emit('phaseChange', { 
             gameId, 
             phase: 'settled',
             dayNumber: currentDay[0].day_number,
-            message: '每日結算已完成',
+            message: '每日結�?已�???,
             teams: updatedTeams
         });
         
-        // 保持相容性
+        // 保�??�容??
         io.emit('daySettled', { 
             gameId, 
             dayId: currentDay[0].id,
@@ -1892,12 +1761,12 @@ app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) 
         });
         
     } catch (error) {
-        console.error('每日結算錯誤:', error);
-        res.status(500).json({ error: '每日結算失敗' });
+        console.error('每日結�??�誤:', error);
+        res.status(500).json({ error: '每日結�?失�?' });
     }
 });
 
-// 每日結算 (舊版本 - 保留相容性)
+// 每日結�? (?��???- 保�??�容??
 app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
@@ -1908,127 +1777,127 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         );
         
         if (currentDay.length === 0) {
-            return res.status(400).json({ error: '沒有可結算的天數' });
+            return res.status(400).json({ error: '沒�??��?算�?天數' });
         }
         
-        // 使用正確的 status 欄位和狀態名稱
-        if (currentDay[0].status === 'settled') {
-            return res.status(400).json({ error: '本日已經結算完成' });
+        // 使用�?��??status 欄�??��??��?�?
+        if (currentDay[0].status === 'completed') {
+            return res.status(400).json({ error: '?�日已�?結�?完�?' });
         }
         
         if (currentDay[0].status !== 'selling_closed') {
-            return res.status(400).json({ error: '請先完成所有投標階段' });
+            return res.status(400).json({ error: '請�?完�??�?��?標�?�? });
         }
         
-        // 處理賣出投標
+        // ?��?�?��?��?
         await processSellBids(currentDay[0]);
         
-        // 使用強化版結算功能（包含事務處理）
+        // 使用強�??��?算�??��??�含事�??��?�?
         await enhancedDailySettlement(pool, gameId, currentDay[0].id, currentDay[0].day_number);
         
-        // 使用正確的狀態名稱
+        // 使用�?��?��??��?�?
         await db.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['settled', currentDay[0].id]
+            ['completed', currentDay[0].id]
         );
         
         if (currentDay[0].day_number === 7) {
             await db.execute(
-                'UPDATE games SET status = "finished" WHERE id = ?',
+                'UPDATE games SET status = "completed" WHERE id = ?',
                 [gameId]
             );
         }
         
-        res.json({ success: true, message: '結算完成' });
+        res.json({ success: true, message: '結�?完�?' });
         io.emit('gameUpdate', { gameId, event: 'settled', dayId: currentDay[0].id });
     } catch (error) {
-        console.error('結算錯誤:', error);
-        res.status(500).json({ error: '結算失敗' });
+        console.error('結�??�誤:', error);
+        res.status(500).json({ error: '結�?失�?' });
     }
 });
 
-// 獲取可加入的遊戲列表
+// ?��??��??��??�戲?�表
 app.get('/api/team/available-games', authenticateToken, async (req, res) => {
     try {
-        // 查詢進行中或待開始的遊戲
+        // ?�詢?��?中�?待�?始�??�戲
         const [games] = await db.execute(
             `SELECT g.*, COUNT(gp.team_id) as current_teams
              FROM games g
              LEFT JOIN game_participants gp ON g.id = gp.game_id
-             WHERE g.status IN ('active', 'paused')
+             WHERE g.status = 'active'
              GROUP BY g.id`,
             []
         );
         
         res.json(games);
     } catch (error) {
-        console.error('獲取遊戲列表錯誤:', error);
-        res.status(500).json({ error: '獲取遊戲列表失敗' });
+        console.error('?��??�戲?�表?�誤:', error);
+        res.status(500).json({ error: '?��??�戲?�表失�?' });
     }
 });
 
-// 加入遊戲
+// ?�入?�戲
 app.post('/api/team/join-game', authenticateToken, async (req, res) => {
     const teamId = req.user.userId;
     const { gameId } = req.body;
     
     try {
-        // 檢查遊戲是否存在且可加入
+        // 檢查?�戲?�否存在且可?�入
         const [game] = await db.execute(
-            'SELECT * FROM games WHERE id = ? AND status IN ("active", "pending", "paused")',
+            'SELECT * FROM games WHERE id = ? AND status IN ("active", "pending")',
             [gameId]
         );
         
         if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在或已結束' });
+            return res.status(404).json({ error: '?�戲不�??��?已�??? });
         }
         
-        // 檢查是否已加入
+        // 檢查?�否已�???
         const [existing] = await db.execute(
             'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
             [gameId, teamId]
         );
         
         if (existing.length > 0) {
-            return res.status(400).json({ error: '您已經加入此遊戲' });
+            return res.status(400).json({ error: '?�已經�??�此?�戲' });
         }
         
-        // 檢查遊戲人數是否已滿
+        // 檢查?�戲人數?�否已滿
         const [participants] = await db.execute(
             'SELECT COUNT(*) as count FROM game_participants WHERE game_id = ?',
             [gameId]
         );
         
         if (participants[0].count >= game[0].num_teams) {
-            return res.status(400).json({ error: '遊戲人數已滿' });
+            return res.status(400).json({ error: '?�戲人數已滿' });
         }
         
-        // 加入遊戲
+        // ?�入?�戲
         await db.execute(
             `INSERT INTO game_participants (game_id, team_id, current_budget, total_loan, total_loan_principal)
              VALUES (?, ?, ?, 0, 0)`,
             [gameId, teamId, game[0].initial_budget]
         );
         
-        console.log(`團隊 ${teamId} 加入遊戲 ${gameId}`);
-        res.json({ success: true, message: '成功加入遊戲' });
+        console.log(`?��? ${teamId} ?�入?�戲 ${gameId}`);
+        res.json({ success: true, message: '?��??�入?�戲' });
         
-        // 通知其他人
+        // ?�知?��?�?
         io.emit('teamJoined', { gameId, teamId });
     } catch (error) {
-        console.error('加入遊戲錯誤:', error);
-        res.status(500).json({ error: '加入遊戲失敗' });
+        console.error('?�入?�戲?�誤:', error);
+        res.status(500).json({ error: '?�入?�戲失�?' });
     }
 });
 
-// 一鍵加入當前遊戲
+// 一?��??�當?��???
 app.post('/api/team/join-current', authenticateToken, async (req, res) => {
-    const teamId = req.user.userId; // 修正：使用 userId 而非 id
-    const teamNumber = parseInt(req.user.username); // 01, 02... 轉為數字
-    const { teamName: customTeamName } = req.body;  // 從前端接收團隊名稱
+    const teamId = req.user.userId; // 修正：使??userId ?��? id
+    const teamNumber = parseInt(req.user.username); // 01, 02... 轉為?��?
+    const { teamName: customTeamName } = req.body;  // 從�?端接?��??��?�?
     
     try {
-        // 取得當前進行中的遊戲（最新的 active 狀態優先，其次是 pending）
+        // ?��??��??��?中�??�戲（�??��? active ?�?�優?��??�次??pending�?
         const [games] = await db.execute(
             `SELECT * FROM games 
              WHERE status IN ('active', 'pending') 
@@ -2043,7 +1912,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         
         if (games.length === 0) {
             return res.status(404).json({ 
-                error: '目前沒有可加入的遊戲',
+                error: '?��?沒�??��??��??�戲',
                 code: 'NO_ACTIVE_GAME'
             });
         }
@@ -2051,18 +1920,18 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         const game = games[0];
         const gameId = game.id;
         
-        // 檢查是否已經加入
+        // 檢查?�否已�??�入
         const [existing] = await db.execute(
             'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
             [gameId, teamId]
         );
         
         if (existing.length > 0) {
-            // 已經加入，返回遊戲資訊和團隊名稱
+            // 已�??�入，�??��??��?訊�??��??�稱
             const teamNames = JSON.parse(game.team_names || '{}');
-            const existingTeamName = teamNames[teamNumber] || `第${teamNumber}組`;
+            const existingTeamName = teamNames[teamNumber] || `�?{teamNumber}組`;
             
-            // 如果提供了新的團隊名稱，更新它
+            // 如�??��?了新?��??��?稱�??�新�?
             if (customTeamName && customTeamName.trim()) {
                 teamNames[teamNumber] = customTeamName.trim();
                 await db.execute(
@@ -2070,7 +1939,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
                     [JSON.stringify(teamNames), gameId]
                 );
                 
-                // 更新 users 表中的 team_name
+                // ?�新 users 表中??team_name
                 await db.execute(
                     'UPDATE users SET team_name = ? WHERE id = ?',
                     [customTeamName.trim(), teamId]
@@ -2081,14 +1950,14 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
                 success: true, 
                 alreadyJoined: true,
                 gameId,
-                gameName: game.game_name,
+                gameName: game.name,
                 teamNumber,
                 teamName: customTeamName || existingTeamName,
-                message: '您已經在此遊戲中'
+                message: '?�已經在此�??�中'
             });
         }
         
-        // 檢查遊戲人數是否已滿
+        // 檢查?�戲人數?�否已滿
         const [participants] = await db.execute(
             'SELECT COUNT(*) as count FROM game_participants WHERE game_id = ?',
             [gameId]
@@ -2096,38 +1965,38 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         
         if (participants[0].count >= game.num_teams) {
             return res.status(400).json({ 
-                error: '遊戲人數已滿',
+                error: '?�戲人數已滿',
                 code: 'GAME_FULL'
             });
         }
         
-        // 加入遊戲
+        // ?�入?�戲
         await db.execute(
             `INSERT INTO game_participants (game_id, team_id, current_budget, total_loan, total_loan_principal)
              VALUES (?, ?, ?, 0, 0)`,
             [gameId, teamId, game.initial_budget]
         );
         
-        // 處理團隊名稱
+        // ?��??��??�稱
         const teamNames = JSON.parse(game.team_names || '{}');
-        const finalTeamName = customTeamName?.trim() || teamNames[teamNumber] || `第${teamNumber}組`;
+        const finalTeamName = customTeamName?.trim() || teamNames[teamNumber] || `�?{teamNumber}組`;
         teamNames[teamNumber] = finalTeamName;
         
-        // 更新遊戲的團隊名稱記錄
+        // ?�新?�戲?��??��?稱�???
         await db.execute(
             'UPDATE games SET team_names = ? WHERE id = ?',
             [JSON.stringify(teamNames), gameId]
         );
         
-        // 更新 users 表中的 team_name
+        // ?�新 users 表中??team_name
         await db.execute(
             'UPDATE users SET team_name = ? WHERE id = ?',
             [finalTeamName, teamId]
         );
         
-        console.log(`團隊 ${teamNumber} (${finalTeamName}) 加入遊戲 ${gameId}`);
+        console.log(`?��? ${teamNumber} (${finalTeamName}) ?�入?�戲 ${gameId}`);
         
-        // 通知其他人
+        // ?�知?��?�?
         io.emit('teamJoined', { 
             gameId, 
             teamId,
@@ -2138,54 +2007,54 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         res.json({ 
             success: true,
             gameId,
-            gameName: game.game_name,
+            gameName: game.name,
             teamNumber,
             teamName: finalTeamName,
-            message: '成功加入遊戲'
+            message: '?��??�入?�戲'
         });
         
     } catch (error) {
-        console.error('一鍵加入遊戲錯誤:', error);
-        res.status(500).json({ error: '加入遊戲失敗' });
+        console.error('一?��??��??�錯�?', error);
+        res.status(500).json({ error: '?�入?�戲失�?' });
     }
 });
 
-// 更新團隊名稱
+// ?�新?��??�稱
 app.post('/api/team/update-name', authenticateToken, async (req, res) => {
     const teamId = req.user.userId;
     const teamNumber = parseInt(req.user.username);
     const { gameId, newName } = req.body;
     
     if (!newName || newName.trim().length === 0) {
-        return res.status(400).json({ error: '團隊名稱不能為空' });
+        return res.status(400).json({ error: '?��??�稱不能?�空' });
     }
     
     if (newName.length > 20) {
-        return res.status(400).json({ error: '團隊名稱不能超過20個字' });
+        return res.status(400).json({ error: '?��??�稱不能超�?20?��?' });
     }
     
     try {
-        // 檢查遊戲是否存在
+        // 檢查?�戲?�否存在
         const [games] = await db.execute(
             'SELECT * FROM games WHERE id = ?',
             [gameId]
         );
         
         if (games.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
         
-        // 檢查團隊是否參與此遊戲
+        // 檢查?��??�否?��?此�???
         const [participants] = await db.execute(
             'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
             [gameId, teamId]
         );
         
         if (participants.length === 0) {
-            return res.status(403).json({ error: '您未參與此遊戲' });
+            return res.status(403).json({ error: '?�未?��?此�??? });
         }
         
-        // 取得並更新團隊名稱
+        // ?��?並更?��??��?�?
         const teamNames = JSON.parse(games[0].team_names || '{}');
         teamNames[teamNumber] = newName.trim();
         
@@ -2194,9 +2063,9 @@ app.post('/api/team/update-name', authenticateToken, async (req, res) => {
             [JSON.stringify(teamNames), gameId]
         );
         
-        console.log(`團隊 ${teamNumber} 更新名稱為: ${newName}`);
+        console.log(`?��? ${teamNumber} ?�新?�稱?? ${newName}`);
         
-        // 通知所有連線的用戶
+        // ?�知?�?��???�用??
         io.to(`game-${gameId}`).emit('teamNameUpdated', {
             teamNumber,
             newName: newName.trim()
@@ -2206,30 +2075,30 @@ app.post('/api/team/update-name', authenticateToken, async (req, res) => {
             success: true,
             teamNumber,
             newName: newName.trim(),
-            message: '團隊名稱更新成功'
+            message: '?��??�稱?�新?��?'
         });
         
     } catch (error) {
-        console.error('更新團隊名稱錯誤:', error);
-        res.status(500).json({ error: '更新團隊名稱失敗' });
+        console.error('?�新?��??�稱?�誤:', error);
+        res.status(500).json({ error: '?�新?��??�稱失�?' });
     }
 });
 
-// 團隊介面 - 獲取當前遊戲資訊（修正版）
+// ?��?介面 - ?��??��??�戲資�?（修�??�?
 app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
     try {
-        // 獲取當前進行中或待開始的遊戲
+        // ?��??��??��?中�?待�?始�??�戲
         const [activeGames] = await db.execute(
             `SELECT * FROM games WHERE status IN ('active', 'pending') ORDER BY created_at DESC LIMIT 1`
         );
         
         if (activeGames.length === 0) {
-            return res.status(404).json({ error: '目前沒有進行中的遊戲' });
+            return res.status(404).json({ error: '?��?沒�??��?中�??�戲' });
         }
         
         const currentGame = activeGames[0];
         
-        // 檢查團隊是否參與此遊戲
+        // 檢查?��??�否?��?此�???
         const [participants] = await db.execute(
             `SELECT gp.*, g.* 
              FROM game_participants gp
@@ -2239,7 +2108,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         );
         
         if (participants.length === 0) {
-            // 如果團隊編號在範圍內，自動加入
+            // 如�??��?編�??��??�內，自?��???
             const teamNumber = parseInt(req.user.username);
             if (!isNaN(teamNumber) && teamNumber >= 1 && teamNumber <= currentGame.num_teams) {
                 await db.execute(
@@ -2247,7 +2116,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
                     [currentGame.id, req.user.userId, currentGame.initial_budget]
                 );
                 
-                // 重新查詢
+                // ?�新?�詢
                 const [newParticipants] = await db.execute(
                     `SELECT gp.*, g.* 
                      FROM game_participants gp
@@ -2261,7 +2130,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
                 }
             } else {
                 return res.status(403).json({ 
-                    error: `本局遊戲只開放 ${currentGame.num_teams} 組團隊，您的組別不在範圍內` 
+                    error: `?��??�戲?��???${currentGame.num_teams} 組�??��??��?組別不在範�??�` 
                 });
             }
         }
@@ -2283,7 +2152,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
             [req.user.userId, currentGame.id]
         );
         
-        // 獲取當天的投標記錄（包含成交數量）
+        // ?��??�天?��?標�??��??�含?�交?��?�?
         let todayBids = [];
         if (currentDay[0]) {
             const [bids] = await db.execute(
@@ -2297,7 +2166,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         
         res.json({
             gameInfo: {
-                gameName: participant.game_name,
+                gameName: participant.name,
                 currentDay: participant.current_day,
                 status: participant.status,
                 dayStatus: currentDay[0]?.status || 'pending',
@@ -2329,18 +2198,18 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
             todayBids: todayBids
         });
     } catch (error) {
-        console.error('獲取團隊資訊錯誤:', error);
-        res.status(500).json({ error: '獲取資訊失敗' });
+        console.error('?��??��?資�??�誤:', error);
+        res.status(500).json({ error: '?��?資�?失�?' });
     }
 });
 
-// 提交買入投標（支援多價格和資金檢查）
+// ?�交買入?��?（支?��??�格?��??�檢?��?
 app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
     const { buyBids } = req.body;
     const teamId = req.user.userId;
     
     try {
-        // 獲取當前進行中的遊戲和當前天
+        // ?��??��??��?中�??�戲?�當?�天
         const [activeGames] = await db.execute(
             `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
@@ -2350,7 +2219,7 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
         );
         
         if (activeGames.length === 0) {
-            return res.status(400).json({ error: '現在不是買入投標時間' });
+            return res.status(400).json({ error: '?�在不是買入?��??��?' });
         }
         
         const game = activeGames[0];
@@ -2358,39 +2227,39 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
         const gameId = game.id;
         const dayNumber = game.day_number;
         
-        // 獲取團隊在遊戲中的狀態
+        // ?��??��??��??�中?��???
         const [participant] = await db.execute(
             'SELECT * FROM game_participants WHERE team_id = ? AND game_id = ?',
             [teamId, gameId]
         );
         
         if (participant.length === 0) {
-            return res.status(404).json({ error: '您尚未加入當前遊戲' });
+            return res.status(404).json({ error: '?��??��??�當?��??? });
         }
         
         const teamData = participant[0];
         
-        // 計算總出價金額（支援多價格）
+        // 計�?總出?��?額�??�援多價?��?
         let totalBidAmount = 0;
         const processedBids = [];
         const bidsByType = { A: [], B: [] };
         
         if (buyBids && Array.isArray(buyBids)) {
-            // 整理投標資料，支援每種魚最多兩個價格
+            // ?��??��?資�?，支?��?種�??�多兩?�價??
             for (const bid of buyBids) {
                 if (bid && bid.price > 0 && bid.quantity > 0) {
                     const fishType = bid.fish_type || bid.fishType;
                     
-                    // 確保 fishType 是有效的 (A 或 B)
+                    // 確�? fishType ?��??��? (A ??B)
                     if (fishType !== 'A' && fishType !== 'B') {
-                        console.error(`無效的魚種類型: ${fishType}`);
-                        return res.status(400).json({ error: `無效的魚種類型: ${fishType}` });
+                        console.error(`?��??��?種�??? ${fishType}`);
+                        return res.status(400).json({ error: `?��??��?種�??? ${fishType}` });
                     }
                     
-                    // 檢查當前提交中是否已達上限（每種魚最多2個價格）
+                    // 檢查?��??�交中是?�已?��??��?每種魚�?�??�價?��?
                     if (bidsByType[fishType].length >= 2) {
-                        console.log(`${fishType}級魚在本次提交中已有2個投標，跳過此投標`);
-                        return res.status(400).json({ error: `${fishType}級魚最多只能提交2個不同價格的投標` });
+                        console.log(`${fishType}級�??�本次�?交中已�?2?��?標�?跳�?此�?標`);
+                        return res.status(400).json({ error: `${fishType}級�??�多只?��?�??��??�價?��??��?` });
                     }
                     
                     const bidAmount = bid.price * bid.quantity;
@@ -2409,26 +2278,27 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
             }
         }
         
-        // 檢查資金是否足夠（貸款不超過初始預算的50%）
+        // 檢查資�??�否足�?（貸款�?超�??��??��??�設定�?例�?
         const currentBudget = teamData.current_budget || 0;
         const currentLoan = teamData.total_loan || 0;
         const initialBudget = game.initial_budget || 1000000;
-        const maxTotalLoan = initialBudget * 0.5;  // 最大貸款為初始預算的50%
-        
-        // 計算可用資金（現金 + 可用貸款額度）
+        const maxLoanRatio = game.max_loan_ratio || 0.5;
+        const maxTotalLoan = initialBudget * maxLoanRatio;
+
+        // 計�??�用資�?（現??+ ?�用貸款額度�?
         const availableLoan = maxTotalLoan - currentLoan;
         const totalAvailableFunds = currentBudget + availableLoan;
         
-        // 計算需要的貸款金額
+        // 計�??�要�?貸款?��?
         let loanNeeded = 0;
         if (totalBidAmount > currentBudget) {
             loanNeeded = totalBidAmount - currentBudget;
         }
         
-        // 檢查總投標金額是否超過可用資金
+        // 檢查總�?標�?額是?��??�可?��???
         if (totalBidAmount > totalAvailableFunds) {
             return res.status(400).json({ 
-                error: `投標總額 $${totalBidAmount.toFixed(2)} 超過可用資金 $${totalAvailableFunds.toFixed(2)}`,
+                error: `?��?總�? $${totalBidAmount.toFixed(2)} 超�??�用資�? $${totalAvailableFunds.toFixed(2)}`,
                 currentBudget: currentBudget,
                 currentLoan: currentLoan,
                 availableLoan: availableLoan,
@@ -2437,35 +2307,35 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
             });
         }
         
-        // 注意：這裡不更新貸款，貸款將在買入結算時根據實際成交情況處理
-        
-        // 檢查是否已經提交過投標以及防止過於頻繁提交
+        // 注�?：這裡不更?�貸款�?貸款將在買入結�??�根?�實?��?交�?況�???
+
+        // 檢查?�否已�??�交?��?標以?�防止�??�頻繁�?�?
         const [existingBids] = await db.execute(
             'SELECT COUNT(*) as count, MAX(created_at) as last_submission FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "buy"',
             [gameDayId, teamId]
         );
         const isUpdate = existingBids[0].count > 0;
-        
-        // 防止重複提交：如果在5秒內重新提交則拒絕
+
+        // ?�止?��??�交：�??�在5秒內?�新?�交?��?�?
         if (existingBids[0].last_submission) {
             const lastSubmissionTime = new Date(existingBids[0].last_submission);
             const currentTime = new Date();
-            const timeDiff = (currentTime - lastSubmissionTime) / 1000; // 秒
-            
+            const timeDiff = (currentTime - lastSubmissionTime) / 1000; // �?
+
             if (timeDiff < 5) {
-                return res.status(429).json({ 
-                    error: `請勿重複提交，請等待${Math.ceil(5 - timeDiff)}秒後再試` 
+                return res.status(429).json({
+                    error: `請勿?��??�交，�?等�?${Math.ceil(5 - timeDiff)}秒�??�試`
                 });
             }
         }
-        
-        // 開始交易：刪除舊的買入投標（允許覆蓋）
+
+        // ?��?交�?：刪?��??�買?��?標�??�許覆�?�?
         await db.execute(
             'DELETE FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "buy"',
             [gameDayId, teamId]
         );
-        
-        // 新增投標記錄（根據正確的資料庫結構）
+
+        // ?��??��?記�?（根?�正確�?資�?庫�?構�?
         for (const bid of processedBids) {
             await db.execute(
                 `INSERT INTO bids (
@@ -2483,21 +2353,12 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
                 ]
             );
         }
-        
-        // 如果需要借貸，更新借貸金額
-        if (loanNeeded > 0) {
-            await db.execute(
-                `UPDATE game_participants 
-                 SET total_loan = total_loan + ?,
-                     total_loan_principal = total_loan_principal + ?
-                 WHERE team_id = ? AND game_id = ?`,
-                [loanNeeded, loanNeeded, teamId, gameId]
-            );
-        }
+
+        // 貸款將在買入?��??�根?�實?��?交�?額自?�執行�?不在此�??��??�貸
         
         res.json({ 
             success: true, 
-            message: isUpdate ? '買入投標已更新（覆蓋前次提交）' : '買入投標已提交',
+            message: isUpdate ? '買入?��?已更?��?覆�??�次?�交�? : '買入?��?已�?�?,
             isUpdate: isUpdate,
             summary: {
                 totalBidAmount: totalBidAmount,
@@ -2507,7 +2368,7 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
             }
         });
         
-        // 通知所有連線的客戶端
+        // ?�知?�?��???�客?�端
         io.emit('bidsUpdated', { 
             gameId: game.id, 
             teamId: req.user.userId,
@@ -2515,18 +2376,18 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('提交買入投標錯誤:', error);
-        res.status(500).json({ error: '提交買入投標失敗：' + error.message });
+        console.error('?�交買入?��??�誤:', error);
+        res.status(500).json({ error: '?�交買入?��?失�?�? + error.message });
     }
 });
 
-// 提交賣出投標（支援多價格）
+// ?�交�?��?��?（支?��??�格�?
 app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
     const { sellBids } = req.body;
     const teamId = req.user.userId;
     
     try {
-        // 獲取當前進行中的遊戲和當前天
+        // ?��??��??��?中�??�戲?�當?�天
         const [activeGames] = await db.execute(
             `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
@@ -2536,7 +2397,7 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
         );
         
         if (activeGames.length === 0) {
-            return res.status(400).json({ error: '現在不是賣出投標時間' });
+            return res.status(400).json({ error: '?�在不是�?��?��??��?' });
         }
         
         const game = activeGames[0];
@@ -2544,23 +2405,23 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
         const gameId = game.id;
         const dayNumber = game.day_number;
         
-        // 獲取團隊在遊戲中的狀態
+        // ?��??��??��??�中?��???
         const [participant] = await db.execute(
             'SELECT * FROM game_participants WHERE team_id = ? AND game_id = ?',
             [teamId, gameId]
         );
         
         if (participant.length === 0) {
-            return res.status(404).json({ error: '您尚未加入當前遊戲' });
+            return res.status(404).json({ error: '?��??��??�當?��??? });
         }
         
         const teamData = participant[0];
         
-        // 整理投標資料，支援每種魚最多兩個價格
+        // ?��??��?資�?，支?��?種�??�多兩?�價??
         const processedBids = [];
         const bidsByType = { A: [], B: [] };
         
-        // 先收集所有有效的投標
+        // ?�收?��??��??��??��?
         if (sellBids && Array.isArray(sellBids)) {
             for (const bid of sellBids) {
                 if (bid && bid.price > 0 && bid.quantity > 0) {
@@ -2579,64 +2440,64 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
             }
         }
         
-        // 驗證每種魚的總賣出數量必須等於庫存
+        // 驗�?每種魚�?總賣?�數?��??��??�庫�?
         for (const fishType of ['A', 'B']) {
             const inventoryField = fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory';
             const currentInventory = teamData[inventoryField] || 0;
             const totalSubmitted = bidsByType[fishType].reduce((sum, b) => sum + b.quantity, 0);
             
-            // 如果有庫存但沒有提交賣出投標
+            // 如�??�庫存�?沒�??�交�?��?��?
             if (currentInventory > 0 && totalSubmitted === 0) {
                 return res.status(400).json({ 
-                    error: `${fishType}級魚有庫存${currentInventory}kg但未提交賣出投標`,
+                    error: `${fishType}級�??�庫�?{currentInventory}kg但未?�交�?��?��?`,
                     fishType: fishType,
                     inventory: currentInventory,
                     submitted: 0
                 });
             }
             
-            // 如果賣出數量不等於庫存
+            // 如�?�?��?��?不�??�庫�?
             if (currentInventory > 0 && totalSubmitted !== currentInventory) {
                 return res.status(400).json({ 
-                    error: `${fishType}級魚賣出數量必須等於庫存`,
+                    error: `${fishType}級�?�?��?��?必�?等於庫�?`,
                     fishType: fishType,
                     inventory: currentInventory,
                     submitted: totalSubmitted,
-                    message: totalSubmitted > currentInventory ? '賣出數量超過庫存' : '賣出數量少於庫存'
+                    message: totalSubmitted > currentInventory ? '�?��?��?超�?庫�?' : '�?��?��?少於庫�?'
                 });
             }
             
-            // 將該魚種的投標加入處理列表
+            // 將該魚種?��?標�??��??��?�?
             processedBids.push(...bidsByType[fishType]);
         }
         
-        // 檢查是否已經提交過投標以及防止過於頻繁提交
+        // 檢查?�否已�??�交?��?標以?�防止�??�頻繁�?�?
         const [existingBids] = await db.execute(
             'SELECT COUNT(*) as count, MAX(created_at) as last_submission FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "sell"',
             [gameDayId, teamId]
         );
         const isUpdate = existingBids[0].count > 0;
         
-        // 防止重複提交：如果在5秒內重新提交則拒絕
+        // ?�止?��??�交：�??�在5秒內?�新?�交?��?�?
         if (existingBids[0].last_submission) {
             const lastSubmissionTime = new Date(existingBids[0].last_submission);
             const currentTime = new Date();
-            const timeDiff = (currentTime - lastSubmissionTime) / 1000; // 秒
+            const timeDiff = (currentTime - lastSubmissionTime) / 1000; // �?
             
             if (timeDiff < 5) {
                 return res.status(429).json({ 
-                    error: `請勿重複提交，請等待${Math.ceil(5 - timeDiff)}秒後再試` 
+                    error: `請勿?��??�交，�?等�?${Math.ceil(5 - timeDiff)}秒�??�試` 
                 });
             }
         }
         
-        // 開始交易：刪除舊的賣出投標（允許覆蓋）
+        // ?��?交�?：刪?��??�賣?��?標�??�許覆�?�?
         await db.execute(
             'DELETE FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "sell"',
             [gameDayId, teamId]
         );
         
-        // 新增投標記錄（根據正確的資料庫結構）
+        // ?��??��?記�?（根?�正確�?資�?庫�?構�?
         for (const bid of processedBids) {
             await db.execute(
                 `INSERT INTO bids (
@@ -2657,7 +2518,7 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
         
         res.json({ 
             success: true, 
-            message: isUpdate ? '賣出投標已更新（覆蓋前次提交）' : '賣出投標已提交',
+            message: isUpdate ? '�?��?��?已更?��?覆�??�次?�交�? : '�?��?��?已�?�?,
             isUpdate: isUpdate,
             summary: {
                 bidsSubmitted: processedBids.length,
@@ -2668,7 +2529,7 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
             }
         });
         
-        // 通知所有連線的客戶端
+        // ?�知?�?��???�客?�端
         io.emit('bidsUpdated', { 
             gameId: game.id, 
             teamId: req.user.userId,
@@ -2676,12 +2537,12 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('提交賣出投標錯誤:', error);
-        res.status(500).json({ error: '提交賣出投標失敗：' + error.message });
+        console.error('?�交�?��?��??�誤:', error);
+        res.status(500).json({ error: '?�交�?��?��?失�?�? + error.message });
     }
 });
 
-// 獲取歷史投標結果
+// ?��?歷史?��?結�?
 app.get('/api/games/:gameId/bid-history', authenticateToken, async (req, res) => {
     const { gameId } = req.params;
     
@@ -2727,28 +2588,28 @@ app.get('/api/games/:gameId/bid-history', authenticateToken, async (req, res) =>
         
         res.json(history);
     } catch (error) {
-        console.error('獲取歷史錯誤:', error);
-        res.status(500).json({ error: '獲取歷史失敗' });
+        console.error('?��?歷史?�誤:', error);
+        res.status(500).json({ error: '?��?歷史失�?' });
     }
 });
 
-// 獲取排行榜
-// 獲取每日結果
+// ?��??��?�?
+// ?��?每日結�?
 app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId, day } = req.params;
     
     try {
-        // 獲取當日遊戲資訊
+        // ?��??�日?�戲資�?
         const [dayInfo] = await db.execute(
             `SELECT * FROM game_days WHERE game_id = ? AND day_number = ?`,
             [gameId, day]
         );
         
         if (dayInfo.length === 0) {
-            return res.status(404).json({ error: '找不到該天資料' });
+            return res.status(404).json({ error: '?��??�該天�??? });
         }
         
-        // 獲取當日投標記錄
+        // ?��??�日?��?記�?
         const [bids] = await db.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
@@ -2758,7 +2619,7 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
             [gameId, day]
         );
         
-        // 獲取當日團隊結果
+        // ?��??�日?��?結�?
         const [teamResults] = await db.execute(
             `SELECT dr.*, u.team_name
              FROM daily_results dr
@@ -2774,17 +2635,17 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
             teamResults
         });
     } catch (error) {
-        console.error('獲取每日結果錯誤:', error);
-        res.status(500).json({ error: '獲取每日結果失敗' });
+        console.error('?��?每日結�??�誤:', error);
+        res.status(500).json({ error: '?��?每日結�?失�?' });
     }
 });
 
-// 獲取競標結果統計 - 包含所有團隊投標明細、成交價格統計等
+// ?��?競�?結�?統�? - ?�含?�?��??��?標�?細、�?交價?�統計�?
 app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId, day } = req.params;
     
     try {
-        // 獲取當日遊戲資訊 - 使用正確的資料庫欄位名稱
+        // ?��??�日?�戲資�? - 使用�?��?��??�庫欄�??�稱
         const [dayInfo] = await db.execute(
             `SELECT id, game_id, day_number, status, 
                     fish_a_supply, fish_b_supply,
@@ -2796,12 +2657,12 @@ app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, requ
         );
         
         if (dayInfo.length === 0) {
-            return res.status(404).json({ error: '找不到該天資料' });
+            return res.status(404).json({ error: '?��??�該天�??? });
         }
         
         const gameDayId = dayInfo[0].id;
         
-        // 獲取所有投標明細 - 根據 bids 表正確結構
+        // ?��??�?��?標�?�?- ?��? bids 表正確�?�?
         const [allBids] = await db.execute(
             `SELECT b.id, b.game_id, b.game_day_id, b.team_id, b.day_number,
                     b.bid_type, b.fish_type, b.price, 
@@ -2818,29 +2679,32 @@ app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, requ
             [gameDayId]
         );
         
-        // 分離買入和賣出投標
+        // ?�離買入?�賣?��?�?
         const buyBids = allBids.filter(b => b.bid_type === 'buy');
         const sellBids = allBids.filter(b => b.bid_type === 'sell');
         
-        // 計算買入統計 - A魚和B魚分別統計
+        // 計�?買入統�? - A魚�?B魚�??�統�?
         const buyStatsA = calculateBuyStats(buyBids.filter(b => b.fish_type === 'A'));
         const buyStatsB = calculateBuyStats(buyBids.filter(b => b.fish_type === 'B'));
         
-        // 計算賣出統計 - A魚和B魚分別統計
+        // 計�?�?��統�? - A魚�?B魚�??�統�?
         const sellStatsA = calculateSellStats(sellBids.filter(b => b.fish_type === 'A'));
         const sellStatsB = calculateSellStats(sellBids.filter(b => b.fish_type === 'B'));
         
-        // 獲取團隊分組統計
+        // ?��??��??��?統�?
         const teamStats = await getTeamBidStats(gameDayId);
         
-        // 獲取當日結算結果（如果已結算）
+        // ?��??�日結�?結�?（�??�已結�?�?
         let dailyResults = [];
-        if (dayInfo[0].status === 'settled') {
+        if (dayInfo[0].status === 'completed') {
             const [results] = await db.execute(
                 `SELECT dr.id, dr.game_day_id, dr.team_id, dr.day_number,
-                        dr.revenue, dr.cost, dr.unsold_fee, dr.interest_incurred,
+                        dr.starting_cash, dr.ending_cash,
+                        dr.starting_loan, dr.ending_loan,
+                        dr.fish_a_bought, dr.fish_a_sold, dr.fish_a_unsold,
+                        dr.fish_b_bought, dr.fish_b_sold, dr.fish_b_unsold,
+                        dr.buy_cost, dr.sell_revenue, dr.unsold_fee, dr.interest_paid,
                         dr.daily_profit, dr.cumulative_profit, dr.roi,
-                        dr.closing_budget, dr.closing_loan,
                         u.username, u.team_name
                  FROM daily_results dr
                  JOIN users u ON dr.team_id = u.id
@@ -2890,12 +2754,12 @@ app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, requ
         });
         
     } catch (error) {
-        console.error('獲取競標結果統計錯誤:', error);
-        res.status(500).json({ error: '獲取競標結果統計失敗' });
+        console.error('?��?競�?結�?統�??�誤:', error);
+        res.status(500).json({ error: '?��?競�?結�?統�?失�?' });
     }
 });
 
-// 計算買入投標統計
+// 計�?買入?��?統�?
 function calculateBuyStats(bids) {
     if (bids.length === 0) {
         return {
@@ -2928,7 +2792,7 @@ function calculateBuyStats(bids) {
         stats.lowestFulfilledPrice = Math.min(...prices);
         stats.highestFulfilledPrice = Math.max(...prices);
         
-        // 加權平均價格
+        // ?��?平�??�格
         const weightedSum = fulfilledBids.reduce((sum, b) => 
             sum + (b.price * b.quantity_fulfilled), 0);
         stats.averageFulfilledPrice = (weightedSum / totalFulfilled).toFixed(2);
@@ -2937,7 +2801,7 @@ function calculateBuyStats(bids) {
     return stats;
 }
 
-// 計算賣出投標統計
+// 計�?�?��?��?統�?
 function calculateSellStats(bids) {
     if (bids.length === 0) {
         return {
@@ -2949,7 +2813,7 @@ function calculateSellStats(bids) {
             averageFulfilledPrice: null,
             fulfillmentRate: 0,
             unsoldQuantity: 0,
-            highestPriceUnsold: 0  // 新增：最高價滯銷數量
+            highestPriceUnsold: 0  // ?��?：�?高價滯銷?��?
         };
     }
     
@@ -2957,19 +2821,19 @@ function calculateSellStats(bids) {
     const totalSubmitted = bids.reduce((sum, b) => sum + b.quantity_submitted, 0);
     const totalFulfilled = bids.reduce((sum, b) => sum + (b.quantity_fulfilled || 0), 0);
     
-    // 計算2.5%固定滯銷：找出最高價投標並計算其2.5%滯銷量
+    // 計�?2.5%?��?滯銷：找?��?高價?��?並�?算其2.5%滯銷??
     let highestPriceUnsold = 0;
     if (bids.length > 0) {
         const maxPrice = Math.max(...bids.map(b => b.price));
         const highPriceBids = bids.filter(b => b.price === maxPrice);
         
-        // 每個最高價投標都有2.5%滯銷
+        // 每個�?高價?��??��?2.5%滯銷
         highestPriceUnsold = highPriceBids.reduce((sum, bid) => {
             return sum + Math.ceil(bid.quantity_submitted * 2.5 / 100);
         }, 0);
     }
     
-    // 總滯銷量 = 所有未成交的量（包含2.5%固定滯銷 + 其他原因未成交）
+    // 總滯?��? = ?�?�未?�交?��?（�???.5%?��?滯銷 + ?��??��??��?交�?
     const unsoldQuantity = totalSubmitted - totalFulfilled;
     
     let stats = {
@@ -2981,7 +2845,7 @@ function calculateSellStats(bids) {
         averageFulfilledPrice: null,
         fulfillmentRate: totalSubmitted > 0 ? (totalFulfilled / totalSubmitted * 100).toFixed(2) : 0,
         unsoldQuantity: unsoldQuantity,
-        highestPriceUnsold: highestPriceUnsold  // 最高價2.5%固定滯銷量
+        highestPriceUnsold: highestPriceUnsold  // ?�高價2.5%?��?滯銷??
     };
     
     if (fulfilledBids.length > 0) {
@@ -2989,7 +2853,7 @@ function calculateSellStats(bids) {
         stats.lowestFulfilledPrice = Math.min(...prices);
         stats.highestFulfilledPrice = Math.max(...prices);
         
-        // 加權平均價格
+        // ?��?平�??�格
         const weightedSum = fulfilledBids.reduce((sum, b) => 
             sum + (b.price * b.quantity_fulfilled), 0);
         stats.averageFulfilledPrice = (weightedSum / totalFulfilled).toFixed(2);
@@ -2998,7 +2862,7 @@ function calculateSellStats(bids) {
     return stats;
 }
 
-// 獲取團隊投標統計
+// ?��??��??��?統�?
 async function getTeamBidStats(gameDayId) {
     const [teamStats] = await db.execute(
         `SELECT 
@@ -3022,90 +2886,40 @@ async function getTeamBidStats(gameDayId) {
     return teamStats;
 }
 
-// 暫停遊戲
-app.post('/api/admin/games/:gameId/pause', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    
-    try {
-        const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        if (game[0].status !== 'active') {
-            return res.status(400).json({ error: '只能暫停進行中的遊戲' });
-        }
-        
-        await db.execute('UPDATE games SET status = "paused" WHERE id = ?', [gameId]);
-        
-        console.log(`遊戲 ${gameId} 已暫停`);
-        res.json({ success: true, message: '遊戲已暫停' });
-        io.emit('gameUpdate', { gameId, event: 'gamePaused' });
-    } catch (error) {
-        console.error('暫停遊戲錯誤:', error);
-        res.status(500).json({ error: '暫停遊戲失敗' });
-    }
-});
-
-// 恢復遊戲
-app.post('/api/admin/games/:gameId/resume', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    
-    try {
-        const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        if (game[0].status !== 'paused') {
-            return res.status(400).json({ error: '只能恢復暫停的遊戲' });
-        }
-        
-        await db.execute('UPDATE games SET status = "active" WHERE id = ?', [gameId]);
-        
-        console.log(`遊戲 ${gameId} 已恢復`);
-        res.json({ success: true, message: '遊戲已恢復' });
-        io.emit('gameUpdate', { gameId, event: 'gameResumed' });
-    } catch (error) {
-        console.error('恢復遊戲錯誤:', error);
-        res.status(500).json({ error: '恢復遊戲失敗' });
-    }
-});
-
-// 強制結束遊戲
+// 強制結�??�戲
 app.post('/api/admin/games/:gameId/force-end', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
     try {
         const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
         
-        if (game[0].status === 'finished') {
-            return res.status(400).json({ error: '遊戲已經結束' });
+        if (game[0].status === 'completed') {
+            return res.status(400).json({ error: '?�戲已�?結�?' });
         }
         
-        // 更新遊戲狀態為結束
-        await db.execute('UPDATE games SET status = "finished" WHERE id = ?', [gameId]);
+        // ?�新?�戲?�?�為結�?
+        await db.execute('UPDATE games SET status = "completed", is_force_ended = TRUE, force_ended_at = NOW(), force_end_day = ? WHERE id = ?', [game[0].current_day, gameId]);
         
-        // 記錄強制結束的原因和時間
+        // 記�?強制結�??��??��??��?
         await db.execute(
             `INSERT INTO game_logs (game_id, action, details, created_at) 
              VALUES (?, 'force_ended', 'Game was forcefully ended by admin', NOW())`,
             [gameId]
         );
         
-        console.log(`遊戲 ${gameId} 已強制結束`);
-        res.json({ success: true, message: '遊戲已強制結束' });
+        console.log(`?�戲 ${gameId} 已強?��??�`);
+        res.json({ success: true, message: '?�戲已強?��??? });
         io.emit('gameUpdate', { gameId, event: 'gameForceEnded' });
     } catch (error) {
-        console.error('強制結束遊戲錯誤:', error);
-        res.status(500).json({ error: '強制結束遊戲失敗' });
+        console.error('強制結�??�戲?�誤:', error);
+        res.status(500).json({ error: '強制結�??�戲失�?' });
     }
 });
 
-// 獲取歷史遊戲列表
+// ?��?歷史?�戲?�表
 app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req, res) => {
     const { 
         status, 
@@ -3117,7 +2931,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
     } = req.query;
     
     try {
-        // 構建基礎查詢
+        // 構建?��??�詢
         let whereClause = 'WHERE 1=1';
         const params = [];
         
@@ -3142,7 +2956,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
             params.push(dateTo);
         }
         
-        // 計算總數
+        // 計�?總數
         const countQuery = `
             SELECT COUNT(DISTINCT g.id) as total
             FROM games g
@@ -3153,7 +2967,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
         const totalGames = countResult[0].total;
         const totalPages = Math.ceil(totalGames / pageSize);
         
-        // 獲取遊戲資料（帶分頁）
+        // ?��??�戲資�?（帶?��?�?
         const offset = (page - 1) * pageSize;
         const gamesQuery = `
             SELECT g.id as game_id,
@@ -3164,7 +2978,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
                    g.num_teams,
                    g.created_at,
                    g.updated_at,
-                   CASE WHEN g.status = 'finished' THEN g.updated_at ELSE NULL END as ended_at
+                   CASE WHEN g.status = 'completed' THEN g.updated_at ELSE NULL END as ended_at
             FROM games g
             ${whereClause}
             ORDER BY g.created_at DESC
@@ -3173,10 +2987,10 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
         
         const [games] = await db.execute(gamesQuery, [...params, parseInt(pageSize), offset]);
         
-        // 為每個遊戲獲取排名資料
+        // ?��??��??�獲?��??��???
         const gamesWithRankings = await Promise.all(games.map(async (game) => {
-            if (game.status === 'finished') {
-                // 獲取最終排名
+            if (game.status === 'completed') {
+                // ?��??�終�???
                 const rankingQuery = `
                     SELECT u.team_name, u.username, dr.roi, dr.cumulative_profit
                     FROM daily_results dr
@@ -3189,7 +3003,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
                 
                 const [rankings] = await db.execute(rankingQuery, [game.game_id, game.current_day]);
                 game.final_rankings = rankings.map(rank => ({
-                    team_name: rank.team_name || `團隊${rank.username}`,
+                    team_name: rank.team_name || `?��?${rank.username}`,
                     roi: rank.roi || 0,
                     profit: rank.cumulative_profit || 0
                 }));
@@ -3208,24 +3022,24 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
             pageSize: parseInt(pageSize)
         });
     } catch (error) {
-        console.error('獲取歷史遊戲錯誤:', error);
-        res.status(500).json({ error: '獲取歷史遊戲失敗' });
+        console.error('?��?歷史?�戲?�誤:', error);
+        res.status(500).json({ error: '?��?歷史?�戲失�?' });
     }
 });
 
-// 獲取遊戲詳細資料
+// ?��??�戲詳細資�?
 app.get('/api/admin/games/:gameId/details', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
     try {
-        // 獲取遊戲基本資訊
+        // ?��??�戲?�本資�?
         const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         
         if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
         
-        // 獲取所有參與團隊
+        // ?��??�?��??��???
         const [teams] = await db.execute(
             `SELECT gp.*, u.team_name
              FROM game_participants gp
@@ -3234,13 +3048,13 @@ app.get('/api/admin/games/:gameId/details', authenticateToken, requireAdmin, asy
             [gameId]
         );
         
-        // 獲取每日數據
+        // ?��?每日?��?
         const [dailyData] = await db.execute(
             `SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number`,
             [gameId]
         );
         
-        // 獲取最終排名
+        // ?��??�終�???
         const [finalRanking] = await db.execute(
             `SELECT u.team_name, dr.cumulative_profit, 
                     (dr.cumulative_profit / (g.initial_budget + gp.total_loan_principal)) * 100 as roi
@@ -3260,8 +3074,8 @@ app.get('/api/admin/games/:gameId/details', authenticateToken, requireAdmin, asy
             finalRanking
         });
     } catch (error) {
-        console.error('獲取遊戲詳情錯誤:', error);
-        res.status(500).json({ error: '獲取遊戲詳情失敗' });
+        console.error('?��??�戲詳�??�誤:', error);
+        res.status(500).json({ error: '?��??�戲詳�?失�?' });
     }
 });
 
@@ -3271,7 +3085,7 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
     try {
         const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
         
         const [results] = await db.execute(
@@ -3304,14 +3118,14 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
         
         res.json(results);
     } catch (error) {
-        console.error('獲取排行榜錯誤:', error);
-        res.status(500).json({ error: '獲取排行榜失敗' });
+        console.error('?��??��?榜錯�?', error);
+        res.status(500).json({ error: '?��??��?榜失?? });
     }
 });
 
-// 處理買入投標
+// ?��?買入?��?
 async function processBuyBids(gameDay) {
-    // 獲取連接並開始事務
+    // ?��???��並�?始�???
     const connection = await pool.getConnection();
     await connection.beginTransaction();
     
@@ -3326,7 +3140,7 @@ async function processBuyBids(gameDay) {
         const floorPrice = fishType === 'A' ? game[0].distributor_floor_price_a : game[0].distributor_floor_price_b;
         let remainingSupply = supply;
         
-        console.log(`處理${fishType}級魚買入投標：供給量=${supply}, 底價=${floorPrice}`);
+        console.log(`?��?${fishType}級�?買入?��?：�?給�?=${supply}, 底價=${floorPrice}`);
         
         const [bids] = await connection.execute(
             `SELECT * FROM bids 
@@ -3335,13 +3149,13 @@ async function processBuyBids(gameDay) {
             [gameDay.id, fishType]
         );
         
-        console.log(`${fishType}級魚買入投標數量: ${bids.length}`);
+        console.log(`${fishType}級�?買入?��??��?: ${bids.length}`);
         
         for (const bid of bids) {
-            console.log(`處理${fishType}級魚投標: 團隊${bid.team_id}, 價格${bid.price}, 數量${bid.quantity_submitted}`);
+            console.log(`?��?${fishType}級�??��?: ?��?${bid.team_id}, ?�格${bid.price}, ?��?${bid.quantity_submitted}`);
             
             if (bid.price < floorPrice) {
-                console.log(`價格${bid.price}低於底價${floorPrice}，標記為失敗`);
+                console.log(`?�格${bid.price}低於底價${floorPrice}，�?記為失�?`);
                 await connection.execute(
                     'UPDATE bids SET status = "failed" WHERE id = ?',
                     [bid.id]
@@ -3350,7 +3164,7 @@ async function processBuyBids(gameDay) {
             }
             
             if (remainingSupply <= 0) {
-                console.log(`供應量已用完，標記為失敗`);
+                console.log(`供�??�已?��?，�?記為失�?`);
                 await connection.execute(
                     'UPDATE bids SET status = "failed" WHERE id = ?',
                     [bid.id]
@@ -3364,7 +3178,7 @@ async function processBuyBids(gameDay) {
             const status = fulfilledQuantity === bid.quantity_submitted ? 'fulfilled' : 
                           fulfilledQuantity > 0 ? 'partial' : 'failed';
             
-            console.log(`成交${fulfilledQuantity}kg，狀態：${status}，剩餘供應：${remainingSupply}`);
+            console.log(`?�交${fulfilledQuantity}kg，�??��?${status}，剩餘�??��?${remainingSupply}`);
             
             await connection.execute(
                 'UPDATE bids SET quantity_fulfilled = ?, status = ? WHERE id = ?',
@@ -3374,16 +3188,25 @@ async function processBuyBids(gameDay) {
             if (fulfilledQuantity > 0) {
                 const totalCost = fulfilledQuantity * bid.price;
                 
-                // 檢查並處理借貸
+                // 檢查並�??�借貸
                 const [participant] = await connection.execute(
                     'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
                     [gameDay.game_id, bid.team_id]
                 );
-                
+
                 if (participant[0].current_budget < totalCost) {
                     const loanNeeded = totalCost - participant[0].current_budget;
+
+                    // 檢查借貸額度限制
+                    const maxLoan = game[0].initial_budget * game[0].max_loan_ratio;
+                    const newLoanPrincipal = participant[0].total_loan_principal + loanNeeded;
+
+                    if (newLoanPrincipal > maxLoan) {
+                        throw new Error(`團隊 ${bid.team_id} 借貸超過額度限制 (需要 ${newLoanPrincipal}, 上限 ${maxLoan})`);
+                    }
+
                     await connection.execute(
-                        `UPDATE game_participants 
+                        `UPDATE game_participants
                          SET total_loan = total_loan + ?,
                              total_loan_principal = total_loan_principal + ?,
                              current_budget = current_budget + ?
@@ -3392,7 +3215,7 @@ async function processBuyBids(gameDay) {
                     );
                 }
                 
-                // 扣除成本並增加庫存
+                // ??��?�本並�??�庫�?
                 await connection.execute(
                     `UPDATE game_participants 
                      SET current_budget = current_budget - ?,
@@ -3402,8 +3225,8 @@ async function processBuyBids(gameDay) {
                     [totalCost, fulfilledQuantity, gameDay.game_id, bid.team_id]
                 );
                 
-                // 記錄交易到 transactions 表 - 使用正確的欄位名稱
-                // 根據 SQL，transactions 表有: game_id, game_day_id, day_number, team_id, 
+                // 記�?交�???transactions �?- 使用�?��?��?位�?�?
+                // ?��? SQL，transactions 表�?: game_id, game_day_id, day_number, team_id, 
                 // transaction_type, fish_type, price, quantity, total_amount
                 await connection.execute(
                     `INSERT INTO transactions 
@@ -3414,45 +3237,45 @@ async function processBuyBids(gameDay) {
             }
         }
         
-        console.log(`${fishType}級魚買入投標處理完成，剩餘供給量: ${remainingSupply}`);
+        console.log(`${fishType}級�?買入?��??��?完�?，剩餘�?給�?: ${remainingSupply}`);
     }
     
-    // 提交事務
+    // ?�交事�?
     await connection.commit();
-    console.log('買入投標處理完成');
+    console.log('買入?��??��?完�?');
     } catch (error) {
-        // 發生錯誤時回滾事務
+        // ?��??�誤?��?滾�???
         await connection.rollback();
         throw error;
     } finally {
-        // 釋放連接
+        // ?�放??��
         connection.release();
     }
 }
 
-// 處理賣出投標 - 包含固定滯銷機制（修復版）
+// ?��?�?��?��? - ?�含?��?滯銷機制（修復�?�?
 async function processSellBids(gameDay) {
-    // 獲取連接並開始事務
+    // ?��???��並�?始�???
     const connection = await pool.getConnection();
     await connection.beginTransaction();
     
     try {
-        // 獲取遊戲設定
+        // ?��??�戲設�?
         const [gameInfo] = await connection.execute(
-            'SELECT unsold_fee_per_kg FROM games WHERE id = ?',
+            'SELECT unsold_fee_per_kg, fixed_unsold_ratio FROM games WHERE id = ?',
             [gameDay.game_id]
         );
-        const fixedUnsoldRatio = 2.5; // 固定2.5%滯銷比例
+        const fixedUnsoldRatio = gameInfo[0].fixed_unsold_ratio || 2.5;
         const unsoldFeePerKg = gameInfo[0].unsold_fee_per_kg || 10;
         
-        console.log(`處理賣出投標 - 固定滯銷比例: ${fixedUnsoldRatio}%`);
+        console.log(`?��?�?��?��? - ?��?滯銷比�?: ${fixedUnsoldRatio}%`);
         
         for (const fishType of ['A', 'B']) {
-            // 根據資料庫結構使用正確的欄位名稱
+            // ?��?資�?庫�?構使?�正確�?欄�??�稱
             const budget = fishType === 'A' ? gameDay.fish_a_restaurant_budget : gameDay.fish_b_restaurant_budget;
             let remainingBudget = Number(budget);
             
-            // 獲取所有賣出投標（價格由低到高 - 價低者得）
+            // ?��??�?�賣?��?標�??�格?��??��? - ?��??��?�?
             const [allBids] = await connection.execute(
                 `SELECT * FROM bids 
                  WHERE game_day_id = ? AND bid_type = 'sell' AND fish_type = ?
@@ -3461,30 +3284,42 @@ async function processSellBids(gameDay) {
             );
             
             if (allBids.length === 0) continue;
-            
-            // 步驟1：找出最高價並處理2.5%固定滯銷
-            const maxPrice = Math.max(...allBids.map(bid => bid.price));
-            const highPriceBids = allBids.filter(bid => bid.price === maxPrice)
-                                         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // 晚出價者優先
-            
-            // 為每個最高價投標計算各自的2.5%滯銷
+
+            // 步�?1：�?算�??��?標�?總�?（根?��??��??��??�部?�交?��?2.5%?�滯?��?
+            const totalBidQuantity = allBids.reduce((sum, bid) => sum + bid.quantity_submitted, 0);
+            const fixedUnsoldQuantity = Math.ceil(totalBidQuantity * fixedUnsoldRatio / 100);
+
+            console.log(`${fishType}級�?：總?��???${totalBidQuantity}kg，固定滯??${fixedUnsoldQuantity}kg (${fixedUnsoldRatio}%)`);
+
+            // 步�?2：找?��??��?標並?�價?��?序、�??��?序�??��??��??��??��?，�??��??��??�滯?��?
+            const sortedBids = [...allBids].sort((a, b) => {
+                if (b.price !== a.price) {
+                    return b.price - a.price; // ?�格高�??��?
+                }
+                return new Date(b.created_at) - new Date(a.created_at); // ?�價?��?，�??��??�優?��??��?被�??�滯?��?
+            });
+
+            // 步�?3：�??�高價?��??��??��?滯銷??
             const unsoldAllocation = new Map();
-            let totalUnsoldQuantity = 0;
-            
-            for (const bid of highPriceBids) {
-                // 每個最高價投標都有2.5%滯銷
-                const bidUnsold = Math.ceil(bid.quantity_submitted * fixedUnsoldRatio / 100);
-                unsoldAllocation.set(bid.id, bidUnsold);
-                totalUnsoldQuantity += bidUnsold;
-                console.log(`團隊${bid.team_id}最高價投標：${bid.quantity_submitted}kg，滯銷${bidUnsold}kg`);
+            let remainingUnsoldQuantity = fixedUnsoldQuantity;
+
+            for (const bid of sortedBids) {
+                if (remainingUnsoldQuantity <= 0) break;
+
+                const bidUnsold = Math.min(bid.quantity_submitted, remainingUnsoldQuantity);
+                if (bidUnsold > 0) {
+                    unsoldAllocation.set(bid.id, bidUnsold);
+                    remainingUnsoldQuantity -= bidUnsold;
+                    console.log(`?��?${bid.team_id} ?�格${bid.price} ?��?${bid.quantity_submitted}kg，�??�滯??{bidUnsold}kg`);
+                }
             }
-            
-            console.log(`${fishType}級魚：最高價${maxPrice}，總滯銷${totalUnsoldQuantity}kg`);
-            
-            // 步驟2：處理所有投標（價低者得，最高價部分滯銷）
+
+            console.log(`${fishType}級�?：總滯銷?��?完�?，剩餘未?��?=${remainingUnsoldQuantity}kg`);
+
+            // 步�?4：�??��??��?標�?交�??��??��?，已?��?滯銷?�部?��??�賣?��?
             for (const bid of allBids) {
                 if (remainingBudget <= 0) {
-                    // 預算不足，標記為失敗
+                    // ?��?不足，�?記為失�?
                     await connection.execute(
                         'UPDATE bids SET quantity_fulfilled = 0, status = "failed" WHERE id = ?',
                         [bid.id]
@@ -3492,18 +3327,17 @@ async function processSellBids(gameDay) {
                     continue;
                 }
                 
+                // 計�??�售?��?（扣?�滯?�部?��?
                 let availableQuantity = bid.quantity_submitted;
-                
-                // 如果是最高價投標，需要扣除滯銷數量
-                if (bid.price === maxPrice && unsoldAllocation.has(bid.id)) {
-                    const bidUnsoldQuantity = unsoldAllocation.get(bid.id);
+                const bidUnsoldQuantity = unsoldAllocation.get(bid.id) || 0;
+
+                if (bidUnsoldQuantity > 0) {
                     availableQuantity = bid.quantity_submitted - bidUnsoldQuantity;
-                    
-                    console.log(`團隊${bid.team_id}最高價投標：總量${bid.quantity_submitted}kg，滯銷${bidUnsoldQuantity}kg，可售${availableQuantity}kg`);
+                    console.log(`?��?${bid.team_id} ?�格${bid.price}：總??{bid.quantity_submitted}kg，滯??{bidUnsoldQuantity}kg，可??{availableQuantity}kg`);
                 }
                 
                 if (availableQuantity <= 0) {
-                    // 全部滯銷
+                    // ?�部滯銷
                     await connection.execute(
                         'UPDATE bids SET quantity_fulfilled = 0, status = "failed" WHERE id = ?',
                         [bid.id]
@@ -3511,41 +3345,41 @@ async function processSellBids(gameDay) {
                     continue;
                 }
                 
-                // 計算實際成交數量（基於餐廳預算）
+                // 計�?實�??�交?��?（基?��?廳�?算�?
                 const maxAffordableQuantity = Math.floor(remainingBudget / bid.price);
                 const fulfilledQuantity = Math.min(availableQuantity, maxAffordableQuantity);
                 const totalRevenue = fulfilledQuantity * bid.price;
                 
                 if (fulfilledQuantity > 0) {
                     remainingBudget -= totalRevenue;
-                    
-                    // 判斷狀態：如果有滯銷，即使全部售出也算部分成交
+
+                    // ?�斷?�?��?如�??�滯?��??�使?�售?��??�部?�出也�??��??�交
                     let bidStatus;
-                    if (bid.price === maxPrice && unsoldAllocation.has(bid.id)) {
-                        // 最高價有滯銷，最多只能是部分成交
+                    if (bidUnsoldQuantity > 0) {
+                        // ?�滯?��??�多只?�是?��??�交
                         bidStatus = 'partial';
                     } else {
-                        // 非最高價，根據實際成交數量判斷
+                        // ?�滯?��??��?實�??�交?��??�斷
                         bidStatus = fulfilledQuantity === bid.quantity_submitted ? 'fulfilled' : 'partial';
                     }
                     
-                    // 更新投標記錄
+                    // ?�新?��?記�?
                     await connection.execute(
                         'UPDATE bids SET quantity_fulfilled = ?, status = ? WHERE id = ?',
                         [fulfilledQuantity, bidStatus, bid.id]
                     );
                     
-                    // 更新團隊現金和扣除庫存
+                    // ??��庫�?（注?��??��??�戲規�?，銷?�收?��??��?資�?池�?
+                    // 資�?池只減�?增�??�入?�用?�利潤�?�?
                     await connection.execute(
-                        `UPDATE game_participants 
-                         SET current_budget = current_budget + ?,
-                             ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} = 
+                        `UPDATE game_participants
+                         SET ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} =
                              ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} - ?
                          WHERE game_id = ? AND team_id = ?`,
-                        [totalRevenue, fulfilledQuantity, gameDay.game_id, bid.team_id]
+                        [fulfilledQuantity, gameDay.game_id, bid.team_id]
                     );
                     
-                    // 記錄交易到 transactions 表 - 使用正確的欄位名稱
+                    // 記�?交�???transactions �?- 使用�?��?��?位�?�?
                     await connection.execute(
                         `INSERT INTO transactions 
                          (game_id, game_day_id, day_number, team_id, transaction_type, fish_type, price, quantity, total_amount)
@@ -3553,9 +3387,9 @@ async function processSellBids(gameDay) {
                         [gameDay.game_id, gameDay.id, gameDay.day_number, bid.team_id, fishType, bid.price, fulfilledQuantity, totalRevenue]
                     );
                     
-                    console.log(`團隊${bid.team_id}賣出${fulfilledQuantity}kg ${fishType}級魚，單價${bid.price}，收入${totalRevenue}`);
+                    console.log(`?��?${bid.team_id}�?��${fulfilledQuantity}kg ${fishType}級�?，單??{bid.price}，收??{totalRevenue}`);
                 } else {
-                    // 無法成交
+                    // ?��??�交
                     await connection.execute(
                         'UPDATE bids SET quantity_fulfilled = 0, status = "failed" WHERE id = ?',
                         [bid.id]
@@ -3564,65 +3398,66 @@ async function processSellBids(gameDay) {
             }
         }
         
-        // 提交事務
+        // ?�交事�?
         await connection.commit();
-        console.log('賣出投標處理完成（含固定2.5%滯銷機制）');
+        console.log('�?��?��??��?完�?（含?��?2.5%滯銷機制�?);
         
     } catch (error) {
-        // 發生錯誤時回滾事務
+        // ?��??�誤?��?滾�???
         await connection.rollback();
         throw error;
     } finally {
-        // 釋放連接
+        // ?�放??��
         connection.release();
     }
 }
 
 /**
- * 強化版每日結算功能 - 使用事務和高精度計算
- * @param {Object} pool - MySQL 連接池
- * @param {Number} gameId - 遊戲ID
- * @param {Number} gameDayId - 遊戲天ID
+ * 強�??��??��?算�???- 使用事�??��?精度計�?
+ * @param {Object} pool - MySQL ??���?
+ * @param {Number} gameId - ?�戲ID
+ * @param {Number} gameDayId - ?�戲天ID
  * @param {Number} dayNumber - 天數
- * @param {Boolean} isForceEnd - 是否為強制結束（強制計算ROI）
+ * @param {Boolean} isForceEnd - ?�否?�強?��??��?強制計�?ROI�?
  */
 async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isForceEnd = false) {
-    // 獲取資料庫連接以開始事務
+    // ?��?資�?庫�?��以�?始�???
     const connection = await pool.getConnection();
     
     try {
-        // 開始事務
+        // ?��?事�?
         await connection.beginTransaction();
-        console.log(`開始第 ${dayNumber} 天結算（事務模式）`);
+        console.log(`?��?�?${dayNumber} 天�?算�?事�?模�?）`);
         
-        // 1. 讀取遊戲基本資訊
+        // 1. 讀?��??�基?��?�?
         const [game] = await connection.execute(
             'SELECT * FROM games WHERE id = ? FOR UPDATE',
             [gameId]
         );
         
         if (game.length === 0) {
-            throw new Error('遊戲不存在');
+            throw new Error('?�戲不�???);
         }
         
         const gameInfo = game[0];
         
-        // 使用 Decimal.js 處理所有金額
+        // 使用 Decimal.js ?��??�?��?�?
         const initialBudget = new Decimal(gameInfo.initial_budget);
-        const loanInterestRate = new Decimal(gameInfo.loan_interest_rate).dividedBy(100); // 轉換為小數
+        // 注�?：�??�庫�?loan_interest_rate 已�??��??�形式�?0.03 = 3%）�?不�?要�??�以100
+        const loanInterestRate = new Decimal(gameInfo.loan_interest_rate);
         const unsoldFeePerKg = new Decimal(gameInfo.unsold_fee_per_kg);
         
-        // 2. 讀取所有參與團隊（加鎖防止並發修改）
+        // 2. 讀?��??��??��??��??��??�止並發修改�?
         const [participants] = await connection.execute(
             'SELECT * FROM game_participants WHERE game_id = ? FOR UPDATE',
             [gameId]
         );
         
-        // 3. 處理每個團隊的結算
+        // 3. ?��?每個�??��?結�?
         for (const participant of participants) {
-            console.log(`處理團隊 ${participant.team_id} 的結算...`);
+            console.log(`?��??��? ${participant.team_id} ?��?�?..`);
             
-            // 3.1 讀取當日所有買入投標
+            // 3.1 讀?�當?��??�買?��?�?
             const [buyBids] = await connection.execute(
                 `SELECT fish_type, price, quantity_fulfilled 
                  FROM bids 
@@ -3630,7 +3465,7 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                 [gameDayId, participant.team_id]
             );
             
-            // 3.2 讀取當日所有賣出投標
+            // 3.2 讀?�當?��??�賣?��?�?
             const [sellBids] = await connection.execute(
                 `SELECT fish_type, price, quantity_fulfilled 
                  FROM bids 
@@ -3638,7 +3473,7 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                 [gameDayId, participant.team_id]
             );
             
-            // 3.3 使用高精度計算成本
+            // 3.3 使用高精度�?算�???
             let totalCost = new Decimal(0);
             let fishABought = 0;
             let fishBBought = 0;
@@ -3655,7 +3490,7 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                 }
             }
             
-            // 3.4 使用高精度計算收入
+            // 3.4 使用高精度�?算收??
             let totalRevenue = new Decimal(0);
             let fishASold = 0;
             let fishBSold = 0;
@@ -3672,44 +3507,54 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                 }
             }
             
-            // 3.5 計算庫存變化
+            // 3.5 計�?庫�?變�?
             const currentBudget = new Decimal(participant.current_budget);
             const currentLoan = new Decimal(participant.total_loan);
             const currentLoanPrincipal = new Decimal(participant.total_loan_principal);
             
-            // 計算當日未售出數量（當日買入 - 當日賣出）
+            // 計�??�日?�售?�數?��??�日買入 - ?�日�?���?
             const fishAUnsold = Math.max(0, fishABought - fishASold);
             const fishBUnsold = Math.max(0, fishBBought - fishBSold);
             
-            // 3.6 計算滯銷費（未售出的魚）
+            // 3.6 計�?滯銷費�??�售?��?魚�?
             const unsoldQuantity = fishAUnsold + fishBUnsold;
             const unsoldFee = unsoldFeePerKg.times(unsoldQuantity);
             
-            // 根據新規則：每日結束庫存歸零（不論有沒有賣出）
+            // ?��??��??��?每日結�?庫�?歸零（�?論�?沒�?�?���?
             const newFishAInventory = 0;
             const newFishBInventory = 0;
             
-            // 3.7 計算利息（使用複利）
+            // 3.7 計�??�息（使?��??��?
             const interestIncurred = currentLoan.times(loanInterestRate);
             const newTotalLoan = currentLoan.plus(interestIncurred);
-            
-            // 3.8 計算新預算（扣除利息）
-            let newBudget = currentBudget.plus(totalRevenue).minus(totalCost).minus(unsoldFee).minus(interestIncurred);
+
+            // 3.8 計�??��?算�?注�?：根?��??��??��??�售?�入不�??��??��?�?
+            // 資�?池只減�?增�??�扣?��??�、滯?�費?�利??
+            let newBudget = currentBudget.minus(unsoldFee).minus(interestIncurred);
             let additionalLoan = new Decimal(0);
-            
-            // 如果預算不足，自動借貸
+
+            // 如�??��?不足，自?�借貸
             if (newBudget.lessThan(0)) {
                 additionalLoan = newBudget.abs();
+
+                // 檢查借貸額度限制
+                const maxLoan = initialBudget.times(new Decimal(gameInfo.max_loan_ratio));
+                const newLoanPrincipal = currentLoanPrincipal.plus(additionalLoan);
+
+                if (newLoanPrincipal.greaterThan(maxLoan)) {
+                    throw new Error(`團隊 ${participant.team_id} 每日結算時借貸超過額度限制 (需要 ${newLoanPrincipal.toFixed(2)}, 上限 ${maxLoan.toFixed(2)})`);
+                }
+
                 newBudget = new Decimal(0);
             }
             
             const newLoanPrincipal = currentLoanPrincipal.plus(additionalLoan);
             const finalTotalLoan = newTotalLoan.plus(additionalLoan);
             
-            // 3.9 計算每日利潤
+            // 3.9 計�?每日?�潤
             const dailyProfit = totalRevenue.minus(totalCost).minus(unsoldFee).minus(interestIncurred);
             
-            // 3.10 獲取累積利潤
+            // 3.10 ?��?累�??�潤
             const [prevResults] = await connection.execute(
                 `SELECT cumulative_profit FROM daily_results 
                  WHERE team_id = ? 
@@ -3722,7 +3567,7 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                 : new Decimal(0);
             const cumulativeProfit = prevCumulativeProfit.plus(dailyProfit);
             
-            // 3.11 計算 ROI（在最後一天或強制結束時）
+            // 3.11 計�? ROI（在?�後�?天�?強制結�??��?
             let roi = new Decimal(0);
             const [gameSettings] = await connection.execute(
                 'SELECT total_days FROM games WHERE id = ?',
@@ -3731,15 +3576,15 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
             const totalDays = gameSettings[0].total_days || 7;
             
             if (isForceEnd || dayNumber === totalDays) {
-                // 使用精確公式: ROI = (cumulative_profit / (initial_budget + total_loan_principal)) * 100
+                // 使用精確?��?: ROI = (cumulative_profit / (initial_budget + total_loan_principal)) * 100
                 const totalInvestment = initialBudget.plus(newLoanPrincipal);
                 if (totalInvestment.greaterThan(0)) {
                     roi = cumulativeProfit.dividedBy(totalInvestment).times(100);
                 }
-                console.log(`團隊 ${participant.team_id} ${isForceEnd ? '強制結束' : '最終'} ROI: ${roi.toFixed(2)}%`);
+                console.log(`?��? ${participant.team_id} ${isForceEnd ? '強制結�?' : '?��?} ROI: ${roi.toFixed(2)}%`);
             }
             
-            // 3.12 更新 game_participants 表
+            // 3.12 ?�新 game_participants �?
             await connection.execute(
                 `UPDATE game_participants 
                  SET current_budget = ?,
@@ -3760,183 +3605,118 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                 ]
             );
             
-            // 3.13 插入 daily_results 記錄 - 使用正確的資料庫欄位名稱
-            // 根據 fishmarket_game_latest.sql，daily_results 表的正確欄位是：
-            // game_id, game_day_id, day_number, team_id,
-            // revenue, cost, unsold_fee, interest_incurred,
-            // daily_profit, cumulative_profit, roi, closing_budget, closing_loan
-            
+            // 3.13 ?�入 daily_results 記�? - 使用�?��?�主要�?位�?�?
+            // 使用主�?欄�??��??�容欄�?�?
+            // starting_cash, ending_cash (NOT closing_budget)
+            // starting_loan, ending_loan (NOT closing_loan)
+            // buy_cost (NOT cost), sell_revenue (NOT revenue)
+            // interest_paid (NOT interest_incurred)
+
             await connection.execute(
                 `INSERT INTO daily_results (
                     game_id, game_day_id, day_number, team_id,
-                    revenue, cost, unsold_fee, interest_incurred,
-                    daily_profit, cumulative_profit, roi,
-                    closing_budget, closing_loan
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    starting_cash, ending_cash,
+                    starting_loan, ending_loan,
+                    fish_a_bought, fish_a_sold, fish_a_unsold,
+                    fish_b_bought, fish_b_sold, fish_b_unsold,
+                    buy_cost, sell_revenue, unsold_fee, interest_paid,
+                    daily_profit, cumulative_profit, roi
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     gameId,
                     gameDayId,
                     dayNumber,
                     participant.team_id,
-                    totalRevenue.toFixed(2),
-                    totalCost.toFixed(2),
-                    unsoldFee.toFixed(2),
-                    interestIncurred.toFixed(2),
-                    dailyProfit.toFixed(2),
-                    cumulativeProfit.toFixed(2),
-                    roi.toFixed(2),
-                    newBudget.toFixed(2),
-                    finalTotalLoan.toFixed(2)
+                    currentBudget.toFixed(2),          // starting_cash
+                    newBudget.toFixed(2),              // ending_cash
+                    currentLoan.toFixed(2),            // starting_loan
+                    finalTotalLoan.toFixed(2),         // ending_loan
+                    fishABought,                       // fish_a_bought
+                    fishASold,                         // fish_a_sold
+                    fishAUnsold,                       // fish_a_unsold
+                    fishBBought,                       // fish_b_bought
+                    fishBSold,                         // fish_b_sold
+                    fishBUnsold,                       // fish_b_unsold
+                    totalCost.toFixed(2),              // buy_cost
+                    totalRevenue.toFixed(2),           // sell_revenue
+                    unsoldFee.toFixed(2),              // unsold_fee
+                    interestIncurred.toFixed(2),       // interest_paid
+                    dailyProfit.toFixed(2),            // daily_profit
+                    cumulativeProfit.toFixed(2),       // cumulative_profit
+                    roi.toFixed(2)                     // roi
                 ]
             );
             
-            console.log(`團隊 ${participant.team_id} 結算完成`);
+            console.log(`?��? ${participant.team_id} 結�?完�?`);
         }
         
-        // 提交事務
+        // ?�交事�?
         await connection.commit();
-        console.log(`第 ${dayNumber} 天結算成功完成（事務已提交）`);
+        console.log(`�?${dayNumber} 天�?算�??��??��?事�?已�?交�?`);
         
-        return { success: true, message: '結算完成' };
+        return { success: true, message: '結�?完�?' };
         
     } catch (error) {
-        // 發生錯誤，回滾事務
+        // ?��??�誤，�?滾�???
         await connection.rollback();
-        console.error('結算失敗，事務已回滾:', error);
+        console.error('結�?失�?，�??�已?�滾:', error);
         throw error;
         
     } finally {
-        // 釋放連接
+        // ?�放??��
         connection.release();
     }
 }
 
-// ===== 新增：遊戲參數管理 API =====
+// ===== ?��?：�??��??�管??API =====
 
-// 獲取遊戲參數
+// ?��??�戲?�數
 app.get('/api/admin/game-parameters', authenticateToken, requireAdmin, async (req, res) => {
     try {
         res.json(defaultGameParameters);
     } catch (error) {
-        console.error('獲取參數失敗:', error);
-        res.status(500).json({ error: '獲取參數失敗' });
+        console.error('?��??�數失�?:', error);
+        res.status(500).json({ error: '?��??�數失�?' });
     }
 });
 
-// 更新遊戲參數
+// ?�新?�戲?�數
 app.post('/api/admin/game-parameters', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const newParams = req.body;
         
-        // 驗證參數
+        // 驗�??�數
         if (newParams.initialBudget && newParams.initialBudget < 0) {
-            return res.status(400).json({ error: '初始預算不能為負數' });
+            return res.status(400).json({ error: '?��??��?不能?��??? });
         }
         if (newParams.loanInterestRate && (newParams.loanInterestRate < 0 || newParams.loanInterestRate > 1)) {
-            return res.status(400).json({ error: '利率必須在 0-100% 之間' });
+            return res.status(400).json({ error: '?��?必�???0-100% 之�?' });
         }
         if (newParams.totalDays && (newParams.totalDays < 1 || newParams.totalDays > 30)) {
-            return res.status(400).json({ error: '遊戲天數必須在 1-30 天之間' });
+            return res.status(400).json({ error: '?�戲天數必�???1-30 天�??? });
         }
         
-        // 更新參數
+        // ?�新?�數
         defaultGameParameters = {
             ...defaultGameParameters,
             ...newParams
         };
         
-        console.log('遊戲參數已更新:', defaultGameParameters);
+        console.log('?�戲?�數已更??', defaultGameParameters);
         
         res.json({ 
-            message: '參數已成功更新',
+            message: '?�數已�??�更??,
             parameters: defaultGameParameters
         });
         
     } catch (error) {
-        console.error('更新參數失敗:', error);
-        res.status(500).json({ error: '更新參數失敗' });
+        console.error('?�新?�數失�?:', error);
+        res.status(500).json({ error: '?�新?�數失�?' });
     }
 });
 
-// ===== 新增：遊戲控制 API =====
 
-// 暫停遊戲
-app.post('/admin/games/:gameId/pause', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    
-    try {
-        // 檢查遊戲狀態
-        const [game] = await db.execute(
-            'SELECT * FROM games WHERE id = ?',
-            [gameId]
-        );
-        
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        if (game[0].status !== 'active') {
-            return res.status(400).json({ error: '只有進行中的遊戲可以暫停' });
-        }
-        
-        // 更新狀態為暫停
-        await db.execute(
-            'UPDATE games SET status = ?, paused_at = NOW() WHERE id = ?',
-            ['paused', gameId]
-        );
-        
-        // 通知所有連接的客戶端
-        io.to(`game-${gameId}`).emit('gameStatusUpdate', {
-            status: 'paused',
-            message: '遊戲已暫停'
-        });
-        
-        res.json({ message: '遊戲已暫停' });
-    } catch (error) {
-        console.error('暫停遊戲失敗:', error);
-        res.status(500).json({ error: '暫停遊戲失敗' });
-    }
-});
-
-// 恢復遊戲
-app.post('/admin/games/:gameId/resume', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    
-    try {
-        // 檢查遊戲狀態
-        const [game] = await db.execute(
-            'SELECT * FROM games WHERE id = ?',
-            [gameId]
-        );
-        
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        if (game[0].status !== 'paused') {
-            return res.status(400).json({ error: '只有暫停的遊戲可以恢復' });
-        }
-        
-        // 更新狀態為進行中
-        await db.execute(
-            'UPDATE games SET status = ?, paused_at = NULL WHERE id = ?',
-            ['active', gameId]
-        );
-        
-        // 通知所有連接的客戶端
-        io.to(`game-${gameId}`).emit('gameStatusUpdate', {
-            status: 'active',
-            message: '遊戲已恢復'
-        });
-        
-        res.json({ message: '遊戲已恢復' });
-    } catch (error) {
-        console.error('恢復遊戲失敗:', error);
-        res.status(500).json({ error: '恢復遊戲失敗' });
-    }
-});
-
-// 強制結束遊戲（計算 ROI）
+// 強制結�??�戲（�?�?ROI�?
 app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
@@ -3945,7 +3725,7 @@ app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, asyn
     try {
         await connection.beginTransaction();
         
-        // 檢查遊戲狀態
+        // 檢查?�戲?�??
         const [game] = await connection.execute(
             'SELECT * FROM games WHERE id = ? FOR UPDATE',
             [gameId]
@@ -3953,15 +3733,15 @@ app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, asyn
         
         if (game.length === 0) {
             await connection.rollback();
-            return res.status(404).json({ error: '遊戲不存在' });
+            return res.status(404).json({ error: '?�戲不�??? });
         }
         
-        if (game[0].status === 'finished' || game[0].status === 'force_ended') {
+        if (game[0].status === 'completed') {
             await connection.rollback();
-            return res.status(400).json({ error: '遊戲已結束' });
+            return res.status(400).json({ error: '?�戲已�??? });
         }
         
-        // 獲取當前天數
+        // ?��??��?天數
         const [currentDay] = await connection.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
@@ -3969,75 +3749,75 @@ app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, asyn
         
         const currentDayNumber = currentDay.length > 0 ? currentDay[0].day_number : 1;
         
-        // 如果有當天未結算的記錄，先進行結算
-        if (currentDay.length > 0 && currentDay[0].status !== 'settled') {
-            // 處理未完成的投標
+        // 如�??�當天未結�??��??��??�進�?結�?
+        if (currentDay.length > 0 && currentDay[0].status !== 'completed') {
+            // ?��??��??��??��?
             if (currentDay[0].status === 'buying_open' || currentDay[0].status === 'buying_closed') {
                 await processBuyBids(currentDay[0]);
             }
             if (currentDay[0].status === 'selling_open' || currentDay[0].status === 'selling_closed') {
                 await processSellBids(currentDay[0]);
             }
-            
-            // 執行當天結算（強制計算 ROI）
+
+            // ?��??�天結�?（強?��?�?ROI�?
             await forceEndDailySettlement(connection, gameId, currentDay[0].id, currentDayNumber, true);
-            
+
             await connection.execute(
                 'UPDATE game_days SET status = ? WHERE id = ?',
-                ['settled', currentDay[0].id]
+                ['completed', currentDay[0].id]
             );
         } else if (currentDayNumber > 0) {
-            // 如果已結算但遊戲未結束，重新計算最終 ROI
+            // 如�?已�?算�??�戲?��??��??�新計�??��?ROI
             await calculateFinalROI(connection, gameId, currentDayNumber);
         }
         
-        // 更新遊戲狀態
+        // ?�新?�戲?�??
         await connection.execute(
-            'UPDATE games SET status = ?, force_ended_at = NOW(), force_end_day = ? WHERE id = ?',
-            ['force_ended', currentDayNumber, gameId]
+            'UPDATE games SET status = "completed", is_force_ended = TRUE, force_ended_at = NOW(), force_end_day = ? WHERE id = ?',
+            [currentDayNumber, gameId]
         );
         
         await connection.commit();
         
-        // 通知所有連接的客戶端
+        // ?�知?�?��?��?�客?�端
         io.to(`game-${gameId}`).emit('gameStatusUpdate', {
-            status: 'force_ended',
-            message: '遊戲已強制結束',
+            status: 'completed', isForceEnded: true,
+            message: '?�戲已強?��???,
             endDay: currentDayNumber
         });
         
         res.json({ 
-            message: '遊戲已強制結束',
+            message: '?�戲已強?��???,
             endDay: currentDayNumber,
             roiCalculated: true
         });
         
     } catch (error) {
         await connection.rollback();
-        console.error('強制結束遊戲失敗:', error);
-        res.status(500).json({ error: '強制結束遊戲失敗' });
+        console.error('強制結�??�戲失�?:', error);
+        res.status(500).json({ error: '強制結�??�戲失�?' });
     } finally {
         connection.release();
     }
 });
 
-// 強制結束時的結算函數（計算 ROI）
+// 強制結�??��?結�??�數（�?�?ROI�?
 async function forceEndDailySettlement(connection, gameId, gameDayId, dayNumber, isForceEnd = true) {
-    console.log(`開始強制結束結算（第 ${dayNumber} 天）`);
+    console.log(`?��?強制結�?結�?（第 ${dayNumber} 天�?`);
     
-    // 直接調用 enhancedDailySettlement，但使用 connection 而不是 pool
-    // 創建一個模擬的 pool 對象以適配
+    // ?�接調用 enhancedDailySettlement，�?使用 connection ?��???pool
+    // ?�建一?�模?��? pool 對象以適??
     const mockPool = {
         getConnection: async () => connection
     };
     
-    // 調用原始的 enhancedDailySettlement，傳入 isForceEnd = true
+    // 調用?��???enhancedDailySettlement，傳??isForceEnd = true
     await enhancedDailySettlement(mockPool, gameId, gameDayId, dayNumber, true);
 }
 
-// 計算最終 ROI（用於已結算但需要強制結束的情況）
+// 計�??��?ROI（用?�已結�?但�?要強?��??��??��?�?
 async function calculateFinalROI(connection, gameId, dayNumber) {
-    console.log(`計算最終 ROI（第 ${dayNumber} 天強制結束）`);
+    console.log(`計�??��?ROI（第 ${dayNumber} 天強?��??��?`);
     
     const [game] = await connection.execute(
         'SELECT * FROM games WHERE id = ?',
@@ -4061,8 +3841,8 @@ async function calculateFinalROI(connection, gameId, dayNumber) {
             roi = cumulativeProfit.dividedBy(totalInvestment).times(100);
         }
         
-        // 更新最後一筆 daily_results 的 ROI
-        // MySQL 不支持在 UPDATE 中直接使用 ORDER BY LIMIT，需要用子查詢
+        // ?�新?�後�?�?daily_results ??ROI
+        // MySQL 不支?�在 UPDATE 中直?�使??ORDER BY LIMIT，�?要用子查�?
         await connection.execute(
             `UPDATE daily_results 
              SET roi = ? 
@@ -4077,21 +3857,21 @@ async function calculateFinalROI(connection, gameId, dayNumber) {
             [roi.toFixed(2), participant.team_id]
         );
         
-        console.log(`團隊 ${participant.team_id} 強制結束 ROI: ${roi.toFixed(2)}%`);
+        console.log(`?��? ${participant.team_id} 強制結�? ROI: ${roi.toFixed(2)}%`);
     }
 }
 
-// Socket.io 連線處理
+// Socket.io ????��?
 io.on('connection', (socket) => {
-    console.log('新用戶連接');
+    console.log('?�用?��?��');
     
     socket.on('joinGame', (gameId) => {
         socket.join(`game-${gameId}`);
-        console.log(`用戶加入遊戲房間: game-${gameId}`);
+        console.log(`?�戶?�入?�戲?��?: game-${gameId}`);
     });
     
     socket.on('disconnect', () => {
-        console.log('用戶斷開連接');
+        console.log('?�戶?��???��');
     });
 });
 
@@ -4107,7 +3887,7 @@ app.get('/api/game/status', async (req, res) => {
         if (games.length === 0) {
             return res.json({ 
                 gameActive: false, 
-                message: '目前沒有進行中的遊戲' 
+                message: '?��?沒�??��?中�??�戲' 
             });
         }
         
@@ -4123,7 +3903,7 @@ app.get('/api/game/status', async (req, res) => {
             return res.json({
                 gameActive: true,
                 gameId: game.id,
-                gameName: game.game_name,
+                gameName: game.name,
                 dayNumber: 0,
                 phase: 'pending',
                 endTime: null
@@ -4166,7 +3946,7 @@ app.get('/api/game/status', async (req, res) => {
             case 'selling_closed':
                 phase = 'sell_ended';
                 break;
-            case 'settled':
+            case 'completed':
                 phase = 'settled';
                 break;
             default:
@@ -4176,7 +3956,7 @@ app.get('/api/game/status', async (req, res) => {
         res.json({
             gameActive: true,
             gameId: game.id,
-            gameName: game.game_name,
+            gameName: game.name,
             dayNumber: day.day_number,
             phase: phase,
             endTime: endTime,
@@ -4186,7 +3966,7 @@ app.get('/api/game/status', async (req, res) => {
     } catch (error) {
         console.error('Error getting game status:', error);
         res.status(500).json({ 
-            error: '獲取遊戲狀態失敗' 
+            error: '?��??�戲?�?�失?? 
         });
     }
 });
@@ -4203,7 +3983,7 @@ app.get('/api/game/bid-history', async (req, res) => {
         if (games.length === 0) {
             return res.json({ 
                 success: false, 
-                message: '目前沒有進行中的遊戲',
+                message: '?��?沒�??��?中�??�戲',
                 history: []
             });
         }
@@ -4222,7 +4002,7 @@ app.get('/api/game/bid-history', async (req, res) => {
                 b.status
              FROM bids b
              JOIN game_days gd ON b.game_day_id = gd.id
-             WHERE gd.game_id = ? AND gd.status = 'settled'
+             WHERE gd.game_id = ? AND gd.status = 'completed'
              ORDER BY gd.day_number DESC, b.bid_type, b.fish_type, b.price DESC`,
             [game.id]
         );
@@ -4251,14 +4031,14 @@ app.get('/api/game/bid-history', async (req, res) => {
         res.json({
             success: true,
             gameId: game.id,
-            gameName: game.game_name,
+            gameName: game.name,
             history: Object.values(groupedHistory)
         });
         
     } catch (error) {
         console.error('Error getting bid history:', error);
         res.status(500).json({ 
-            error: '獲取投標歷史失敗' 
+            error: '?��??��?歷史失�?' 
         });
     }
 });
@@ -4267,7 +4047,8 @@ const PORT = process.env.PORT || 3000;
 
 initDatabase().then(() => {
     server.listen(PORT, '0.0.0.0', () => {
-        console.log(`伺服器運行在 http://0.0.0.0:${PORT}`);
-        console.log(`可從網路訪問: http://192.168.1.104:${PORT}`);
+        console.log(`伺�??��?行在 http://0.0.0.0:${PORT}`);
+        console.log(`?��?網路訪�?: http://192.168.1.104:${PORT}`);
     });
 });
+
