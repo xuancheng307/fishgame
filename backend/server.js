@@ -44,7 +44,6 @@ app.use(express.json());
 // Serve static frontend from bundled webroot (copied for deployment)
 app.use(express.static(path.join(__dirname, 'webroot')));
 
-let db;
 let pool;
 
 // 計�??�管??
@@ -94,62 +93,69 @@ function stopTimer(gameId) {
 }
 
 async function initDatabase() {
+    let connection;
     try {
-        // 使用??��池以?�援事�?
+        // 使用連接池支援多併發
         pool = mysql.createPool({
             host: process.env.DB_HOST || 'localhost',
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',
             database: process.env.DB_NAME || 'fishmarket_game',
+            port: process.env.DB_PORT || 3306,
             charset: 'utf8mb4',
             multipleStatements: true,
             waitForConnections: true,
             connectionLimit: 10,
-            queueLimit: 0
+            queueLimit: 0,
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 0
         });
-        
-        db = await pool.getConnection();
-        
-        console.log('資�?庫�?��?��?');
-        
-        // 資�?庫�?構已??complete_database_structure.sql 建�?
-        // 不�??��?CREATE TABLE 語句
-        
-        // 建�?管�??�帳??
-        const [adminExists] = await db.execute(
+
+        // 測試連接
+        connection = await pool.getConnection();
+        console.log('資料庫連接成功');
+
+        // 資料庫結構已由 complete_database_structure.sql 建立
+        // 建立管理員帳號
+        const [adminExists] = await connection.execute(
             'SELECT id FROM users WHERE username = ? AND role = "admin"',
             ['admin']
         );
-        
+
         if (adminExists.length === 0) {
             const hashedPassword = await bcrypt.hash('123', 10);
-            await db.execute(
-                'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-                ['admin', hashedPassword, 'admin']
+            await connection.execute(
+                'INSERT INTO users (username, password_hash, plain_password, role) VALUES (?, ?, ?, ?)',
+                ['admin', hashedPassword, '123', 'admin']
             );
-            console.log('?�設管�??�帳?�已建�? - 帳�?: admin, 密碼: 123');
+            console.log('管理員帳號 admin 已建立 - 密碼: 123');
         }
-        
-        // 建�?01-12?��??�帳??
-        for (let i = 1; i <= 12; i++) {
+
+        // 自動建立10個學生帳號（01-10）
+        for (let i = 1; i <= 10; i++) {
             const username = String(i).padStart(2, '0');
-            const [teamExists] = await db.execute(
-                'SELECT id FROM users WHERE username = ?',
+            const [teamExists] = await connection.execute(
+                'SELECT id FROM users WHERE username = ? AND role = "team"',
                 [username]
             );
-            
+
             if (teamExists.length === 0) {
-                const hashedPassword = await bcrypt.hash(username, 10);  // 密碼?�帳?�相??
-                await db.execute(
-                    'INSERT INTO users (username, password_hash, team_name, role) VALUES (?, ?, ?, ?)',
-                    [username, hashedPassword, `�?{i}組`, 'team']
+                const hashedPassword = await bcrypt.hash(username, 10);
+                await connection.execute(
+                    'INSERT INTO users (username, password_hash, plain_password, team_name, role) VALUES (?, ?, ?, ?, ?)',
+                    [username, hashedPassword, username, `第${i}組`, 'team']
                 );
-                console.log(`?��?帳�? ${username} 已建�?- 密碼: ${username}`);
+                console.log(`學生帳號 ${username} 已建立 - 密碼: ${username}`);
             }
         }
-        
+
+        // 釋放連接回連接池
+        connection.release();
+        console.log('資料庫初始化完成');
+
     } catch (error) {
-        console.error('資�?庫�?始�?失�?:', error);
+        console.error('資料庫初始化失敗:', error);
+        if (connection) connection.release();
         process.exit(1);
     }
 }
@@ -207,7 +213,7 @@ app.get('/api/qr/:gameId', async (req, res) => {
     
     try {
         // ?��??�戲資�?
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT name FROM games WHERE id = ?',
             [gameId]
         );
@@ -262,7 +268,7 @@ app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     
     try {
-        const [users] = await db.execute(
+        const [users] = await pool.execute(
             'SELECT * FROM users WHERE username = ?',
             [username]
         );
@@ -341,14 +347,14 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
     
     try {
         // 結�??�?�進�?中�?待�?始�??�戲
-        await db.execute(
+        await pool.execute(
             `UPDATE games SET status = 'completed' WHERE status IN ('active', 'pending')`
         );
         
         const teamCount = numTeams || 12;
         
         // ?�建?��??��?使用?�設?�數?�自定義?�數�?
-        const [result] = await db.execute(
+        const [result] = await pool.execute(
             `INSERT INTO games (
                 name, initial_budget, loan_interest_rate, max_loan_ratio,
                 unsold_fee_per_kg, fixed_unsold_ratio, distributor_floor_price_a, distributor_floor_price_b,
@@ -373,7 +379,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         const gameId = result.insertId;
         
         // 設�???pending ?�?��?�?�?
-        await db.execute(
+        await pool.execute(
             'UPDATE games SET status = "pending", current_day = 1 WHERE id = ?',
             [gameId]
         );
@@ -390,7 +396,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         const fishABudget = baselineBudgetA;
         const fishBBudget = baselineBudgetB;
         
-        await db.execute(
+        await pool.execute(
             `INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
                 fish_a_restaurant_budget, fish_b_restaurant_budget, status
@@ -444,7 +450,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
 // ?��??�戲?�表
 app.get('/api/admin/games', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const [games] = await db.execute(`
+        const [games] = await pool.execute(`
             SELECT g.*, COUNT(gp.id) as participant_count 
             FROM games g 
             LEFT JOIN game_participants gp ON g.id = gp.game_id
@@ -462,7 +468,7 @@ app.get('/api/admin/games', authenticateToken, requireAdmin, async (req, res) =>
 app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, res) => {
     try {
         // ?�詢?��? active ??pending ?��???(?��? active)
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             `SELECT * FROM games 
              WHERE status IN ('active', 'pending') 
              ORDER BY 
@@ -484,7 +490,7 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
         const game = games[0];
         
         // ?��??��??��???
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [game.id]
         );
@@ -492,7 +498,7 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
         // ?��??�?��??�者�?�?(使用 LEFT JOIN 以�??��??��??�者�??��?)
         let participants = [];
         try {
-            const [result] = await db.execute(`
+            const [result] = await pool.execute(`
                 SELECT gp.*, u.username, u.team_name
                 FROM game_participants gp
                 LEFT JOIN users u ON gp.team_id = u.id
@@ -535,7 +541,7 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
     const { gameId } = req.params;
     
     try {
-        const [game] = await db.execute(`
+        const [game] = await pool.execute(`
             SELECT g.*, 
                    gd.status as status,
                    gd.day_number
@@ -561,7 +567,7 @@ app.get('/api/admin/games/:gameId/teams', authenticateToken, requireAdmin, async
     const { gameId } = req.params;
     
     try {
-        const [teams] = await db.execute(`
+        const [teams] = await pool.execute(`
             SELECT gp.*, t.username, t.team_name
             FROM game_participants gp
             JOIN users t ON gp.team_id = t.id
@@ -581,7 +587,7 @@ app.get('/api/games/:gameId/timer-status', async (req, res) => {
     const { gameId } = req.params;
     
     try {
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -626,7 +632,7 @@ app.get('/api/admin/games/:gameId/current-bids', authenticateToken, requireAdmin
     const { gameId } = req.params;
     
     try {
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -637,7 +643,7 @@ app.get('/api/admin/games/:gameId/current-bids', authenticateToken, requireAdmin
         
         const dayId = currentDay[0].id;
         
-        const [buyBids] = await db.execute(`
+        const [buyBids] = await pool.execute(`
             SELECT b.*, u.team_name 
             FROM bids b
             JOIN users u ON b.team_id = u.id
@@ -645,7 +651,7 @@ app.get('/api/admin/games/:gameId/current-bids', authenticateToken, requireAdmin
             ORDER BY b.fish_type, b.price DESC
         `, [dayId]);
         
-        const [sellBids] = await db.execute(`
+        const [sellBids] = await pool.execute(`
             SELECT b.*, u.team_name 
             FROM bids b
             JOIN users u ON b.team_id = u.id
@@ -667,7 +673,7 @@ app.get('/api/admin/games/:gameId/bids/:day', authenticateToken, requireAdmin, a
     
     try {
         // ?��??��?天數??game_day
-        const [gameDays] = await db.execute(
+        const [gameDays] = await pool.execute(
             'SELECT id FROM game_days WHERE game_id = ? AND day_number = ?',
             [gameId, day]
         );
@@ -693,7 +699,7 @@ app.get('/api/admin/games/:gameId/bids/:day', authenticateToken, requireAdmin, a
         `;
         
         const params = type ? [dayId, type] : [dayId];
-        const [bids] = await db.execute(query, params);
+        const [bids] = await pool.execute(query, params);
         
         // ?��?結�?
         const buyBids = bids.filter(bid => bid.bid_type === 'buy');
@@ -718,7 +724,7 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
     
     try {
         // ?��?尋找?��? active ?�戲
-        const [games] = await db.execute('SELECT * FROM games WHERE status = ? LIMIT 1', ['active']);
+        const [games] = await pool.execute('SELECT * FROM games WHERE status = ? LIMIT 1', ['active']);
         if (games.length === 0) {
             return res.status(404).json({ error: '?��?沒�?�?��?��?中�??�戲', code: 'NO_ACTIVE_GAME' });
         }
@@ -727,7 +733,7 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
         const gameId = game.id;
         
         // 檢查?��??�是?�已結�?（�??��?驗�?�?
-        const [currentDayData] = await db.execute(
+        const [currentDayData] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? AND day_number = ?', 
             [gameId, game.current_day]
         );
@@ -742,7 +748,7 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
         const nextDay = game.current_day + 1;
         if (nextDay > game.total_days) {
             // ?�戲結�?
-            await db.execute('UPDATE games SET status = "completed" WHERE id = ?', [gameId]);
+            await pool.execute('UPDATE games SET status = "completed" WHERE id = ?', [gameId]);
             return res.json({ message: '?�戲已�???, gameCompleted: true });
         }
         
@@ -809,10 +815,10 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
         }
         
         // ?�新?�戲天數和狀�?
-        await db.execute('UPDATE games SET current_day = ?, status = "active" WHERE id = ?', [nextDay, gameId]);
+        await pool.execute('UPDATE games SET current_day = ?, status = "active" WHERE id = ?', [nextDay, gameId]);
 
         // ?�建?��?一天�???
-        await db.execute(`
+        await pool.execute(`
             INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
                 fish_a_restaurant_budget, fish_b_restaurant_budget, status
@@ -821,7 +827,7 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
 
         // ?�置?�?��??��???- 清空庫�?，貸款利?��??��?�?
         console.log(`?�置�?{nextDay}天�??��??�??..`);
-        const [participants] = await db.execute(
+        const [participants] = await pool.execute(
             'SELECT * FROM game_participants WHERE game_id = ?',
             [gameId]
         );
@@ -832,7 +838,7 @@ app.post('/api/admin/advance-day', authenticateToken, requireAdmin, async (req, 
             const newTotalLoan = currentLoan * (1 + interestRate);
 
             // ?�新?��??�?��?清空庫�?，更?�貸�?
-            await db.execute(
+            await pool.execute(
                 `UPDATE game_participants
                  SET fish_a_inventory = 0,
                      fish_b_inventory = 0,
@@ -869,7 +875,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
     
     try {
         // ?��?尋找 active ??pending ?�戲
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
         );
@@ -884,7 +890,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
         const game = games[0];
         const gameId = game.id;
         
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -921,7 +927,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
         
         // 如�??�戲?�在 pending ?�?��?將其激�?
         if (game.status === 'pending') {
-            await db.execute(
+            await pool.execute(
                 'UPDATE games SET status = ? WHERE id = ?',
                 ['active', gameId]
             );
@@ -933,7 +939,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000);
         
         // ?�新?�?�為 buying_open 並儲存�??��???
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ?, buy_start_time = ?, buy_end_time = ? WHERE id = ?',
             ['buying_open', startTime, endTime, currentDay[0].id]
         );
@@ -942,7 +948,7 @@ app.post('/api/admin/start-buying', authenticateToken, requireAdmin, async (req,
         startTimer(gameId, biddingDuration * 60, async () => {
             try {
                 // 計�??��??��??��??��?買入?��?
-                await db.execute(
+                await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['buying_closed', currentDay[0].id]
                 );
@@ -1007,12 +1013,12 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
     
     try {
         // ?�檢?��??�是?��???
-        const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
+        const [game] = await pool.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         if (game.length === 0) {
             return res.status(404).json({ error: '?�戲不�??? });
         }
         
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1043,7 +1049,7 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉�??�毫�?
         
         // ?�新?�?�為 buying - 使用�?��??status 欄�?並儲存�???
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ?, buy_start_time = ?, buy_end_time = ? WHERE id = ?',
             ['buying_open', startTime, endTime, currentDay[0].id]
         );
@@ -1052,7 +1058,7 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         startTimer(gameId, biddingDuration * 60, async () => {
             try {
                 // 計�??��??��??��??��?買入?��?
-                await db.execute(
+                await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['buying_closed', currentDay[0].id]
                 );
@@ -1110,7 +1116,7 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
 app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req, res) => {
     try {
         // ?��?尋找 active ??pending ?�戲
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
         );
@@ -1125,7 +1131,7 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
         const game = games[0];
         const gameId = game.id;
         
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1167,7 +1173,7 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
         await processBuyBids(currentDay[0]);
         
         // ?��?結�?結�?
-        const [buyResults] = await db.execute(
+        const [buyResults] = await pool.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
              JOIN users u ON b.team_id = u.id
@@ -1177,7 +1183,7 @@ app.post('/api/admin/close-buying', authenticateToken, requireAdmin, async (req,
         );
         
         // ?�新??buying_closed ?�??
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buying_closed', currentDay[0].id]
         );
@@ -1217,7 +1223,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
     const { gameId } = req.params;
     
     try {
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1234,7 +1240,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
         await processBuyBids(currentDay[0]);
         
         // ?��?結�?結�?
-        const [buyResults] = await db.execute(
+        const [buyResults] = await pool.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
              JOIN users u ON b.team_id = u.id
@@ -1244,7 +1250,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
         );
         
         // ?�新??buy_ended ?�??- 使用�?��??status 欄�?
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buying_closed', currentDay[0].id]
         );
@@ -1282,7 +1288,7 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
     
     try {
         // ?��?尋找 active ??pending ?�戲
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
         );
@@ -1297,7 +1303,7 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
         const game = games[0];
         const gameId = game.id;
         
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1338,7 +1344,7 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
         const endTime = new Date(startTime.getTime() + sellingDuration * 60 * 1000);
         
         // ?�新?�?�為 selling_open 並儲存�??��???
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ?, sell_start_time = ?, sell_end_time = ? WHERE id = ?',
             ['selling_open', startTime, endTime, currentDay[0].id]
         );
@@ -1347,7 +1353,7 @@ app.post('/api/admin/start-selling', authenticateToken, requireAdmin, async (req
         startTimer(gameId, sellingDuration * 60, async () => {
             try {
                 // 計�??��??��??��??��?�?��?��?
-                await db.execute(
+                await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['selling_closed', currentDay[0].id]
                 );
@@ -1411,7 +1417,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
     const { duration } = req.body; // ?�許?��?義�??��??��?�?
     
     try {
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1431,7 +1437,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉�??�毫�?
         
         // ?�新?�?�為 selling - 使用�?��??status 欄�?並儲存�???
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ?, sell_start_time = ?, sell_end_time = ? WHERE id = ?',
             ['selling_open', startTime, endTime, currentDay[0].id]
         );
@@ -1440,7 +1446,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         startTimer(`${gameId}-selling`, biddingDuration * 60, async () => {
             try {
                 // 計�??��??��??��??��?�?��?��?
-                await db.execute(
+                await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['selling_closed', currentDay[0].id]
                 );
@@ -1496,7 +1502,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
 app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req, res) => {
     try {
         // ?��?尋找 active ??pending ?�戲
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
         );
@@ -1511,7 +1517,7 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
         const game = games[0];
         const gameId = game.id;
         
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1553,7 +1559,7 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
         await processSellBids(currentDay[0]);
         
         // ?��?結�?結�?
-        const [sellResults] = await db.execute(
+        const [sellResults] = await pool.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
              JOIN users u ON b.team_id = u.id
@@ -1563,7 +1569,7 @@ app.post('/api/admin/close-selling', authenticateToken, requireAdmin, async (req
         );
         
         // ?�新??selling_closed ?�??
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling_closed', currentDay[0].id]
         );
@@ -1603,7 +1609,7 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
     const { gameId } = req.params;
     
     try {
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1620,7 +1626,7 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
         await processSellBids(currentDay[0]);
         
         // ?��?結�?結�?
-        const [sellResults] = await db.execute(
+        const [sellResults] = await pool.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
              JOIN users u ON b.team_id = u.id
@@ -1630,7 +1636,7 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
         );
         
         // ?�新??sell_ended ?�??- 使用�?��??status 欄�?
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling_closed', currentDay[0].id]
         );
@@ -1666,7 +1672,7 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
 app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) => {
     try {
         // ?��?尋找 active ??pending ?�戲
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
         );
@@ -1681,7 +1687,7 @@ app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) 
         const game = games[0];
         const gameId = game.id;
         
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1720,13 +1726,13 @@ app.post('/api/admin/settle', authenticateToken, requireAdmin, async (req, res) 
         await enhancedDailySettlement(pool, gameId, currentDay[0].id, currentDay[0].day_number);
         
         // ?�新?�?�為 settled
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['completed', currentDay[0].id]
         );
         
         // ?��?結�?後�??��??�??
-        const [updatedTeams] = await db.execute(
+        const [updatedTeams] = await pool.execute(
             `SELECT gp.*, u.team_name
              FROM game_participants gp
              JOIN users u ON gp.team_id = u.id
@@ -1771,7 +1777,7 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
     const { gameId } = req.params;
     
     try {
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
@@ -1796,13 +1802,13 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         await enhancedDailySettlement(pool, gameId, currentDay[0].id, currentDay[0].day_number);
         
         // 使用�?��?��??��?�?
-        await db.execute(
+        await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['completed', currentDay[0].id]
         );
         
         if (currentDay[0].day_number === 7) {
-            await db.execute(
+            await pool.execute(
                 'UPDATE games SET status = "completed" WHERE id = ?',
                 [gameId]
             );
@@ -1820,7 +1826,7 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
 app.get('/api/team/available-games', authenticateToken, async (req, res) => {
     try {
         // ?�詢?��?中�?待�?始�??�戲
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             `SELECT g.*, COUNT(gp.team_id) as current_teams
              FROM games g
              LEFT JOIN game_participants gp ON g.id = gp.game_id
@@ -1843,7 +1849,7 @@ app.post('/api/team/join-game', authenticateToken, async (req, res) => {
     
     try {
         // 檢查?�戲?�否存在且可?�入
-        const [game] = await db.execute(
+        const [game] = await pool.execute(
             'SELECT * FROM games WHERE id = ? AND status IN ("active", "pending")',
             [gameId]
         );
@@ -1853,7 +1859,7 @@ app.post('/api/team/join-game', authenticateToken, async (req, res) => {
         }
         
         // 檢查?�否已�???
-        const [existing] = await db.execute(
+        const [existing] = await pool.execute(
             'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
             [gameId, teamId]
         );
@@ -1863,7 +1869,7 @@ app.post('/api/team/join-game', authenticateToken, async (req, res) => {
         }
         
         // 檢查?�戲人數?�否已滿
-        const [participants] = await db.execute(
+        const [participants] = await pool.execute(
             'SELECT COUNT(*) as count FROM game_participants WHERE game_id = ?',
             [gameId]
         );
@@ -1873,7 +1879,7 @@ app.post('/api/team/join-game', authenticateToken, async (req, res) => {
         }
         
         // ?�入?�戲
-        await db.execute(
+        await pool.execute(
             `INSERT INTO game_participants (game_id, team_id, current_budget, total_loan, total_loan_principal)
              VALUES (?, ?, ?, 0, 0)`,
             [gameId, teamId, game[0].initial_budget]
@@ -1898,7 +1904,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
     
     try {
         // ?��??��??��?中�??�戲（�??��? active ?�?�優?��??�次??pending�?
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             `SELECT * FROM games 
              WHERE status IN ('active', 'pending') 
              ORDER BY 
@@ -1921,7 +1927,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         const gameId = game.id;
         
         // 檢查?�否已�??�入
-        const [existing] = await db.execute(
+        const [existing] = await pool.execute(
             'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
             [gameId, teamId]
         );
@@ -1934,13 +1940,13 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
             // 如�??��?了新?��??��?稱�??�新�?
             if (customTeamName && customTeamName.trim()) {
                 teamNames[teamNumber] = customTeamName.trim();
-                await db.execute(
+                await pool.execute(
                     'UPDATE games SET team_names = ? WHERE id = ?',
                     [JSON.stringify(teamNames), gameId]
                 );
                 
                 // ?�新 users 表中??team_name
-                await db.execute(
+                await pool.execute(
                     'UPDATE users SET team_name = ? WHERE id = ?',
                     [customTeamName.trim(), teamId]
                 );
@@ -1958,7 +1964,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         }
         
         // 檢查?�戲人數?�否已滿
-        const [participants] = await db.execute(
+        const [participants] = await pool.execute(
             'SELECT COUNT(*) as count FROM game_participants WHERE game_id = ?',
             [gameId]
         );
@@ -1971,7 +1977,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         }
         
         // ?�入?�戲
-        await db.execute(
+        await pool.execute(
             `INSERT INTO game_participants (game_id, team_id, current_budget, total_loan, total_loan_principal)
              VALUES (?, ?, ?, 0, 0)`,
             [gameId, teamId, game.initial_budget]
@@ -1983,13 +1989,13 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         teamNames[teamNumber] = finalTeamName;
         
         // ?�新?�戲?��??��?稱�???
-        await db.execute(
+        await pool.execute(
             'UPDATE games SET team_names = ? WHERE id = ?',
             [JSON.stringify(teamNames), gameId]
         );
         
         // ?�新 users 表中??team_name
-        await db.execute(
+        await pool.execute(
             'UPDATE users SET team_name = ? WHERE id = ?',
             [finalTeamName, teamId]
         );
@@ -2035,7 +2041,7 @@ app.post('/api/team/update-name', authenticateToken, async (req, res) => {
     
     try {
         // 檢查?�戲?�否存在
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE id = ?',
             [gameId]
         );
@@ -2045,7 +2051,7 @@ app.post('/api/team/update-name', authenticateToken, async (req, res) => {
         }
         
         // 檢查?��??�否?��?此�???
-        const [participants] = await db.execute(
+        const [participants] = await pool.execute(
             'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
             [gameId, teamId]
         );
@@ -2058,7 +2064,7 @@ app.post('/api/team/update-name', authenticateToken, async (req, res) => {
         const teamNames = JSON.parse(games[0].team_names || '{}');
         teamNames[teamNumber] = newName.trim();
         
-        await db.execute(
+        await pool.execute(
             'UPDATE games SET team_names = ? WHERE id = ?',
             [JSON.stringify(teamNames), gameId]
         );
@@ -2088,7 +2094,7 @@ app.post('/api/team/update-name', authenticateToken, async (req, res) => {
 app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
     try {
         // ?��??��??��?中�?待�?始�??�戲
-        const [activeGames] = await db.execute(
+        const [activeGames] = await pool.execute(
             `SELECT * FROM games WHERE status IN ('active', 'pending') ORDER BY created_at DESC LIMIT 1`
         );
         
@@ -2099,7 +2105,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         const currentGame = activeGames[0];
         
         // 檢查?��??�否?��?此�???
-        const [participants] = await db.execute(
+        const [participants] = await pool.execute(
             `SELECT gp.*, g.* 
              FROM game_participants gp
              JOIN games g ON gp.game_id = g.id
@@ -2111,13 +2117,13 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
             // 如�??��?編�??��??�內，自?��???
             const teamNumber = parseInt(req.user.username);
             if (!isNaN(teamNumber) && teamNumber >= 1 && teamNumber <= currentGame.num_teams) {
-                await db.execute(
+                await pool.execute(
                     'INSERT INTO game_participants (game_id, team_id, current_budget) VALUES (?, ?, ?)',
                     [currentGame.id, req.user.userId, currentGame.initial_budget]
                 );
                 
                 // ?�新?�詢
-                const [newParticipants] = await db.execute(
+                const [newParticipants] = await pool.execute(
                     `SELECT gp.*, g.* 
                      FROM game_participants gp
                      JOIN games g ON gp.game_id = g.id
@@ -2138,12 +2144,12 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         const participant = participants[0];
         const gameId = participant.game_id;
         
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [gameId]
         );
         
-        const [dailyResults] = await db.execute(
+        const [dailyResults] = await pool.execute(
             `SELECT dr.*, gd.day_number 
              FROM daily_results dr
              JOIN game_days gd ON dr.game_day_id = gd.id
@@ -2155,7 +2161,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         // ?��??�天?��?標�??��??�含?�交?��?�?
         let todayBids = [];
         if (currentDay[0]) {
-            const [bids] = await db.execute(
+            const [bids] = await pool.execute(
                 `SELECT bid_type, fish_type, price, quantity_submitted, quantity_fulfilled, status 
                  FROM bids 
                  WHERE team_id = ? AND game_day_id = ?`,
@@ -2210,7 +2216,7 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
     
     try {
         // ?��??��??��?中�??�戲?�當?�天
-        const [activeGames] = await db.execute(
+        const [activeGames] = await pool.execute(
             `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
              JOIN game_days gd ON g.id = gd.game_id AND g.current_day = gd.day_number
@@ -2228,7 +2234,7 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
         const dayNumber = game.day_number;
         
         // ?��??��??��??�中?��???
-        const [participant] = await db.execute(
+        const [participant] = await pool.execute(
             'SELECT * FROM game_participants WHERE team_id = ? AND game_id = ?',
             [teamId, gameId]
         );
@@ -2310,7 +2316,7 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
         // 注�?：這裡不更?�貸款�?貸款將在買入結�??�根?�實?��?交�?況�???
 
         // 檢查?�否已�??�交?��?標以?�防止�??�頻繁�?�?
-        const [existingBids] = await db.execute(
+        const [existingBids] = await pool.execute(
             'SELECT COUNT(*) as count, MAX(created_at) as last_submission FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "buy"',
             [gameDayId, teamId]
         );
@@ -2330,14 +2336,14 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
         }
 
         // ?��?交�?：刪?��??�買?��?標�??�許覆�?�?
-        await db.execute(
+        await pool.execute(
             'DELETE FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "buy"',
             [gameDayId, teamId]
         );
 
         // ?��??��?記�?（根?�正確�?資�?庫�?構�?
         for (const bid of processedBids) {
-            await db.execute(
+            await pool.execute(
                 `INSERT INTO bids (
                     game_id, game_day_id, day_number, team_id, bid_type, fish_type,
                     price, quantity_submitted, status, created_at
@@ -2388,7 +2394,7 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
     
     try {
         // ?��??��??��?中�??�戲?�當?�天
-        const [activeGames] = await db.execute(
+        const [activeGames] = await pool.execute(
             `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
              JOIN game_days gd ON g.id = gd.game_id AND g.current_day = gd.day_number
@@ -2406,7 +2412,7 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
         const dayNumber = game.day_number;
         
         // ?��??��??��??�中?��???
-        const [participant] = await db.execute(
+        const [participant] = await pool.execute(
             'SELECT * FROM game_participants WHERE team_id = ? AND game_id = ?',
             [teamId, gameId]
         );
@@ -2472,7 +2478,7 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
         }
         
         // 檢查?�否已�??�交?��?標以?�防止�??�頻繁�?�?
-        const [existingBids] = await db.execute(
+        const [existingBids] = await pool.execute(
             'SELECT COUNT(*) as count, MAX(created_at) as last_submission FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "sell"',
             [gameDayId, teamId]
         );
@@ -2492,14 +2498,14 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
         }
         
         // ?��?交�?：刪?��??�賣?��?標�??�許覆�?�?
-        await db.execute(
+        await pool.execute(
             'DELETE FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "sell"',
             [gameDayId, teamId]
         );
         
         // ?��??��?記�?（根?�正確�?資�?庫�?構�?
         for (const bid of processedBids) {
-            await db.execute(
+            await pool.execute(
                 `INSERT INTO bids (
                     game_id, game_day_id, day_number, team_id, bid_type, fish_type,
                     price, quantity_submitted, status, created_at
@@ -2547,14 +2553,14 @@ app.get('/api/games/:gameId/bid-history', authenticateToken, async (req, res) =>
     const { gameId } = req.params;
     
     try {
-        const [days] = await db.execute(
+        const [days] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number ASC',
             [gameId]
         );
         
         const history = [];
         for (const day of days) {
-            const [buyBids] = await db.execute(
+            const [buyBids] = await pool.execute(
                 `SELECT b.*, u.team_name 
                  FROM bids b
                  JOIN users u ON b.team_id = u.id
@@ -2563,7 +2569,7 @@ app.get('/api/games/:gameId/bid-history', authenticateToken, async (req, res) =>
                 [day.id]
             );
             
-            const [sellBids] = await db.execute(
+            const [sellBids] = await pool.execute(
                 `SELECT b.*, u.team_name 
                  FROM bids b
                  JOIN users u ON b.team_id = u.id
@@ -2600,7 +2606,7 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
     
     try {
         // ?��??�日?�戲資�?
-        const [dayInfo] = await db.execute(
+        const [dayInfo] = await pool.execute(
             `SELECT * FROM game_days WHERE game_id = ? AND day_number = ?`,
             [gameId, day]
         );
@@ -2610,7 +2616,7 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         }
         
         // ?��??�日?��?記�?
-        const [bids] = await db.execute(
+        const [bids] = await pool.execute(
             `SELECT b.*, u.team_name 
              FROM bids b
              JOIN users u ON b.team_id = u.id
@@ -2620,7 +2626,7 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         );
         
         // ?��??�日?��?結�?
-        const [teamResults] = await db.execute(
+        const [teamResults] = await pool.execute(
             `SELECT dr.*, u.team_name
              FROM daily_results dr
              JOIN users u ON dr.team_id = u.id
@@ -2646,7 +2652,7 @@ app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, requ
     
     try {
         // ?��??�日?�戲資�? - 使用�?��?��??�庫欄�??�稱
-        const [dayInfo] = await db.execute(
+        const [dayInfo] = await pool.execute(
             `SELECT id, game_id, day_number, status, 
                     fish_a_supply, fish_b_supply,
                     fish_a_restaurant_budget, fish_b_restaurant_budget,
@@ -2663,7 +2669,7 @@ app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, requ
         const gameDayId = dayInfo[0].id;
         
         // ?��??�?��?標�?�?- ?��? bids 表正確�?�?
-        const [allBids] = await db.execute(
+        const [allBids] = await pool.execute(
             `SELECT b.id, b.game_id, b.game_day_id, b.team_id, b.day_number,
                     b.bid_type, b.fish_type, b.price, 
                     b.quantity_submitted, b.quantity_fulfilled,
@@ -2697,7 +2703,7 @@ app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, requ
         // ?��??�日結�?結�?（�??�已結�?�?
         let dailyResults = [];
         if (dayInfo[0].status === 'completed') {
-            const [results] = await db.execute(
+            const [results] = await pool.execute(
                 `SELECT dr.id, dr.game_day_id, dr.team_id, dr.day_number,
                         dr.starting_cash, dr.ending_cash,
                         dr.starting_loan, dr.ending_loan,
@@ -2864,7 +2870,7 @@ function calculateSellStats(bids) {
 
 // ?��??��??��?統�?
 async function getTeamBidStats(gameDayId) {
-    const [teamStats] = await db.execute(
+    const [teamStats] = await pool.execute(
         `SELECT 
             u.id as team_id,
             u.username,
@@ -2891,7 +2897,7 @@ app.post('/api/admin/games/:gameId/force-end', authenticateToken, requireAdmin, 
     const { gameId } = req.params;
     
     try {
-        const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
+        const [game] = await pool.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         if (game.length === 0) {
             return res.status(404).json({ error: '?�戲不�??? });
         }
@@ -2901,10 +2907,10 @@ app.post('/api/admin/games/:gameId/force-end', authenticateToken, requireAdmin, 
         }
         
         // ?�新?�戲?�?�為結�?
-        await db.execute('UPDATE games SET status = "completed", is_force_ended = TRUE, force_ended_at = NOW(), force_end_day = ? WHERE id = ?', [game[0].current_day, gameId]);
+        await pool.execute('UPDATE games SET status = "completed", is_force_ended = TRUE, force_ended_at = NOW(), force_end_day = ? WHERE id = ?', [game[0].current_day, gameId]);
         
         // 記�?強制結�??��??��??��?
-        await db.execute(
+        await pool.execute(
             `INSERT INTO game_logs (game_id, action, details, created_at) 
              VALUES (?, 'force_ended', 'Game was forcefully ended by admin', NOW())`,
             [gameId]
@@ -2963,7 +2969,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
             ${whereClause}
         `;
         
-        const [countResult] = await db.execute(countQuery, params);
+        const [countResult] = await pool.execute(countQuery, params);
         const totalGames = countResult[0].total;
         const totalPages = Math.ceil(totalGames / pageSize);
         
@@ -2985,7 +2991,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
             LIMIT ? OFFSET ?
         `;
         
-        const [games] = await db.execute(gamesQuery, [...params, parseInt(pageSize), offset]);
+        const [games] = await pool.execute(gamesQuery, [...params, parseInt(pageSize), offset]);
         
         // ?��??��??�獲?��??��???
         const gamesWithRankings = await Promise.all(games.map(async (game) => {
@@ -3001,7 +3007,7 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
                     LIMIT 3
                 `;
                 
-                const [rankings] = await db.execute(rankingQuery, [game.game_id, game.current_day]);
+                const [rankings] = await pool.execute(rankingQuery, [game.game_id, game.current_day]);
                 game.final_rankings = rankings.map(rank => ({
                     team_name: rank.team_name || `?��?${rank.username}`,
                     roi: rank.roi || 0,
@@ -3033,14 +3039,14 @@ app.get('/api/admin/games/:gameId/details', authenticateToken, requireAdmin, asy
     
     try {
         // ?��??�戲?�本資�?
-        const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
+        const [game] = await pool.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         
         if (game.length === 0) {
             return res.status(404).json({ error: '?�戲不�??? });
         }
         
         // ?��??�?��??��???
-        const [teams] = await db.execute(
+        const [teams] = await pool.execute(
             `SELECT gp.*, u.team_name
              FROM game_participants gp
              JOIN users u ON gp.team_id = u.id
@@ -3049,13 +3055,13 @@ app.get('/api/admin/games/:gameId/details', authenticateToken, requireAdmin, asy
         );
         
         // ?��?每日?��?
-        const [dailyData] = await db.execute(
+        const [dailyData] = await pool.execute(
             `SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number`,
             [gameId]
         );
         
         // ?��??�終�???
-        const [finalRanking] = await db.execute(
+        const [finalRanking] = await pool.execute(
             `SELECT u.team_name, dr.cumulative_profit, 
                     (dr.cumulative_profit / (g.initial_budget + gp.total_loan_principal)) * 100 as roi
              FROM daily_results dr
@@ -3083,12 +3089,12 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
     const { gameId } = req.params;
     
     try {
-        const [game] = await db.execute('SELECT * FROM games WHERE id = ?', [gameId]);
+        const [game] = await pool.execute('SELECT * FROM games WHERE id = ?', [gameId]);
         if (game.length === 0) {
             return res.status(404).json({ error: '?�戲不�??? });
         }
         
-        const [results] = await db.execute(
+        const [results] = await pool.execute(
             `SELECT 
                 u.team_name,
                 gp.current_budget,
@@ -3720,7 +3726,7 @@ app.post('/api/admin/game-parameters', authenticateToken, requireAdmin, async (r
 app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
     
-    const connection = await db.getConnection();
+    const connection = await pool.getConnection();
     
     try {
         await connection.beginTransaction();
@@ -3879,7 +3885,7 @@ io.on('connection', (socket) => {
 app.get('/api/game/status', async (req, res) => {
     try {
         // Find the current active or pending game
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE status IN (?, ?) ORDER BY created_at DESC LIMIT 1',
             ['active', 'pending']
         );
@@ -3894,7 +3900,7 @@ app.get('/api/game/status', async (req, res) => {
         const game = games[0];
         
         // Get current day information
-        const [currentDay] = await db.execute(
+        const [currentDay] = await pool.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
             [game.id]
         );
@@ -3975,7 +3981,7 @@ app.get('/api/game/status', async (req, res) => {
 app.get('/api/game/bid-history', async (req, res) => {
     try {
         // Find the current active game
-        const [games] = await db.execute(
+        const [games] = await pool.execute(
             'SELECT * FROM games WHERE status = ? ORDER BY created_at DESC LIMIT 1',
             ['active']
         );
@@ -3991,7 +3997,7 @@ app.get('/api/game/bid-history', async (req, res) => {
         const game = games[0];
         
         // Get all completed bid history (anonymized)
-        const [bidHistory] = await db.execute(
+        const [bidHistory] = await pool.execute(
             `SELECT 
                 gd.day_number,
                 b.bid_type,
