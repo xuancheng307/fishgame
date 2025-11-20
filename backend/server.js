@@ -107,9 +107,7 @@ async function initDatabase() {
             queueLimit: 0,
             enableKeepAlive: true,
             keepAliveInitialDelay: 0,
-            connectTimeout: 60000,
-            acquireTimeout: 60000,
-            timeout: 60000
+            connectTimeout: 60000
         });
         
         connection = await pool.getConnection();
