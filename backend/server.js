@@ -42,6 +42,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '..')));
 
 let pool;
+let originalPoolExecute;
 
 // 計時器管理
 const timers = new Map(); // 儲存每個遊戲的計時器
@@ -104,13 +105,34 @@ async function initDatabase() {
             waitForConnections: true,
             connectionLimit: 5,
             maxIdle: 2,
-            idleTimeout: 10000,  // 10秒空閒後關閉連接，避免僵屍連接
+            idleTimeout: 10000,
             queueLimit: 0,
             enableKeepAlive: true,
             keepAliveInitialDelay: 0,
             connectTimeout: 10000
         });
-        
+
+        // 覆蓋 pool.execute 方法，添加自動重試邏輯
+        originalPoolExecute = pool.execute.bind(pool);
+        pool.execute = async function(sql, params) {
+            const maxRetries = 3;
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    return await originalPoolExecute(sql, params);
+                } catch (error) {
+                    const isConnectionError = error.message && error.message.includes('closed state');
+                    const isLastAttempt = attempt === maxRetries;
+
+                    if (isConnectionError && !isLastAttempt) {
+                        console.log(`連接已關閉，自動重試 (${attempt}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        continue;
+                    }
+                    throw error;
+                }
+            }
+        };
+
         connection = await pool.getConnection();
         
         console.log('資料庫連接成功');
