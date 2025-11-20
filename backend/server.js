@@ -102,13 +102,13 @@ async function initDatabase() {
             charset: 'utf8mb4',
             multipleStatements: true,
             waitForConnections: true,
-            connectionLimit: 10,
-            maxIdle: 10,
-            idleTimeout: 60000,
+            connectionLimit: 5,
+            maxIdle: 2,
+            idleTimeout: 10000,  // 10秒空閒後關閉連接，避免僵屍連接
             queueLimit: 0,
             enableKeepAlive: true,
             keepAliveInitialDelay: 0,
-            connectTimeout: 60000
+            connectTimeout: 10000
         });
         
         connection = await pool.getConnection();
