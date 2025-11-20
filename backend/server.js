@@ -38,7 +38,8 @@ let defaultGameParameters = {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend')));
+// 提供靜態文件 - 從項目根目錄（包含所有 HTML 文件）
+app.use(express.static(path.join(__dirname, '..')));
 
 let pool;
 
