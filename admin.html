@@ -758,8 +758,12 @@
         
         // Display game control panel
         async function displayGameControlPanel(gameStatus) {
+            console.log('=== displayGameControlPanel 開始 ===');
+            console.log('接收到的 gameStatus:', gameStatus);
+
             const panelDiv = document.getElementById('game-control-panel');
-            
+            console.log('panelDiv 元素:', panelDiv);
+
             // 載入團隊資料
             try {
                 const teamsResponse = await fetch(`/api/admin/games/${gameStatus.id}/teams`, {
@@ -889,8 +893,12 @@
                 
                 html += '</tbody></table></div>';
             }
-            
+
+            console.log('最終 HTML 長度:', html.length);
+            console.log('準備設置 panelDiv.innerHTML');
             panelDiv.innerHTML = html;
+            console.log('panelDiv.innerHTML 已設置完成');
+            console.log('=== displayGameControlPanel 結束 ===');
         }
         
         // Update game control panel (for refresh)
@@ -903,13 +911,20 @@
         
         // Generate control buttons based on game status
         function generateControlButtons(gameStatus) {
+            console.log('=== generateControlButtons DEBUG ===');
+            console.log('gameStatus:', gameStatus);
+            console.log('gameStatus.status:', gameStatus.status);
+            console.log('gameStatus.phase:', gameStatus.phase);
+            console.log('gameStatus.currentDay:', gameStatus.currentDay);
+
             let html = '';
-            
+
             if (gameStatus.status === 'finished') {
                 html += '<div class="alert alert-info">遊戲已結束</div>';
+                console.log('遊戲已結束，返回結束訊息');
                 return html;
             }
-            
+
             // 映射後端phase值到前端期望的值
             const phaseMapping = {
                 'buying_open': 'buying',
@@ -923,6 +938,8 @@
                 'waiting': 'pending'  // waiting 也視為 pending
             };
             const phase = phaseMapping[gameStatus.phase] || gameStatus.phase;
+            console.log('原始 phase:', gameStatus.phase);
+            console.log('映射後 phase:', phase);
             
             // Day advancement
             if (phase === 'pending' || phase === 'day_ended') {
@@ -973,7 +990,11 @@
                     </button>
                 `;
             }
-            
+
+            console.log('生成的 HTML 長度:', html.length);
+            console.log('生成的 HTML:', html);
+            console.log('=== generateControlButtons DEBUG 結束 ===');
+
             return html;
         }
         
