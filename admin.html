@@ -764,6 +764,16 @@
             const panelDiv = document.getElementById('game-control-panel');
             console.log('panelDiv 元素:', panelDiv);
 
+            // 轉換資料庫欄位名稱為駝峰式(適配前端)
+            gameStatus.gameName = gameStatus.name || gameStatus.game_name;
+            gameStatus.currentDay = gameStatus.current_day;
+            gameStatus.totalDays = gameStatus.total_days;
+
+            console.log('轉換後的欄位:');
+            console.log('  gameName:', gameStatus.gameName);
+            console.log('  currentDay:', gameStatus.currentDay);
+            console.log('  totalDays:', gameStatus.totalDays);
+
             // 載入團隊資料
             try {
                 const teamsResponse = await fetch(`/api/admin/games/${gameStatus.id}/teams`, {
