@@ -1978,7 +1978,7 @@ app.post('/api/admin/games/:gameId/pause', authenticateToken, requireAdmin, asyn
             return res.status(404).json({ error: '遊戲不存在' });
         }
         
-        if (game[0].status !== 'running') {
+        if (game[0].status !== 'active') {
             return res.status(400).json({ error: '只能暫停進行中的遊戲' });
         }
         
@@ -2007,7 +2007,7 @@ app.post('/api/admin/games/:gameId/resume', authenticateToken, requireAdmin, asy
             return res.status(400).json({ error: '只能恢復暫停的遊戲' });
         }
         
-        await pool.execute('UPDATE games SET status = "running" WHERE id = ?', [gameId]);
+        await pool.execute('UPDATE games SET status = "active" WHERE id = ?', [gameId]);
         
         console.log(`遊戲 ${gameId} 已恢復`);
         res.json({ success: true, message: '遊戲已恢復' });
