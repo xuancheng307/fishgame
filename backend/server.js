@@ -866,18 +866,13 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
         );
 
         for (const participant of participants) {
-            const currentLoan = participant.total_loan || 0;
-            const interestRate = game[0].loan_interest_rate || 0.03; // 3%複利
-            const newTotalLoan = currentLoan * (1 + interestRate);
-
-            // 更新團隊狀態：清空庫存，更新貸款
+            // 更新團隊狀態：清空庫存(利息在每日結算時計算)
             await pool.execute(
-                `UPDATE game_participants 
-                 SET fish_a_inventory = 0, 
-                     fish_b_inventory = 0, 
-                     total_loan = ?
+                `UPDATE game_participants
+                 SET fish_a_inventory = 0,
+                     fish_b_inventory = 0
                  WHERE team_id = ? AND game_id = ?`,
-                [newTotalLoan, participant.team_id, gameId]
+                [participant.team_id, gameId]
             );
         }
         
@@ -1772,14 +1767,15 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
             );
         }
         
-        // 如果需要借貸，更新借貸金額
+        // 如果需要借貸，更新借貸金額並同步發放現金
         if (loanNeeded > 0) {
             await pool.execute(
-                `UPDATE game_participants 
+                `UPDATE game_participants
                  SET total_loan = total_loan + ?,
-                     total_loan_principal = total_loan_principal + ?
+                     total_loan_principal = total_loan_principal + ?,
+                     current_budget = current_budget + ?
                  WHERE team_id = ? AND game_id = ?`,
-                [loanNeeded, loanNeeded, teamId, gameId]
+                [loanNeeded, loanNeeded, loanNeeded, teamId, gameId]
             );
         }
         
@@ -2311,26 +2307,8 @@ async function processBuyBids(gameDay) {
             
             if (fulfilledQuantity > 0) {
                 const totalCost = fulfilledQuantity * bid.price;
-                
-                // 檢查並處理借貸
-                const [participant] = await connection.execute(
-                    'SELECT * FROM game_participants WHERE game_id = ? AND team_id = ?',
-                    [gameDay.game_id, bid.team_id]
-                );
-                
-                if (participant[0].current_budget < totalCost) {
-                    const loanNeeded = totalCost - participant[0].current_budget;
-                    await connection.execute(
-                        `UPDATE game_participants 
-                         SET total_loan = total_loan + ?,
-                             total_loan_principal = total_loan_principal + ?,
-                             current_budget = current_budget + ?
-                         WHERE game_id = ? AND team_id = ?`,
-                        [loanNeeded, loanNeeded, loanNeeded, gameDay.game_id, bid.team_id]
-                    );
-                }
-                
-                // 扣除成本並增加庫存
+
+                // 貸款已在提交投標時處理,這裡直接扣除成本並增加庫存
                 await connection.execute(
                     `UPDATE game_participants 
                      SET current_budget = current_budget - ?,
@@ -2598,11 +2576,9 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
             // 3.6 計算滯銷費（未售出的魚）
             const unsoldQuantity = fishAUnsold + fishBUnsold;
             const unsoldFee = unsoldFeePerKg.times(unsoldQuantity);
-            
-            // 根據新規則：每日結束庫存歸零（不論有沒有賣出）
-            const newFishAInventory = 0;
-            const newFishBInventory = 0;
-            
+
+            // 庫存在推進天數時清空,這裡不處理
+
             // 3.7 計算利息（使用複利）
             const interestIncurred = currentLoan.times(loanInterestRate);
             const newTotalLoan = currentLoan.plus(interestIncurred);
@@ -2653,22 +2629,18 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                 console.log(`團隊 ${participant.team_id} ${isForceEnd ? '強制結束' : '最終'} ROI: ${roi.toFixed(2)}%`);
             }
             
-            // 3.12 更新 game_participants 表
+            // 3.12 更新 game_participants 表(庫存在推進天數時清空)
             await connection.execute(
-                `UPDATE game_participants 
+                `UPDATE game_participants
                  SET current_budget = ?,
                      total_loan = ?,
                      total_loan_principal = ?,
-                     fish_a_inventory = ?,
-                     fish_b_inventory = ?,
                      cumulative_profit = ?
                  WHERE id = ?`,
                 [
                     newBudget.toFixed(2),
                     finalTotalLoan.toFixed(2),
                     newLoanPrincipal.toFixed(2),
-                    newFishAInventory,
-                    newFishBInventory,
                     cumulativeProfit.toFixed(2),
                     participant.id
                 ]
