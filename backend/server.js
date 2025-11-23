@@ -1076,8 +1076,18 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             results: buyResults 
         });
     } catch (error) {
-        console.error('結束買入投標錯誤:', error);
-        res.status(500).json({ error: '結束買入投標失敗' });
+        console.error('===== 結束買入投標錯誤 =====');
+        console.error('錯誤類型:', error.constructor.name);
+        console.error('錯誤訊息:', error.message);
+        console.error('SQL 錯誤碼:', error.code);
+        console.error('SQL 狀態:', error.sqlState);
+        console.error('SQL 錯誤訊息:', error.sqlMessage);
+        console.error('完整錯誤堆疊:', error.stack);
+        res.status(500).json({
+            error: '結束買入投標失敗',
+            details: error.message,
+            sqlError: error.sqlMessage || error.message
+        });
     }
 });
 
