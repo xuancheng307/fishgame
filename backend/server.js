@@ -502,7 +502,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         
         // 直接設定為第1天，準備開始
         await pool.execute(
-            'UPDATE games SET status = "active", current_day = 1 WHERE id = ?',
+            'UPDATE games SET status = "active", phase = "waiting", current_day = 1 WHERE id = ?',
             [gameId]
         );
         
