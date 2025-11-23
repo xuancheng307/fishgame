@@ -1032,7 +1032,7 @@
         // Game control actions
         async function advanceDay() {
             if (!confirm('確定要推進到下一天嗎？')) return;
-            
+
             try {
                 const response = await fetch('/api/admin/advance-day', {
                     method: 'POST',
@@ -1042,19 +1042,28 @@
                     },
                     body: JSON.stringify({})
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     showAlert('成功推進到下一天！', 'success');
                     // Reload active game data to refresh the control panel
                     loadActiveGameData('game-control');
                 } else {
-                    showAlert('推進失敗: ' + result.error, 'error');
+                    const errorMsg = `推進失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
+                    console.error('推進失敗詳情:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: result.error,
+                        fullResponse: result
+                    });
+                    showAlert(errorMsg, 'error');
                 }
             } catch (error) {
-                console.error('Error advancing day:', error);
-                showAlert('推進失敗: 網路錯誤', 'error');
+                const errorMsg = `推進失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}\n請檢查網路連接和伺服器狀態`;
+                console.error('推進失敗 - 完整錯誤:', error);
+                console.error('錯誤堆疊:', error.stack);
+                showAlert(errorMsg, 'error');
             }
         }
         
@@ -1076,14 +1085,22 @@
                 
                 if (response.ok) {
                     showAlert(`買入投標已開始，時間：${duration} 分鐘`, 'success');
-                    // Reload active game data to refresh the control panel
                     loadActiveGameData('game-control');
                 } else {
-                    showAlert('開始買入失敗: ' + result.error, 'error');
+                    const errorMsg = `開始買入失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
+                    console.error('開始買入失敗詳情:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: result.error,
+                        fullResponse: result
+                    });
+                    showAlert(errorMsg, 'error');
                 }
             } catch (error) {
-                console.error('Error starting buying:', error);
-                showAlert('開始買入失敗: 網路錯誤', 'error');
+                const errorMsg = `開始買入失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
+                console.error('開始買入失敗 - 完整錯誤:', error);
+                console.error('錯誤堆疊:', error.stack);
+                showAlert(errorMsg, 'error');
             }
         }
         
@@ -1105,11 +1122,20 @@
                     showAlert('買入投標已結束，正在處理投標...', 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    showAlert('結束買入失敗: ' + result.error, 'error');
+                    const errorMsg = `結束買入失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
+                    console.error('結束買入失敗詳情:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: result.error,
+                        fullResponse: result
+                    });
+                    showAlert(errorMsg, 'error');
                 }
             } catch (error) {
-                console.error('Error closing buying:', error);
-                showAlert('結束買入失敗: 網路錯誤', 'error');
+                const errorMsg = `結束買入失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
+                console.error('結束買入失敗 - 完整錯誤:', error);
+                console.error('錯誤堆疊:', error.stack);
+                showAlert(errorMsg, 'error');
             }
         }
         
@@ -1133,11 +1159,20 @@
                     showAlert(`賣出投標已開始，時間：${duration} 分鐘`, 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    showAlert('開始賣出失敗: ' + result.error, 'error');
+                    const errorMsg = `開始賣出失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
+                    console.error('開始賣出失敗詳情:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: result.error,
+                        fullResponse: result
+                    });
+                    showAlert(errorMsg, 'error');
                 }
             } catch (error) {
-                console.error('Error starting selling:', error);
-                showAlert('開始賣出失敗: 網路錯誤', 'error');
+                const errorMsg = `開始賣出失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
+                console.error('開始賣出失敗 - 完整錯誤:', error);
+                console.error('錯誤堆疊:', error.stack);
+                showAlert(errorMsg, 'error');
             }
         }
         
@@ -1159,11 +1194,20 @@
                     showAlert('賣出投標已結束，正在處理投標...', 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    showAlert('結束賣出失敗: ' + result.error, 'error');
+                    const errorMsg = `結束賣出失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
+                    console.error('結束賣出失敗詳情:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: result.error,
+                        fullResponse: result
+                    });
+                    showAlert(errorMsg, 'error');
                 }
             } catch (error) {
-                console.error('Error closing selling:', error);
-                showAlert('結束賣出失敗: 網路錯誤', 'error');
+                const errorMsg = `結束賣出失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
+                console.error('結束賣出失敗 - 完整錯誤:', error);
+                console.error('錯誤堆疊:', error.stack);
+                showAlert(errorMsg, 'error');
             }
         }
         
@@ -1185,11 +1229,20 @@
                     showAlert('每日結算已完成！', 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    showAlert('每日結算失敗: ' + result.error, 'error');
+                    const errorMsg = `每日結算失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
+                    console.error('每日結算失敗詳情:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: result.error,
+                        fullResponse: result
+                    });
+                    showAlert(errorMsg, 'error');
                 }
             } catch (error) {
-                console.error('Error settling daily results:', error);
-                showAlert('每日結算失敗: 網路錯誤', 'error');
+                const errorMsg = `每日結算失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
+                console.error('每日結算失敗 - 完整錯誤:', error);
+                console.error('錯誤堆疊:', error.stack);
+                showAlert(errorMsg, 'error');
             }
         }
 
