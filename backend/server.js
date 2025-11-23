@@ -582,6 +582,35 @@ app.get('/api/admin/games', authenticateToken, requireAdmin, async (req, res) =>
     }
 });
 
+// 獲取當前進行中的遊戲
+app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        // 查詢 status = 'active' 的遊戲
+        const [games] = await pool.execute(`
+            SELECT g.*, COUNT(gp.id) as participant_count
+            FROM games g
+            LEFT JOIN game_participants gp ON g.id = gp.game_id
+            WHERE g.status = 'active'
+            GROUP BY g.id
+            ORDER BY g.created_at DESC
+            LIMIT 1
+        `);
+
+        if (games.length === 0) {
+            return res.status(404).json({
+                error: '沒有進行中的遊戲',
+                code: 'NO_ACTIVE_GAME'
+            });
+        }
+
+        // 返回第一個進行中的遊戲
+        res.json(games[0]);
+    } catch (error) {
+        console.error('獲取進行中遊戲錯誤:', error);
+        res.status(500).json({ error: '獲取遊戲資料失敗' });
+    }
+});
+
 // 獲取單一遊戲狀態
 app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
