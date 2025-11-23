@@ -617,11 +617,11 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
     
     try {
         const [game] = await pool.execute(`
-            SELECT g.*, 
+            SELECT g.*,
                    gd.status as day_status,
                    gd.day_number
             FROM games g
-            LEFT JOIN game_days gd ON g.id = gd.game_id 
+            LEFT JOIN game_days gd ON g.id = gd.game_id
                 AND gd.day_number = g.current_day
             WHERE g.id = ?
         `, [gameId]);
@@ -765,8 +765,8 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
                 [gameId, currentDay]
             );
             
-            // 使用正確的 day_status 欄位和狀態名稱
-            if (currentDayRecord.length > 0 && currentDayRecord[0].day_status !== 'calculated') {
+            // 使用正確的 status 欄位和狀態名稱
+            if (currentDayRecord.length > 0 && currentDayRecord[0].status !== 'calculated') {
                 return res.status(400).json({ error: `請先完成第${currentDay}天的結算` });
             }
         }
@@ -847,7 +847,7 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
         await pool.execute(
             `INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
-                restaurant_budget_a, restaurant_budget_b, day_status
+                restaurant_budget_a, restaurant_budget_b, status
             ) VALUES (?, ?, ?, ?, ?, ?, 'waiting')`,
             [gameId, nextDay, fishASupply, fishBSupply, fishABudget, fishBBudget]
         );
@@ -922,8 +922,8 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
             return res.status(400).json({ error: '請先推進到第一天' });
         }
         
-        // 更詳細的狀態檢查 - 使用正確的 day_status 欄位
-        const dayStatus = currentDay[0].day_status;
+        // 更詳細的狀態檢查 - 使用正確的 status 欄位
+        const dayStatus = currentDay[0].status;
         if (dayStatus === 'buying') {
             return res.status(400).json({ error: '買入投標已經開放' });
         } else if (dayStatus === 'buy_ended') {
@@ -943,9 +943,9 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 buying - 使用正確的 day_status 欄位
+        // 更新狀態為 buying - 使用正確的 status 欄位
         await pool.execute(
-            'UPDATE game_days SET day_status = ? WHERE id = ?',
+            'UPDATE game_days SET status = ? WHERE id = ?',
             ['buying', currentDay[0].id]
         );
         
@@ -954,7 +954,7 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
             try {
                 // 計時器結束時自動關閉買入投標
                 await pool.execute(
-                    'UPDATE game_days SET day_status = ? WHERE id = ?',
+                    'UPDATE game_days SET status = ? WHERE id = ?',
                     ['buy_ended', currentDay[0].id]
                 );
                 
@@ -1017,8 +1017,8 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             [gameId]
         );
         
-        // 使用正確的 day_status 欄位
-        if (currentDay.length === 0 || currentDay[0].day_status !== 'buying') {
+        // 使用正確的 status 欄位
+        if (currentDay.length === 0 || currentDay[0].status !== 'buying') {
             return res.status(400).json({ error: '當前沒有進行中的買入投標' });
         }
         
@@ -1038,9 +1038,9 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             [currentDay[0].id]
         );
         
-        // 更新為 buy_ended 狀態 - 使用正確的 day_status 欄位
+        // 更新為 buy_ended 狀態 - 使用正確的 status 欄位
         await pool.execute(
-            'UPDATE game_days SET day_status = ? WHERE id = ?',
+            'UPDATE game_days SET status = ? WHERE id = ?',
             ['buy_ended', currentDay[0].id]
         );
         
@@ -1086,8 +1086,8 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
             return res.status(400).json({ error: '請先推進到第一天' });
         }
         
-        // 使用正確的 day_status 欄位
-        if (currentDay[0].day_status !== 'buy_ended') {
+        // 使用正確的 status 欄位
+        if (currentDay[0].status !== 'buy_ended') {
             return res.status(400).json({ error: '請先完成買入投標' });
         }
         
@@ -1096,9 +1096,9 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 selling - 使用正確的 day_status 欄位
+        // 更新狀態為 selling - 使用正確的 status 欄位
         await pool.execute(
-            'UPDATE game_days SET day_status = ? WHERE id = ?',
+            'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling', currentDay[0].id]
         );
         
@@ -1107,7 +1107,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
             try {
                 // 計時器結束時自動關閉賣出投標
                 await pool.execute(
-                    'UPDATE game_days SET day_status = ? WHERE id = ?',
+                    'UPDATE game_days SET status = ? WHERE id = ?',
                     ['sell_ended', currentDay[0].id]
                 );
                 
@@ -1168,8 +1168,8 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
             [gameId]
         );
         
-        // 使用正確的 day_status 欄位
-        if (currentDay.length === 0 || currentDay[0].day_status !== 'selling') {
+        // 使用正確的 status 欄位
+        if (currentDay.length === 0 || currentDay[0].status !== 'selling') {
             return res.status(400).json({ error: '當前沒有進行中的賣出投標' });
         }
         
@@ -1189,9 +1189,9 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
             [currentDay[0].id]
         );
         
-        // 更新為 sell_ended 狀態 - 使用正確的 day_status 欄位
+        // 更新為 sell_ended 狀態 - 使用正確的 status 欄位
         await pool.execute(
-            'UPDATE game_days SET day_status = ? WHERE id = ?',
+            'UPDATE game_days SET status = ? WHERE id = ?',
             ['sell_ended', currentDay[0].id]
         );
         
@@ -1236,12 +1236,12 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
             return res.status(400).json({ error: '沒有可結算的天數' });
         }
         
-        // 使用正確的 day_status 欄位和狀態名稱
-        if (currentDay[0].day_status === 'calculated') {
+        // 使用正確的 status 欄位和狀態名稱
+        if (currentDay[0].status === 'calculated') {
             return res.status(400).json({ error: '本日已經結算完成' });
         }
         
-        if (currentDay[0].day_status !== 'sell_ended') {
+        if (currentDay[0].status !== 'sell_ended') {
             return res.status(400).json({ error: '請先完成所有投標階段' });
         }
         
@@ -1253,7 +1253,7 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         
         // 使用正確的狀態名稱
         await pool.execute(
-            'UPDATE game_days SET day_status = ? WHERE id = ?',
+            'UPDATE game_days SET status = ? WHERE id = ?',
             ['calculated', currentDay[0].id]
         );
         
@@ -1638,10 +1638,10 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
     try {
         // 獲取當前進行中的遊戲和當前天
         const [activeGames] = await pool.execute(
-            `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.day_status
+            `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
              JOIN game_days gd ON g.id = gd.game_id AND g.current_day = gd.day_number
-             WHERE g.status = 'active' AND gd.day_status = 'buying'
+             WHERE g.status = 'active' AND gd.status = 'buying'
              ORDER BY g.created_at DESC LIMIT 1`
         );
         
@@ -1785,10 +1785,10 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
     try {
         // 獲取當前進行中的遊戲和當前天
         const [activeGames] = await pool.execute(
-            `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.day_status
+            `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
              JOIN game_days gd ON g.id = gd.game_id AND g.current_day = gd.day_number
-             WHERE g.status = 'active' AND gd.day_status = 'selling'
+             WHERE g.status = 'active' AND gd.status = 'selling'
              ORDER BY g.created_at DESC LIMIT 1`
         );
         
