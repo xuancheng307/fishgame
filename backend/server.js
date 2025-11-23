@@ -2381,7 +2381,7 @@ async function processSellBids(gameDay) {
         
         for (const fishType of ['A', 'B']) {
             // 根據資料庫結構使用正確的欄位名稱
-            const budget = fishType === 'A' ? gameDay.restaurant_budget_a : gameDay.restaurant_budget_b;
+            const budget = fishType === 'A' ? gameDay.fish_a_restaurant_budget : gameDay.fish_b_restaurant_budget;
             let remainingBudget = Number(budget);
             
             // 獲取所有賣出投標（價格由低到高 - 價低者得）
