@@ -847,7 +847,7 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
         await pool.execute(
             `INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
-                restaurant_budget_a, restaurant_budget_b, status
+                fish_a_restaurant_budget, fish_b_restaurant_budget, status
             ) VALUES (?, ?, ?, ?, ?, ?, 'waiting')`,
             [gameId, nextDay, fishASupply, fishBSupply, fishABudget, fishBBudget]
         );
@@ -2461,10 +2461,10 @@ async function processSellBids(gameDay) {
                     
                     // 記錄交易到 transactions 表
                     await connection.execute(
-                        `INSERT INTO transactions 
-                         (game_id, game_day_id, day_number, team_id, transaction_type, fish_type, price, quantity, total_amount, bid_id)
-                         VALUES (?, ?, ?, ?, 'sell', ?, ?, ?, ?, ?)`,
-                        [gameDay.game_id, gameDay.id, gameDay.day_number, bid.team_id, fishType, bid.price, fulfilledQuantity, totalRevenue, bid.id]
+                        `INSERT INTO transactions
+                         (game_day_id, team_id, transaction_type, fish_type, quantity, price_per_unit, total_amount)
+                         VALUES (?, ?, 'sell', ?, ?, ?, ?)`,
+                        [gameDay.id, bid.team_id, fishType, fulfilledQuantity, bid.price, totalRevenue]
                     );
                     
                     console.log(`團隊${bid.team_id}賣出${fulfilledQuantity}kg ${fishType}級魚，單價${bid.price}，收入${totalRevenue}`);
