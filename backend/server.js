@@ -943,10 +943,15 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 buying - 使用正確的 status 欄位
+        // 更新狀態為 buying - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buying', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['buying', gameId]
         );
         
         // 啟動計時器
@@ -1038,10 +1043,15 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             [currentDay[0].id]
         );
         
-        // 更新為 buy_ended 狀態 - 使用正確的 status 欄位
+        // 更新為 buy_ended 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buy_ended', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['buying_closed', gameId]
         );
         
         res.json({ 
@@ -1096,10 +1106,15 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 selling - 使用正確的 status 欄位
+        // 更新狀態為 selling - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['selling', gameId]
         );
         
         // 啟動計時器
@@ -1189,10 +1204,15 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
             [currentDay[0].id]
         );
         
-        // 更新為 sell_ended 狀態 - 使用正確的 status 欄位
+        // 更新為 sell_ended 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['sell_ended', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['selling_closed', gameId]
         );
         
         res.json({ 
