@@ -1031,10 +1031,15 @@
         
         // Game control actions
         async function advanceDay() {
+            if (!currentGameId) {
+                showAlert('錯誤: 未選擇遊戲', 'error');
+                return;
+            }
+
             if (!confirm('確定要推進到下一天嗎？')) return;
 
             try {
-                const response = await fetch('/api/admin/advance-day', {
+                const response = await fetch(`/api/admin/games/${currentGameId}/advance-day`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1068,11 +1073,16 @@
         }
         
         async function startBuying() {
+            if (!currentGameId) {
+                showAlert('錯誤: 未選擇遊戲', 'error');
+                return;
+            }
+
             const duration = prompt('請輸入買入投標時間 (分鐘):', '7');
             if (!duration) return;
-            
+
             try {
-                const response = await fetch('/api/admin/start-buying', {
+                const response = await fetch(`/api/admin/games/${currentGameId}/start-buying`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1105,10 +1115,15 @@
         }
         
         async function closeBuying() {
+            if (!currentGameId) {
+                showAlert('錯誤: 未選擇遊戲', 'error');
+                return;
+            }
+
             if (!confirm('確定要結束買入投標嗎？')) return;
-            
+
             try {
-                const response = await fetch('/api/admin/close-buying', {
+                const response = await fetch(`/api/admin/games/${currentGameId}/close-buying`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1140,11 +1155,16 @@
         }
         
         async function startSelling() {
+            if (!currentGameId) {
+                showAlert('錯誤: 未選擇遊戲', 'error');
+                return;
+            }
+
             const duration = prompt('請輸入賣出投標時間 (分鐘):', '5');
             if (!duration) return;
-            
+
             try {
-                const response = await fetch('/api/admin/start-selling', {
+                const response = await fetch(`/api/admin/games/${currentGameId}/start-selling`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1177,10 +1197,15 @@
         }
         
         async function closeSelling() {
+            if (!currentGameId) {
+                showAlert('錯誤: 未選擇遊戲', 'error');
+                return;
+            }
+
             if (!confirm('確定要結束賣出投標嗎？')) return;
-            
+
             try {
-                const response = await fetch('/api/admin/close-selling', {
+                const response = await fetch(`/api/admin/games/${currentGameId}/close-selling`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1212,10 +1237,15 @@
         }
         
         async function settleDailyResults() {
+            if (!currentGameId) {
+                showAlert('錯誤: 未選擇遊戲', 'error');
+                return;
+            }
+
             if (!confirm('確定要執行每日結算嗎？')) return;
-            
+
             try {
-                const response = await fetch('/api/admin/settle', {
+                const response = await fetch(`/api/admin/games/${currentGameId}/settle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
