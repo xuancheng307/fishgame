@@ -126,17 +126,17 @@
                 
                 const data = await response.json();
                 
-                if (response.ok && data.token && data.user) {
-                    // 儲存 token
+                if (response.ok && data.token) {
+                    // 儲存 token 和用戶資訊
                     localStorage.setItem('token', data.token);
-                    localStorage.setItem('role', data.user.role);
-                    localStorage.setItem('username', data.user.username || username);
-                    
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('username', data.username || username);
+
                     messageDiv.innerHTML = '<p class="success">登入成功！正在跳轉...</p>';
-                    
+
                     // 根據角色跳轉
                     setTimeout(() => {
-                        if (data.user.role === 'admin') {
+                        if (data.role === 'admin') {
                             window.location.href = 'admin.html';
                         } else {
                             window.location.href = 'simple-team.html';
