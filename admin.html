@@ -786,7 +786,8 @@
                 'buy_ended': 'buying_closed',
                 'sell_ended': 'selling_closed',
                 'settled': 'settled',
-                'pending': 'pending'
+                'pending': 'pending',
+                'waiting': 'pending'  // waiting 也視為 pending
             };
             const normalizedPhase = phaseMapping[gameStatus.phase] || gameStatus.phase;
             
@@ -918,7 +919,8 @@
                 'buy_ended': 'buying_closed',
                 'sell_ended': 'selling_closed',
                 'settled': 'settled',
-                'pending': 'pending'
+                'pending': 'pending',
+                'waiting': 'pending'  // waiting 也視為 pending
             };
             const phase = phaseMapping[gameStatus.phase] || gameStatus.phase;
             
