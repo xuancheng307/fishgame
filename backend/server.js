@@ -2342,10 +2342,10 @@ async function processBuyBids(gameDay) {
                 
                 // 記錄交易到 transactions 表
                 await connection.execute(
-                    `INSERT INTO transactions 
-                     (game_id, game_day_id, day_number, team_id, transaction_type, fish_type, price, quantity, total_amount, bid_id)
-                     VALUES (?, ?, ?, ?, 'buy', ?, ?, ?, ?, ?)`,
-                    [gameDay.game_id, gameDay.id, gameDay.day_number, bid.team_id, fishType, bid.price, fulfilledQuantity, totalCost, bid.id]
+                    `INSERT INTO transactions
+                     (game_day_id, team_id, transaction_type, fish_type, quantity, price_per_unit, total_amount)
+                     VALUES (?, ?, 'buy', ?, ?, ?, ?)`,
+                    [gameDay.id, bid.team_id, fishType, fulfilledQuantity, bid.price, totalCost]
                 );
             }
         }
