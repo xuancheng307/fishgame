@@ -522,7 +522,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
             `INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
                 fish_a_restaurant_budget, fish_b_restaurant_budget, status
-            ) VALUES (?, 1, ?, ?, ?, ?, 'pending')`,
+            ) VALUES (?, 1, ?, ?, ?, ?, 'waiting')`,
             [gameId, fishASupply, fishBSupply, fishABudget, fishBBudget]
         );
         
