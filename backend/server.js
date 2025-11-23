@@ -163,7 +163,7 @@ async function initDatabase() {
                 target_price_b DECIMAL(10, 2) NOT NULL,
                 num_teams INT NOT NULL DEFAULT 12,
                 total_days INT NOT NULL DEFAULT 7,
-                status ENUM('pending', 'running', 'finished') DEFAULT 'pending',
+                status ENUM('pending', 'active', 'paused', 'finished') DEFAULT 'pending',
                 current_day INT DEFAULT 0,
                 created_by INT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
