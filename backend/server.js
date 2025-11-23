@@ -456,7 +456,9 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         targetPriceA,
         targetPriceB,
         numTeams,
-        totalDays  // 新增：可配置的遊戲天數
+        totalDays,  // 新增：可配置的遊戲天數
+        buyingDuration,  // 買入階段時間（分鐘）
+        sellingDuration  // 賣出階段時間（分鐘）
     } = req.body;
 
     // 詳細記錄請求參數（用於調試）
@@ -471,13 +473,14 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         
         const teamCount = numTeams || 12;
         
-        // 創建新遊戲（使用預設參數或自定義參數）
+        // 創建新遊戲（匹配 Railway 實際表結構）
         const [result] = await pool.execute(
             `INSERT INTO games (
-                game_name, initial_budget, loan_interest_rate, 
+                name, initial_budget, loan_interest_rate,
                 unsold_fee_per_kg, fixed_unsold_ratio, distributor_floor_price_a, distributor_floor_price_b,
-                target_price_a, target_price_b, num_teams, total_days
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                target_price_a, target_price_b, num_teams, total_days,
+                buying_duration, selling_duration
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 gameName,
                 initialBudget || defaultGameParameters.initialBudget,
@@ -489,7 +492,9 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
                 targetPriceA || defaultGameParameters.targetPriceA,
                 targetPriceB || defaultGameParameters.targetPriceB,
                 teamCount,
-                totalDays || defaultGameParameters.totalDays
+                totalDays || defaultGameParameters.totalDays,
+                buyingDuration || 7,  // 買入階段時間（分鐘）
+                sellingDuration || 4  // 賣出階段時間（分鐘）
             ]
         );
         
