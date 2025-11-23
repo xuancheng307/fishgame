@@ -633,6 +633,9 @@
             };
 
             try {
+                console.log('===== 發送創建遊戲請求 =====');
+                console.log('表單數據:', formData);
+
                 const response = await fetch('/api/admin/games/create', {
                     method: 'POST',
                     headers: {
@@ -642,9 +645,13 @@
                     body: JSON.stringify(formData)
                 });
 
+                console.log('回應狀態:', response.status, response.statusText);
+
                 const result = await response.json();
-                
+                console.log('回應數據:', result);
+
                 if (response.ok) {
+                    console.log('✅ 遊戲創建成功');
                     showGameCreationResult(result);
                     document.getElementById('create-game-form').reset();
                     // Set default values back
@@ -659,11 +666,25 @@
                     document.getElementById('buyingDuration').value = '7';
                     document.getElementById('sellingDuration').value = '4';
                 } else {
-                    showAlert('遊戲創建失敗: ' + result.error, 'error');
+                    console.error('❌ 遊戲創建失敗');
+                    console.error('錯誤詳情:', result);
+
+                    // 構建詳細錯誤訊息
+                    let errorMsg = '遊戲創建失敗\n\n';
+                    errorMsg += `錯誤: ${result.error}\n`;
+                    if (result.details) errorMsg += `詳情: ${result.details}\n`;
+                    if (result.sqlError) errorMsg += `SQL錯誤: ${result.sqlError}\n`;
+                    if (result.code) errorMsg += `錯誤代碼: ${result.code}\n`;
+                    if (result.sqlState) errorMsg += `SQL狀態: ${result.sqlState}\n`;
+
+                    showAlert(errorMsg, 'error');
                 }
             } catch (error) {
-                console.error('Error creating game:', error);
-                showAlert('遊戲創建失敗: 網路錯誤', 'error');
+                console.error('===== 前端錯誤 =====');
+                console.error('錯誤類型:', error.constructor.name);
+                console.error('錯誤訊息:', error.message);
+                console.error('錯誤堆疊:', error.stack);
+                showAlert('遊戲創建失敗: 網路錯誤或連線中斷\n\n' + error.message, 'error');
             }
         });
 

@@ -458,7 +458,11 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         numTeams,
         totalDays  // 新增：可配置的遊戲天數
     } = req.body;
-    
+
+    // 詳細記錄請求參數（用於調試）
+    console.log('===== 收到創建遊戲請求 =====');
+    console.log('請求參數:', JSON.stringify(req.body, null, 2));
+
     try {
         // 結束所有進行中的遊戲
         await pool.execute(
@@ -532,10 +536,27 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         
         // 通知所有連線的客戶端
         io.emit('gameUpdate', { event: 'newGameCreated', gameId });
-        
+
     } catch (error) {
-        console.error('創建遊戲錯誤:', error);
-        res.status(500).json({ error: '創建遊戲失敗' });
+        console.error('===== 創建遊戲錯誤 =====');
+        console.error('錯誤類型:', error.constructor.name);
+        console.error('錯誤訊息:', error.message);
+        console.error('SQL 錯誤碼:', error.code);
+        console.error('SQL 錯誤狀態:', error.sqlState);
+        console.error('SQL 錯誤訊息:', error.sqlMessage);
+        console.error('完整錯誤堆疊:', error.stack);
+        console.error('請求的參數:', JSON.stringify(req.body, null, 2));
+
+        // 返回詳細的錯誤訊息給前端
+        res.status(500).json({
+            error: '創建遊戲失敗',
+            details: error.message,
+            sqlError: error.sqlMessage || error.message,
+            code: error.code,
+            sqlState: error.sqlState,
+            // 在開發環境顯示完整堆疊
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
