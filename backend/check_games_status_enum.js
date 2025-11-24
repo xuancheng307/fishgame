@@ -5,13 +5,39 @@ const mysql = require('mysql2/promise');
  */
 
 async function checkAndFixGamesStatus() {
-    const pool = mysql.createPool({
-        host: process.env.DB_HOST || 'hopper.proxy.rlwy.net',
-        port: process.env.DB_PORT || 17950,
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || 'vkgxXBmSVyomZFHjWMAOMZupViBgqkYw',
-        database: process.env.DB_NAME || 'fishmarket_game'
+    // 從 MYSQL_URL 環境變數解析連接資訊
+    const mysqlUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+
+    let config;
+    if (mysqlUrl) {
+        // 解析 mysql://user:password@host:port/database 格式
+        const url = new URL(mysqlUrl);
+        config = {
+            host: url.hostname,
+            port: parseInt(url.port) || 3306,
+            user: url.username,
+            password: url.password,
+            database: url.pathname.slice(1)
+        };
+    } else {
+        // 使用環境變數或預設值
+        config = {
+            host: process.env.DB_HOST || 'hopper.proxy.rlwy.net',
+            port: process.env.DB_PORT || 17950,
+            user: process.env.DB_USER || 'root',
+            password: process.env.DB_PASSWORD || 'vkgxXBmSVyomZFHjWMAOMZupViBgqkYw',
+            database: process.env.DB_NAME || 'fishmarket_game'
+        };
+    }
+
+    console.log('連接配置:', {
+        host: config.host,
+        port: config.port,
+        user: config.user,
+        database: config.database
     });
+
+    const pool = mysql.createPool(config);
 
     try {
         console.log('===== 檢查 games.status ENUM 定義 =====\n');
