@@ -1046,7 +1046,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
 
         await pool.execute(
             'UPDATE games SET phase = ? WHERE id = ?',
-            ['selling', gameId]
+            ['buying_closed', gameId]
         );
 
         res.json({
