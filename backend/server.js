@@ -1374,7 +1374,7 @@ app.post('/api/team/join-game', authenticateToken, async (req, res) => {
 // 一鍵加入當前遊戲
 app.post('/api/team/join-current', authenticateToken, async (req, res) => {
     const teamId = req.user.userId; // 修正：使用 userId 而非 id
-    const teamNumber = parseInt(req.user.username); // 01, 02... 轉為數字
+    const teamNumber = parseInt(req.user.username, 10); // 01, 02... 轉為數字
     const { teamName: customTeamName } = req.body;  // 從前端接收團隊名稱
     
     try {
