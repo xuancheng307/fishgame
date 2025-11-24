@@ -2019,7 +2019,13 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         });
     } catch (error) {
         console.error('獲取每日結果錯誤:', error);
-        res.status(500).json({ error: '獲取每日結果失敗' });
+        res.status(500).json({
+            error: '獲取每日結果失敗',
+            message: error.message,
+            code: error.code,
+            sqlMessage: error.sqlMessage,
+            details: error.toString()
+        });
     }
 });
 
