@@ -2349,18 +2349,18 @@ async function processSellBids(gameDay) {
     try {
         // 獲取遊戲設定
         const [gameInfo] = await connection.execute(
-            'SELECT unsold_fee_per_kg FROM games WHERE id = ?',
+            'SELECT unsold_fee_per_kg, fixed_unsold_ratio FROM games WHERE id = ?',
             [gameDay.game_id]
         );
-        const fixedUnsoldRatio = 2.5; // 固定2.5%滯銷比例
+        const fixedUnsoldRatio = gameInfo[0].fixed_unsold_ratio || 2.5; // 從資料庫讀取固定滯銷比例
         const unsoldFeePerKg = gameInfo[0].unsold_fee_per_kg || 10;
-        
+
         console.log(`處理賣出投標 - 固定滯銷比例: ${fixedUnsoldRatio}%`);
-        
+
         for (const fishType of ['A', 'B']) {
             // 根據資料庫結構使用正確的欄位名稱
             const budget = fishType === 'A' ? gameDay.fish_a_restaurant_budget : gameDay.fish_b_restaurant_budget;
-            let remainingBudget = Number(budget);
+            let remainingBudget = Decimal(budget); // 使用 Decimal.js 確保精度
             
             // 獲取所有賣出投標（價格由低到高 - 價低者得）
             const [allBids] = await connection.execute(
@@ -2384,7 +2384,7 @@ async function processSellBids(gameDay) {
             
             // 步驟2：處理所有投標（價低者得，最高價部分滯銷）
             for (const bid of allBids) {
-                if (remainingBudget <= 0) {
+                if (remainingBudget.lte(0)) {
                     // 預算不足，標記為失敗
                     await connection.execute(
                         'UPDATE bids SET quantity_fulfilled = 0, status = "failed" WHERE id = ?',
@@ -2414,12 +2414,12 @@ async function processSellBids(gameDay) {
                 }
                 
                 // 計算實際成交數量（基於餐廳預算）
-                const maxAffordableQuantity = Math.floor(remainingBudget / bid.price);
+                const maxAffordableQuantity = remainingBudget.dividedBy(bid.price).floor().toNumber();
                 const fulfilledQuantity = Math.min(availableQuantity, maxAffordableQuantity);
                 const totalRevenue = fulfilledQuantity * bid.price;
-                
+
                 if (fulfilledQuantity > 0) {
-                    remainingBudget -= totalRevenue;
+                    remainingBudget = remainingBudget.minus(totalRevenue);
                     
                     // 更新投標記錄
                     await connection.execute(
