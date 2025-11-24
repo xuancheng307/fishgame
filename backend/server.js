@@ -766,7 +766,7 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
             );
             
             // 使用正確的 status 欄位和狀態名稱
-            if (currentDayRecord.length > 0 && currentDayRecord[0].status !== 'calculated') {
+            if (currentDayRecord.length > 0 && currentDayRecord[0].status !== 'completed') {
                 return res.status(400).json({ error: `請先完成第${currentDay}天的結算` });
             }
         }
@@ -921,13 +921,13 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         const dayStatus = currentDay[0].status;
         if (dayStatus === 'buying') {
             return res.status(400).json({ error: '買入投標已經開放' });
-        } else if (dayStatus === 'buy_ended') {
+        } else if (dayStatus === 'buy_closed') {
             return res.status(400).json({ error: '買入投標已結束，請開始賣出投標' });
         } else if (dayStatus === 'selling') {
             return res.status(400).json({ error: '正在賣出投標中' });
-        } else if (dayStatus === 'sell_ended') {
+        } else if (dayStatus === 'sell_closed') {
             return res.status(400).json({ error: '請先執行結算' });
-        } else if (dayStatus === 'calculated') {
+        } else if (dayStatus === 'completed') {
             return res.status(400).json({ error: '當日已結算，請推進到下一天' });
         } else if (dayStatus !== 'waiting') {
             return res.status(400).json({ error: `當前狀態(${dayStatus})不允許開始買入投標` });
@@ -955,15 +955,15 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
                 // 計時器結束時自動關閉買入投標
                 await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
-                    ['buy_ended', currentDay[0].id]
+                    ['buy_closed', currentDay[0].id]
                 );
-                
+
                 console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已自動結束`);
-                
+
                 // 通知所有客戶端買入階段結束
-                io.emit('phaseChange', { 
-                    gameId, 
-                    phase: 'buy_ended',
+                io.emit('phaseChange', {
+                    gameId,
+                    phase: 'buying_closed',
                     dayNumber: currentDay[0].day_number,
                     message: '買入投標時間結束'
                 });
@@ -1038,27 +1038,27 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             [currentDay[0].id]
         );
         
-        // 更新為 buy_ended 狀態 - 同時更新 game_days.status 和 games.phase
+        // 更新為 buy_closed 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['buy_ended', currentDay[0].id]
+            ['buy_closed', currentDay[0].id]
         );
 
         await pool.execute(
             'UPDATE games SET phase = ? WHERE id = ?',
             ['buying_closed', gameId]
         );
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             message: '買入投標已結束並結算',
             results: buyResults
         });
-        
+
         // 發送階段變更通知
-        io.emit('phaseChange', { 
-            gameId, 
-            phase: 'buy_ended',
+        io.emit('phaseChange', {
+            gameId,
+            phase: 'buying_closed',
             dayNumber: currentDay[0].day_number,
             message: '買入投標手動結束',
             results: buyResults
@@ -1102,7 +1102,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         }
         
         // 使用正確的 status 欄位
-        if (currentDay[0].status !== 'buy_ended') {
+        if (currentDay[0].status !== 'buy_closed') {
             return res.status(400).json({ error: '請先完成買入投標' });
         }
         
@@ -1128,15 +1128,15 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
                 // 計時器結束時自動關閉賣出投標
                 await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
-                    ['sell_ended', currentDay[0].id]
+                    ['sell_closed', currentDay[0].id]
                 );
-                
+
                 console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天賣出投標已自動結束`);
-                
+
                 // 通知所有客戶端賣出階段結束
-                io.emit('phaseChange', { 
-                    gameId, 
-                    phase: 'sell_ended',
+                io.emit('phaseChange', {
+                    gameId,
+                    phase: 'selling_closed',
                     dayNumber: currentDay[0].day_number,
                     message: '賣出投標時間結束'
                 });
@@ -1209,27 +1209,27 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
             [currentDay[0].id]
         );
         
-        // 更新為 sell_ended 狀態 - 同時更新 game_days.status 和 games.phase
+        // 更新為 sell_closed 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['sell_ended', currentDay[0].id]
+            ['sell_closed', currentDay[0].id]
         );
 
         await pool.execute(
             'UPDATE games SET phase = ? WHERE id = ?',
             ['selling_closed', gameId]
         );
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             message: '賣出投標已結束並結算',
             results: sellResults
         });
-        
+
         // 發送階段變更通知
-        io.emit('phaseChange', { 
-            gameId, 
-            phase: 'sell_ended',
+        io.emit('phaseChange', {
+            gameId,
+            phase: 'selling_closed',
             dayNumber: currentDay[0].day_number,
             message: '賣出投標手動結束',
             results: sellResults
@@ -1262,11 +1262,11 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         }
         
         // 使用正確的 status 欄位和狀態名稱
-        if (currentDay[0].status === 'calculated') {
+        if (currentDay[0].status === 'completed') {
             return res.status(400).json({ error: '本日已經結算完成' });
         }
-        
-        if (currentDay[0].status !== 'sell_ended') {
+
+        if (currentDay[0].status !== 'sell_closed') {
             return res.status(400).json({ error: '請先完成所有投標階段' });
         }
         
@@ -1279,7 +1279,7 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         // 使用正確的狀態名稱
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['calculated', currentDay[0].id]
+            ['completed', currentDay[0].id]
         );
         
         if (currentDay[0].day_number === 7) {
