@@ -1498,7 +1498,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
 // 更新團隊名稱
 app.post('/api/team/update-name', authenticateToken, async (req, res) => {
     const teamId = req.user.userId;
-    const teamNumber = parseInt(req.user.username);
+    const teamNumber = parseInt(req.user.username, 10);
     const { gameId, newName } = req.body;
     
     if (!newName || newName.trim().length === 0) {
@@ -1585,7 +1585,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         
         if (participants.length === 0) {
             // 如果團隊編號在範圍內，自動加入
-            const teamNumber = parseInt(req.user.username);
+            const teamNumber = parseInt(req.user.username, 10);
             if (!isNaN(teamNumber) && teamNumber >= 1 && teamNumber <= currentGame.num_teams) {
                 await pool.execute(
                     'INSERT INTO game_participants (game_id, team_id, current_budget) VALUES (?, ?, ?)',
