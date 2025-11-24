@@ -949,8 +949,8 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
             ['buying', gameId]
         );
         
-        // 啟動計時器
-        startTimer(gameId, biddingDuration * 60 * 1000, async () => {
+        // 啟動計時器 (duration 參數單位為秒)
+        startTimer(gameId, biddingDuration * 60, async () => {
             try {
                 // 計時器結束時自動關閉買入投標
                 await pool.execute(
@@ -1122,8 +1122,8 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
             ['selling', gameId]
         );
         
-        // 啟動計時器
-        startTimer(`${gameId}-selling`, biddingDuration * 60 * 1000, async () => {
+        // 啟動計時器 (duration 參數單位為秒)
+        startTimer(`${gameId}-selling`, biddingDuration * 60, async () => {
             try {
                 // 計時器結束時自動關閉賣出投標
                 await pool.execute(
@@ -2817,8 +2817,8 @@ app.post('/admin/games/:gameId/resume', authenticateToken, requireAdmin, async (
 // 強制結束遊戲（計算 ROI）
 app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
-    
-    const connection = await db.getConnection();
+
+    const connection = await pool.getConnection();
     
     try {
         await connection.beginTransaction();
