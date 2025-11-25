@@ -335,6 +335,7 @@
             <h1>魚市場遊戲</h1>
             <div>
                 <span id="currentTeam"></span>
+                <button class="btn btn-info" onclick="openSettings()" style="margin-left: 15px;">⚙️ 設定</button>
                 <button class="btn btn-info" onclick="openGameInstructions()" style="margin-left: 15px;">🎯 遊戲說明</button>
                 <button class="btn btn-primary" onclick="logout()" style="margin-left: 15px;">登出</button>
             </div>
@@ -677,6 +678,29 @@
 
             <!-- 訊息區 -->
             <div id="messageArea"></div>
+        </div>
+
+        <!-- 設定對話框 -->
+        <div id="settingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">
+                <h2 style="margin-bottom: 20px;">設定</h2>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">小組名稱:</label>
+                    <input type="text" id="teamNameInput" class="form-input" placeholder="輸入小組名稱" style="width: 100%;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">新密碼:</label>
+                    <input type="text" id="newPasswordInput" class="form-input" placeholder="輸入新密碼(留空表示不修改)" style="width: 100%;">
+                    <small style="color: #666;">留空表示不修改密碼</small>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+                    <button class="btn btn-primary" onclick="saveSettings()">儲存</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1957,6 +1981,86 @@
             }
             clearCountdownTimer();
         });
+
+        // ===== 設定功能 =====
+
+        // 開啟設定對話框
+        function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            const teamNameInput = document.getElementById('teamNameInput');
+            const newPasswordInput = document.getElementById('newPasswordInput');
+
+            // 載入當前小組名稱
+            teamNameInput.value = teamData ? (teamData.team_name || '') : '';
+            newPasswordInput.value = '';
+
+            modal.style.display = 'flex';
+        }
+
+        // 關閉設定對話框
+        function closeSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.style.display = 'none';
+        }
+
+        // 儲存設定
+        async function saveSettings() {
+            const teamName = document.getElementById('teamNameInput').value.trim();
+            const newPassword = document.getElementById('newPasswordInput').value.trim();
+
+            // 檢查是否有要更新的資料
+            if (!teamName && !newPassword) {
+                alert('請至少輸入一項要更新的資料');
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE}/users/settings`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        teamName: teamName || null,
+                        newPassword: newPassword || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '更新設定失敗');
+                }
+
+                alert('設定更新成功!');
+
+                // 更新本地的 teamData
+                if (teamData) {
+                    teamData.team_name = data.user.team_name;
+                }
+
+                // 更新頁面顯示的小組名稱
+                updateTeamDisplay();
+
+                // 關閉對話框
+                closeSettings();
+
+            } catch (error) {
+                console.error('更新設定錯誤:', error);
+                alert('更新設定失敗: ' + error.message);
+            }
+        }
+
+        // 更新頁面上的小組名稱顯示
+        function updateTeamDisplay() {
+            const teamElement = document.getElementById('currentTeam');
+            if (teamData) {
+                const displayName = teamData.team_name || teamData.username;
+                teamElement.textContent = `小組: ${displayName}`;
+            }
+        }
 
         // ===== END OF PHASE 4 NEW FUNCTIONS =====
     </script>

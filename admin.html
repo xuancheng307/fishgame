@@ -204,7 +204,7 @@
         
         .status-pending { background: #fff7e6; color: #d46b08; }
         .status-active { background: #f6ffed; color: #389e0d; }
-        .status-finished { background: #f0f0f0; color: #595959; }
+        .status-completed { background: #f0f0f0; color: #595959; }
         
         /* Loading and Empty States */
         .loading, .empty-state {
@@ -256,9 +256,19 @@
 <body>
     <!-- Header -->
     <div class="header">
-        <div class="container">
-            <h1>🐟 魚市場遊戲管理控制台</h1>
-            <div class="subtitle">Fish Market Game Management Dashboard</div>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>🐟 魚市場遊戲管理控制台</h1>
+                <div class="subtitle">Fish Market Game Management Dashboard</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="resetAllPasswords()" class="btn btn-warning" style="background: #faad14; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                    🔄 重置所有密碼
+                </button>
+                <button onclick="logout()" class="btn btn-danger" style="background: #ff4d4f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                    🚪 登出
+                </button>
+            </div>
         </div>
     </div>
 
@@ -633,9 +643,6 @@
             };
 
             try {
-                console.log('===== 發送創建遊戲請求 =====');
-                console.log('表單數據:', formData);
-
                 const response = await fetch('/api/admin/games/create', {
                     method: 'POST',
                     headers: {
@@ -645,13 +652,9 @@
                     body: JSON.stringify(formData)
                 });
 
-                console.log('回應狀態:', response.status, response.statusText);
-
                 const result = await response.json();
-                console.log('回應數據:', result);
-
+                
                 if (response.ok) {
-                    console.log('✅ 遊戲創建成功');
                     showGameCreationResult(result);
                     document.getElementById('create-game-form').reset();
                     // Set default values back
@@ -666,25 +669,11 @@
                     document.getElementById('buyingDuration').value = '7';
                     document.getElementById('sellingDuration').value = '4';
                 } else {
-                    console.error('❌ 遊戲創建失敗');
-                    console.error('錯誤詳情:', result);
-
-                    // 構建詳細錯誤訊息
-                    let errorMsg = '遊戲創建失敗\n\n';
-                    errorMsg += `錯誤: ${result.error}\n`;
-                    if (result.details) errorMsg += `詳情: ${result.details}\n`;
-                    if (result.sqlError) errorMsg += `SQL錯誤: ${result.sqlError}\n`;
-                    if (result.code) errorMsg += `錯誤代碼: ${result.code}\n`;
-                    if (result.sqlState) errorMsg += `SQL狀態: ${result.sqlState}\n`;
-
-                    showAlert(errorMsg, 'error');
+                    showAlert('遊戲創建失敗: ' + result.error, 'error');
                 }
             } catch (error) {
-                console.error('===== 前端錯誤 =====');
-                console.error('錯誤類型:', error.constructor.name);
-                console.error('錯誤訊息:', error.message);
-                console.error('錯誤堆疊:', error.stack);
-                showAlert('遊戲創建失敗: 網路錯誤或連線中斷\n\n' + error.message, 'error');
+                console.error('Error creating game:', error);
+                showAlert('遊戲創建失敗: 網路錯誤', 'error');
             }
         });
 
@@ -758,22 +747,8 @@
         
         // Display game control panel
         async function displayGameControlPanel(gameStatus) {
-            console.log('=== displayGameControlPanel 開始 ===');
-            console.log('接收到的 gameStatus:', gameStatus);
-
             const panelDiv = document.getElementById('game-control-panel');
-            console.log('panelDiv 元素:', panelDiv);
-
-            // 轉換資料庫欄位名稱為駝峰式(適配前端)
-            gameStatus.gameName = gameStatus.name || gameStatus.game_name;
-            gameStatus.currentDay = gameStatus.current_day;
-            gameStatus.totalDays = gameStatus.total_days;
-
-            console.log('轉換後的欄位:');
-            console.log('  gameName:', gameStatus.gameName);
-            console.log('  currentDay:', gameStatus.currentDay);
-            console.log('  totalDays:', gameStatus.totalDays);
-
+            
             // 載入團隊資料
             try {
                 const teamsResponse = await fetch(`/api/admin/games/${gameStatus.id}/teams`, {
@@ -787,9 +762,9 @@
             }
             
             const statusClass = gameStatus.status === 'active' ? 'status-active' : 
-                              gameStatus.status === 'finished' ? 'status-finished' : 'status-pending';
+                              gameStatus.status === 'completed' ? 'status-completed' : 'status-pending';
             const statusText = gameStatus.status === 'active' ? '進行中' :
-                             gameStatus.status === 'finished' ? '已結束' : '準備中';
+                             gameStatus.status === 'completed' ? '已結束' : '準備中';
             
             // 映射後端phase值到前端期望的值
             const phaseMapping = {
@@ -800,8 +775,7 @@
                 'buy_ended': 'buying_closed',
                 'sell_ended': 'selling_closed',
                 'settled': 'settled',
-                'pending': 'pending',
-                'waiting': 'pending'  // waiting 也視為 pending
+                'pending': 'pending'
             };
             const normalizedPhase = phaseMapping[gameStatus.phase] || gameStatus.phase;
             
@@ -903,12 +877,8 @@
                 
                 html += '</tbody></table></div>';
             }
-
-            console.log('最終 HTML 長度:', html.length);
-            console.log('準備設置 panelDiv.innerHTML');
+            
             panelDiv.innerHTML = html;
-            console.log('panelDiv.innerHTML 已設置完成');
-            console.log('=== displayGameControlPanel 結束 ===');
         }
         
         // Update game control panel (for refresh)
@@ -921,20 +891,13 @@
         
         // Generate control buttons based on game status
         function generateControlButtons(gameStatus) {
-            console.log('=== generateControlButtons DEBUG ===');
-            console.log('gameStatus:', gameStatus);
-            console.log('gameStatus.status:', gameStatus.status);
-            console.log('gameStatus.phase:', gameStatus.phase);
-            console.log('gameStatus.currentDay:', gameStatus.currentDay);
-
             let html = '';
-
-            if (gameStatus.status === 'finished') {
+            
+            if (gameStatus.status === 'completed') {
                 html += '<div class="alert alert-info">遊戲已結束</div>';
-                console.log('遊戲已結束，返回結束訊息');
                 return html;
             }
-
+            
             // 映射後端phase值到前端期望的值
             const phaseMapping = {
                 'buying_open': 'buying',
@@ -944,12 +907,9 @@
                 'buy_ended': 'buying_closed',
                 'sell_ended': 'selling_closed',
                 'settled': 'settled',
-                'pending': 'pending',
-                'waiting': 'pending'  // waiting 也視為 pending
+                'pending': 'pending'
             };
             const phase = phaseMapping[gameStatus.phase] || gameStatus.phase;
-            console.log('原始 phase:', gameStatus.phase);
-            console.log('映射後 phase:', phase);
             
             // Day advancement
             if (phase === 'pending' || phase === 'day_ended') {
@@ -1000,11 +960,7 @@
                     </button>
                 `;
             }
-
-            console.log('生成的 HTML 長度:', html.length);
-            console.log('生成的 HTML:', html);
-            console.log('=== generateControlButtons DEBUG 結束 ===');
-
+            
             return html;
         }
         
@@ -1025,12 +981,12 @@
         function getPhaseClass(phase) {
             if (['buying', 'selling'].includes(phase)) return 'status-active';
             if (['settled', 'buying_closed', 'selling_closed'].includes(phase)) return 'status-pending';
-            return 'status-finished';
+            return 'status-completed';
         }
         
         function getStatusBackground(status) {
             return status === 'active' ? '#f6ffed' : 
-                   status === 'finished' ? '#f0f0f0' : '#fff7e6';
+                   status === 'completed' ? '#f0f0f0' : '#fff7e6';
         }
         
         function getPhaseBackground(phase) {
@@ -1041,15 +997,10 @@
         
         // Game control actions
         async function advanceDay() {
-            if (!currentGameId) {
-                showAlert('錯誤: 未選擇遊戲', 'error');
-                return;
-            }
-
             if (!confirm('確定要推進到下一天嗎？')) return;
-
+            
             try {
-                const response = await fetch(`/api/admin/games/${currentGameId}/advance-day`, {
+                const response = await fetch('/api/admin/advance-day', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1057,42 +1008,28 @@
                     },
                     body: JSON.stringify({})
                 });
-
+                
                 const result = await response.json();
-
+                
                 if (response.ok) {
                     showAlert('成功推進到下一天！', 'success');
                     // Reload active game data to refresh the control panel
                     loadActiveGameData('game-control');
                 } else {
-                    const errorMsg = `推進失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
-                    console.error('推進失敗詳情:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        error: result.error,
-                        fullResponse: result
-                    });
-                    showAlert(errorMsg, 'error');
+                    showAlert('推進失敗: ' + result.error, 'error');
                 }
             } catch (error) {
-                const errorMsg = `推進失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}\n請檢查網路連接和伺服器狀態`;
-                console.error('推進失敗 - 完整錯誤:', error);
-                console.error('錯誤堆疊:', error.stack);
-                showAlert(errorMsg, 'error');
+                console.error('Error advancing day:', error);
+                showAlert('推進失敗: 網路錯誤', 'error');
             }
         }
         
         async function startBuying() {
-            if (!currentGameId) {
-                showAlert('錯誤: 未選擇遊戲', 'error');
-                return;
-            }
-
             const duration = prompt('請輸入買入投標時間 (分鐘):', '7');
             if (!duration) return;
-
+            
             try {
-                const response = await fetch(`/api/admin/games/${currentGameId}/start-buying`, {
+                const response = await fetch('/api/admin/start-buying', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1105,35 +1042,22 @@
                 
                 if (response.ok) {
                     showAlert(`買入投標已開始，時間：${duration} 分鐘`, 'success');
+                    // Reload active game data to refresh the control panel
                     loadActiveGameData('game-control');
                 } else {
-                    const errorMsg = `開始買入失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
-                    console.error('開始買入失敗詳情:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        error: result.error,
-                        fullResponse: result
-                    });
-                    showAlert(errorMsg, 'error');
+                    showAlert('開始買入失敗: ' + result.error, 'error');
                 }
             } catch (error) {
-                const errorMsg = `開始買入失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
-                console.error('開始買入失敗 - 完整錯誤:', error);
-                console.error('錯誤堆疊:', error.stack);
-                showAlert(errorMsg, 'error');
+                console.error('Error starting buying:', error);
+                showAlert('開始買入失敗: 網路錯誤', 'error');
             }
         }
         
         async function closeBuying() {
-            if (!currentGameId) {
-                showAlert('錯誤: 未選擇遊戲', 'error');
-                return;
-            }
-
             if (!confirm('確定要結束買入投標嗎？')) return;
-
+            
             try {
-                const response = await fetch(`/api/admin/games/${currentGameId}/close-buying`, {
+                const response = await fetch('/api/admin/close-buying', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1147,34 +1071,20 @@
                     showAlert('買入投標已結束，正在處理投標...', 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    const errorMsg = `結束買入失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
-                    console.error('結束買入失敗詳情:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        error: result.error,
-                        fullResponse: result
-                    });
-                    showAlert(errorMsg, 'error');
+                    showAlert('結束買入失敗: ' + result.error, 'error');
                 }
             } catch (error) {
-                const errorMsg = `結束買入失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
-                console.error('結束買入失敗 - 完整錯誤:', error);
-                console.error('錯誤堆疊:', error.stack);
-                showAlert(errorMsg, 'error');
+                console.error('Error closing buying:', error);
+                showAlert('結束買入失敗: 網路錯誤', 'error');
             }
         }
         
         async function startSelling() {
-            if (!currentGameId) {
-                showAlert('錯誤: 未選擇遊戲', 'error');
-                return;
-            }
-
             const duration = prompt('請輸入賣出投標時間 (分鐘):', '5');
             if (!duration) return;
-
+            
             try {
-                const response = await fetch(`/api/admin/games/${currentGameId}/start-selling`, {
+                const response = await fetch('/api/admin/start-selling', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1189,33 +1099,19 @@
                     showAlert(`賣出投標已開始，時間：${duration} 分鐘`, 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    const errorMsg = `開始賣出失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
-                    console.error('開始賣出失敗詳情:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        error: result.error,
-                        fullResponse: result
-                    });
-                    showAlert(errorMsg, 'error');
+                    showAlert('開始賣出失敗: ' + result.error, 'error');
                 }
             } catch (error) {
-                const errorMsg = `開始賣出失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
-                console.error('開始賣出失敗 - 完整錯誤:', error);
-                console.error('錯誤堆疊:', error.stack);
-                showAlert(errorMsg, 'error');
+                console.error('Error starting selling:', error);
+                showAlert('開始賣出失敗: 網路錯誤', 'error');
             }
         }
         
         async function closeSelling() {
-            if (!currentGameId) {
-                showAlert('錯誤: 未選擇遊戲', 'error');
-                return;
-            }
-
             if (!confirm('確定要結束賣出投標嗎？')) return;
-
+            
             try {
-                const response = await fetch(`/api/admin/games/${currentGameId}/close-selling`, {
+                const response = await fetch('/api/admin/close-selling', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1229,33 +1125,19 @@
                     showAlert('賣出投標已結束，正在處理投標...', 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    const errorMsg = `結束賣出失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
-                    console.error('結束賣出失敗詳情:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        error: result.error,
-                        fullResponse: result
-                    });
-                    showAlert(errorMsg, 'error');
+                    showAlert('結束賣出失敗: ' + result.error, 'error');
                 }
             } catch (error) {
-                const errorMsg = `結束賣出失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
-                console.error('結束賣出失敗 - 完整錯誤:', error);
-                console.error('錯誤堆疊:', error.stack);
-                showAlert(errorMsg, 'error');
+                console.error('Error closing selling:', error);
+                showAlert('結束賣出失敗: 網路錯誤', 'error');
             }
         }
         
         async function settleDailyResults() {
-            if (!currentGameId) {
-                showAlert('錯誤: 未選擇遊戲', 'error');
-                return;
-            }
-
             if (!confirm('確定要執行每日結算嗎？')) return;
-
+            
             try {
-                const response = await fetch(`/api/admin/games/${currentGameId}/settle`, {
+                const response = await fetch('/api/admin/settle', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1269,20 +1151,11 @@
                     showAlert('每日結算已完成！', 'success');
                     loadActiveGameData('game-control');
                 } else {
-                    const errorMsg = `每日結算失敗\n錯誤: ${result.error || '未知錯誤'}\nHTTP 狀態: ${response.status}`;
-                    console.error('每日結算失敗詳情:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        error: result.error,
-                        fullResponse: result
-                    });
-                    showAlert(errorMsg, 'error');
+                    showAlert('每日結算失敗: ' + result.error, 'error');
                 }
             } catch (error) {
-                const errorMsg = `每日結算失敗: 網路錯誤\n錯誤類型: ${error.name}\n錯誤訊息: ${error.message}`;
-                console.error('每日結算失敗 - 完整錯誤:', error);
-                console.error('錯誤堆疊:', error.stack);
-                showAlert(errorMsg, 'error');
+                console.error('Error settling daily results:', error);
+                showAlert('每日結算失敗: 網路錯誤', 'error');
             }
         }
 
@@ -1293,30 +1166,32 @@
                 showAlert('請先切換到此分頁載入遊戲資料', 'error');
                 return;
             }
-            
+
             const day = document.getElementById('biddingDaySelect').value;
             const type = document.getElementById('biddingTypeSelect').value;
             const contentDiv = document.getElementById('bidding-results-content');
-            
+
             if (!day) {
                 showAlert('請選擇天數', 'error');
                 return;
             }
-            
+
             contentDiv.innerHTML = '<div class="loading">載入中...</div>';
-            
+
             try {
-                // 使用新的 bid-summary API 獲取完整統計
-                const response = await fetch(`/api/admin/games/${activeGame.id}/day/${day}/bid-summary`, {
+                // 使用現有的 daily-results API
+                const response = await fetch(`/api/admin/games/${activeGame.id}/daily-results/${day}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     displayBiddingResultsWithStats(data, type);
                 } else {
-                    contentDiv.innerHTML = '<div class="empty-state">❌<br>載入失敗</div>';
-                    showAlert('載入競標結果失敗', 'error');
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('載入失敗:', errorData);
+                    contentDiv.innerHTML = `<div class="empty-state">❌<br>載入失敗<br><small style="color: #999;">${errorData.message || errorData.error || ''}</small></div>`;
+                    showAlert('載入競標結果失敗: ' + (errorData.message || errorData.error || ''), 'error');
                 }
             } catch (error) {
                 console.error('Error loading bidding results:', error);
@@ -1325,69 +1200,67 @@
             }
         }
         
-        // Display bidding results with statistics
+        // Display bidding results with statistics - 使用 daily-results API 數據
         function displayBiddingResultsWithStats(data, selectedType) {
             const contentDiv = document.getElementById('bidding-results-content');
-            
+
             // 調試信息
             console.log('競標結果數據：', data);
-            
-            // 檢查數據完整性
-            if (!data || !data.bidDetails || !data.statistics) {
+
+            // 檢查數據完整性 - daily-results API 返回 {dayInfo, bids, teamResults}
+            if (!data || !data.dayInfo || !data.bids) {
                 contentDiv.innerHTML = '<div class="empty-state">❌<br>數據格式錯誤</div>';
                 console.error('數據格式錯誤：', data);
                 return;
             }
-            
-            // 安全檢查投標資料
-            const buyBids = data.bidDetails.buy || { fishA: [], fishB: [] };
-            const sellBids = data.bidDetails.sell || { fishA: [], fishB: [] };
-            const hasBuyBids = (buyBids.fishA?.length > 0 || buyBids.fishB?.length > 0);
-            const hasSellBids = (sellBids.fishA?.length > 0 || sellBids.fishB?.length > 0);
-            
+
+            // 按類型和魚種分組投標數據
+            const buyBidsA = data.bids.filter(b => b.bid_type === 'buy' && b.fish_type === 'A');
+            const buyBidsB = data.bids.filter(b => b.bid_type === 'buy' && b.fish_type === 'B');
+            const sellBidsA = data.bids.filter(b => b.bid_type === 'sell' && b.fish_type === 'A');
+            const sellBidsB = data.bids.filter(b => b.bid_type === 'sell' && b.fish_type === 'B');
+
+            const hasBuyBids = (buyBidsA.length > 0 || buyBidsB.length > 0);
+            const hasSellBids = (sellBidsA.length > 0 || sellBidsB.length > 0);
+
             if (!hasBuyBids && !hasSellBids) {
                 contentDiv.innerHTML = '<div class="empty-state">📊<br>該天尚無投標資料</div>';
                 return;
             }
-            
+
             let html = '';
-            
+
             // 顯示市場資訊摘要
             html += `
                 <div class="card" style="background: #f0f8ff; margin-bottom: 20px;">
-                    <h4>📈 第 ${data.dayInfo.dayNumber} 天市場概況</h4>
+                    <h4>📈 第 ${data.dayInfo.day_number} 天市場概況</h4>
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
                         <div>
-                            <strong>A魚供給量：</strong> ${(data.dayInfo.supply?.fishA || 0).toLocaleString()} kg<br>
-                            <strong>A魚餐廳預算：</strong> $${((data.dayInfo.restaurantBudget?.fishA || data.dayInfo.budget?.fishA) || 0).toLocaleString()}
+                            <strong>A魚供給量：</strong> ${(data.dayInfo.fish_a_supply || 0).toLocaleString()} kg<br>
+                            <strong>A魚餐廳預算：</strong> $${(data.dayInfo.fish_a_restaurant_budget || 0).toLocaleString()}
                         </div>
                         <div>
-                            <strong>B魚供給量：</strong> ${(data.dayInfo.supply?.fishB || 0).toLocaleString()} kg<br>
-                            <strong>B魚餐廳預算：</strong> $${((data.dayInfo.restaurantBudget?.fishB || data.dayInfo.budget?.fishB) || 0).toLocaleString()}
+                            <strong>B魚供給量：</strong> ${(data.dayInfo.fish_b_supply || 0).toLocaleString()} kg<br>
+                            <strong>B魚餐廳預算：</strong> $${(data.dayInfo.fish_b_restaurant_budget || 0).toLocaleString()}
                         </div>
                     </div>
                 </div>
             `;
-            
+
             // 根據選擇顯示買入或賣出投標
             if ((selectedType === 'buy' || selectedType === 'all') && hasBuyBids) {
-                html += displayBidTableWithStats('買入投標', buyBids, data.statistics.buy || {}, 'buy', data.dayInfo?.dayNumber || '?');
+                html += displayBidTable('買入投標', {fishA: buyBidsA, fishB: buyBidsB}, 'buy', data.dayInfo.day_number);
             }
-            
+
             if ((selectedType === 'sell' || selectedType === 'all') && hasSellBids) {
-                html += displayBidTableWithStats('賣出投標', sellBids, data.statistics.sell || {}, 'sell', data.dayInfo?.dayNumber || '?');
+                html += displayBidTable('賣出投標', {fishA: sellBidsA, fishB: sellBidsB}, 'sell', data.dayInfo.day_number);
             }
-            
-            // 顯示團隊統計摘要
-            if (data.teamStats && data.teamStats.length > 0) {
-                html += displayTeamStats(data.teamStats);
-            }
-            
+
             contentDiv.innerHTML = html;
         }
         
-        // Display bid table with statistics
-        function displayBidTableWithStats(title, bids, stats, bidType, dayNumber) {
+        // Display bid table - 簡化版本,不依賴複雜統計
+        function displayBidTable(title, bids, bidType, dayNumber) {
             const fishABids = bids.fishA || [];
             const fishBBids = bids.fishB || [];
             
@@ -1397,25 +1270,29 @@
             
             const isBuy = (bidType === 'buy');
             let html = `<div class="card"><h4>${title} - 第${dayNumber}天</h4>`;
-            
+
+            // 計算簡單統計
+            const calcStats = (bids) => {
+                const totalSubmitted = bids.reduce((sum, b) => sum + (b.quantity_submitted || 0), 0);
+                const totalFulfilled = bids.reduce((sum, b) => sum + (b.quantity_fulfilled || 0), 0);
+                const fulfilledBids = bids.filter(b => (b.quantity_fulfilled || 0) > 0);
+                const rate = totalSubmitted > 0 ? ((totalFulfilled / totalSubmitted) * 100).toFixed(1) : '0';
+                return { totalSubmitted, totalFulfilled, rate, count: bids.length };
+            };
+
             // A級魚投標
             if (fishABids.length > 0) {
+                const statsA = calcStats(fishABids);
                 html += `
                     <h5 style="margin: 20px 0 10px 0; color: #1890ff;">🐟 A級魚${title}</h5>
-                    
+
                     <!-- 統計資訊 -->
                     <div style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
                         <strong>統計摘要：</strong>
-                        總投標數：${stats.fishA?.totalBids || 0} | 
-                        總提交量：${stats.fishA?.totalQuantitySubmitted || 0} kg | 
-                        總成交量：${stats.fishA?.totalQuantityFulfilled || 0} kg | 
-                        成交率：${stats.fishA?.fulfillmentRate || 0}%
-                        ${stats.fishA?.lowestFulfilledPrice ? `<br>
-                        <strong>${isBuy ? '最低' : '最高'}成交價：</strong> $${stats.fishA.lowestFulfilledPrice} | 
-                        <strong>${isBuy ? '最高' : '最低'}成交價：</strong> $${stats.fishA.highestFulfilledPrice} | 
-                        <strong>加權平均價：</strong> $${stats.fishA.averageFulfilledPrice}` : ''}
-                        ${!isBuy && (stats.fishA?.unsoldQuantity > 0 || stats.fishA?.highestPriceUnsold > 0) ? `<br><strong>總滯銷數量：</strong> ${stats.fishA.unsoldQuantity} kg` : ''}
-                        ${!isBuy && stats.fishA?.highestPriceUnsold > 0 ? ` (最高價2.5%滯銷：${stats.fishA.highestPriceUnsold} kg)` : ''}
+                        總投標數：${statsA.count} |
+                        總提交量：${statsA.totalSubmitted} kg |
+                        總成交量：${statsA.totalFulfilled} kg |
+                        成交率：${statsA.rate}%
                     </div>
                     
                     <table class="table">
@@ -1444,21 +1321,17 @@
                 });
                 
                 sortedFishABids.forEach(bid => {
-                    const statusClass = bid.status === 'fulfilled' ? 'status-active' : 
-                                      bid.status === 'partial' ? 'status-pending' : 
+                    const statusClass = bid.status === 'fulfilled' ? 'status-active' :
+                                      bid.status === 'partial' ? 'status-pending' :
                                       bid.status === 'failed' ? 'status-completed' : '';
                     const statusText = bid.status === 'fulfilled' ? '完全成交' :
                                      bid.status === 'partial' ? '部分成交' :
                                      bid.status === 'pending' ? '等待中' : '未成交';
-                    
+
                     const totalAmount = bid.price * bid.quantity_submitted;
-                    const fulfillmentRate = bid.quantity_submitted > 0 ? 
+                    const fulfillmentRate = bid.quantity_submitted > 0 ?
                         ((bid.quantity_fulfilled || 0) / bid.quantity_submitted * 100).toFixed(1) : '0';
-                    
-                    // 特殊標記最高/最低成交價
-                    const isPriceBest = (isBuy && bid.price === stats.fishA?.lowestFulfilledPrice && bid.quantity_fulfilled > 0) ||
-                                       (!isBuy && bid.price === stats.fishA?.highestFulfilledPrice && bid.quantity_fulfilled > 0);
-                    
+
                     // 檢查是否為受2.5%滯銷影響的最高價投標
                     let isHighestPrice = false;
                     let unsoldNote = '';
@@ -1470,11 +1343,11 @@
                             unsoldNote = ` (2.5%滯銷: ${unsoldQty}kg)`;
                         }
                     }
-                    
+
                     html += `
-                        <tr ${isPriceBest ? 'style="background-color: #fffbe6;"' : isHighestPrice ? 'style="background-color: #ffebee;"' : ''}>
-                            <td>${bid.team_name || `團隊${bid.username}`}</td>
-                            <td>$${bid.price.toLocaleString()} ${isPriceBest ? '⭐' : isHighestPrice ? '🔴' : ''}</td>
+                        <tr ${isHighestPrice ? 'style="background-color: #ffebee;"' : ''}>
+                            <td>${bid.team_name || `團隊${bid.team_id}`}</td>
+                            <td>$${bid.price.toLocaleString()} ${isHighestPrice ? '🔴' : ''}</td>
                             <td>${bid.quantity_submitted.toLocaleString()}${unsoldNote}</td>
                             <td>$${totalAmount.toLocaleString()}</td>
                             <td>${(bid.quantity_fulfilled || 0).toLocaleString()}</td>
@@ -1490,22 +1363,17 @@
             
             // B級魚投標
             if (fishBBids.length > 0) {
+                const statsB = calcStats(fishBBids);
                 html += `
                     <h5 style="margin: 20px 0 10px 0; color: #52c41a;">🐠 B級魚${title}</h5>
-                    
+
                     <!-- 統計資訊 -->
                     <div style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
                         <strong>統計摘要：</strong>
-                        總投標數：${stats.fishB?.totalBids || 0} | 
-                        總提交量：${stats.fishB?.totalQuantitySubmitted || 0} kg | 
-                        總成交量：${stats.fishB?.totalQuantityFulfilled || 0} kg | 
-                        成交率：${stats.fishB?.fulfillmentRate || 0}%
-                        ${stats.fishB?.lowestFulfilledPrice ? `<br>
-                        <strong>${isBuy ? '最低' : '最高'}成交價：</strong> $${stats.fishB.lowestFulfilledPrice} | 
-                        <strong>${isBuy ? '最高' : '最低'}成交價：</strong> $${stats.fishB.highestFulfilledPrice} | 
-                        <strong>加權平均價：</strong> $${stats.fishB.averageFulfilledPrice}` : ''}
-                        ${!isBuy && (stats.fishB?.unsoldQuantity > 0 || stats.fishB?.highestPriceUnsold > 0) ? `<br><strong>總滯銷數量：</strong> ${stats.fishB.unsoldQuantity} kg` : ''}
-                        ${!isBuy && stats.fishB?.highestPriceUnsold > 0 ? ` (最高價2.5%滯銷：${stats.fishB.highestPriceUnsold} kg)` : ''}
+                        總投標數：${statsB.count} |
+                        總提交量：${statsB.totalSubmitted} kg |
+                        總成交量：${statsB.totalFulfilled} kg |
+                        成交率：${statsB.rate}%
                     </div>
                     
                     <table class="table">
@@ -1534,21 +1402,17 @@
                 });
                 
                 sortedFishBBids.forEach(bid => {
-                    const statusClass = bid.status === 'fulfilled' ? 'status-active' : 
-                                      bid.status === 'partial' ? 'status-pending' : 
+                    const statusClass = bid.status === 'fulfilled' ? 'status-active' :
+                                      bid.status === 'partial' ? 'status-pending' :
                                       bid.status === 'failed' ? 'status-completed' : '';
                     const statusText = bid.status === 'fulfilled' ? '完全成交' :
                                      bid.status === 'partial' ? '部分成交' :
                                      bid.status === 'pending' ? '等待中' : '未成交';
-                    
+
                     const totalAmount = bid.price * bid.quantity_submitted;
-                    const fulfillmentRate = bid.quantity_submitted > 0 ? 
+                    const fulfillmentRate = bid.quantity_submitted > 0 ?
                         ((bid.quantity_fulfilled || 0) / bid.quantity_submitted * 100).toFixed(1) : '0';
-                    
-                    // 特殊標記最高/最低成交價
-                    const isPriceBest = (isBuy && bid.price === stats.fishB?.lowestFulfilledPrice && bid.quantity_fulfilled > 0) ||
-                                       (!isBuy && bid.price === stats.fishB?.highestFulfilledPrice && bid.quantity_fulfilled > 0);
-                    
+
                     // 檢查是否為受2.5%滯銷影響的最高價投標
                     let isHighestPrice = false;
                     let unsoldNote = '';
@@ -1560,11 +1424,11 @@
                             unsoldNote = ` (2.5%滯銷: ${unsoldQty}kg)`;
                         }
                     }
-                    
+
                     html += `
-                        <tr ${isPriceBest ? 'style="background-color: #fffbe6;"' : isHighestPrice ? 'style="background-color: #ffebee;"' : ''}>
-                            <td>${bid.team_name || `團隊${bid.username}`}</td>
-                            <td>$${bid.price.toLocaleString()} ${isPriceBest ? '⭐' : isHighestPrice ? '🔴' : ''}</td>
+                        <tr ${isHighestPrice ? 'style="background-color: #ffebee;"' : ''}>
+                            <td>${bid.team_name || `團隊${bid.team_id}`}</td>
+                            <td>$${bid.price.toLocaleString()} ${isHighestPrice ? '🔴' : ''}</td>
                             <td>${bid.quantity_submitted.toLocaleString()}${unsoldNote}</td>
                             <td>$${totalAmount.toLocaleString()}</td>
                             <td>${(bid.quantity_fulfilled || 0).toLocaleString()}</td>
@@ -1817,9 +1681,9 @@
             games.forEach(game => {
                 const gameId = game.game_id || game.id;
                 const statusClass = game.status === 'active' ? 'status-active' : 
-                                  game.status === 'finished' ? 'status-finished' : 'status-pending';
+                                  game.status === 'completed' ? 'status-completed' : 'status-pending';
                 const statusText = game.status === 'active' ? '進行中' :
-                                 game.status === 'finished' ? '已結束' : '準備中';
+                                 game.status === 'completed' ? '已結束' : '準備中';
                 
                 const progress = `${game.current_day || 0}/${game.total_days || 7}`;
                 
@@ -1986,6 +1850,44 @@
                 generateQRCode();
             }
         };
+
+        // Logout function
+        function logout() {
+            if (confirm('確定要登出嗎?')) {
+                localStorage.removeItem('token');
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Reset all passwords function
+        async function resetAllPasswords() {
+            if (!confirm('確定要重置所有用戶密碼嗎?\n\n重置後:\n- Admin 密碼: admin\n- 學生密碼: 各自的用戶名(01, 02, 03...)\n- 所有小組名稱將被清空')) {
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE}/admin/reset-all-passwords`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '重置密碼失敗');
+                }
+
+                alert('✅ ' + data.message + '\n\nAdmin 密碼: admin\n學生密碼: 各自的用戶名');
+                console.log('重置詳情:', data.details);
+            } catch (error) {
+                console.error('重置密碼錯誤:', error);
+                alert('❌ 重置密碼失敗: ' + error.message);
+            }
+        }
 
         // Initialize the page
         document.addEventListener('DOMContentLoaded', function() {
