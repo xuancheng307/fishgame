@@ -443,6 +443,54 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// 更新用戶設定 (小組名稱和密碼)
+app.put('/api/users/settings', authenticateToken, async (req, res) => {
+    const { teamName, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    try {
+        // 至少需要提供一個要更新的欄位
+        if (!teamName && !newPassword) {
+            return res.status(400).json({ error: '請提供要更新的資料' });
+        }
+
+        let updateFields = [];
+        let updateValues = [];
+
+        // 更新小組名稱
+        if (teamName) {
+            updateFields.push('team_name = ?');
+            updateValues.push(teamName);
+        }
+
+        // 更新密碼
+        if (newPassword) {
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            updateFields.push('password_hash = ?');
+            updateValues.push(hashedPassword);
+        }
+
+        updateValues.push(userId);
+
+        const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+        await pool.execute(updateQuery, updateValues);
+
+        // 獲取更新後的用戶資料
+        const [users] = await pool.execute(
+            'SELECT id, username, team_name, role FROM users WHERE id = ?',
+            [userId]
+        );
+
+        res.json({
+            message: '設定更新成功',
+            user: users[0]
+        });
+    } catch (error) {
+        console.error('更新設定錯誤:', error);
+        res.status(500).json({ error: '更新設定失敗' });
+    }
+});
+
 // 創建遊戲（改進版）
 app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req, res) => {
     const {
