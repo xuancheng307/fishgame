@@ -764,9 +764,12 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
                 'SELECT * FROM game_days WHERE game_id = ? AND day_number = ?',
                 [gameId, currentDay]
             );
-            
+
             // 使用正確的 status 欄位和狀態名稱
-            if (currentDayRecord.length > 0 && currentDayRecord[0].status !== 'completed') {
+            // 允許 sell_closed 或 completed 狀態才能進入下一天
+            if (currentDayRecord.length > 0 &&
+                currentDayRecord[0].status !== 'sell_closed' &&
+                currentDayRecord[0].status !== 'completed') {
                 return res.status(400).json({ error: `請先完成第${currentDay}天的結算` });
             }
         }
