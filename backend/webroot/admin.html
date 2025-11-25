@@ -256,9 +256,19 @@
 <body>
     <!-- Header -->
     <div class="header">
-        <div class="container">
-            <h1>🐟 魚市場遊戲管理控制台</h1>
-            <div class="subtitle">Fish Market Game Management Dashboard</div>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>🐟 魚市場遊戲管理控制台</h1>
+                <div class="subtitle">Fish Market Game Management Dashboard</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="resetAllPasswords()" class="btn btn-warning" style="background: #faad14; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                    🔄 重置所有密碼
+                </button>
+                <button onclick="logout()" class="btn btn-danger" style="background: #ff4d4f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                    🚪 登出
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1840,6 +1850,44 @@
                 generateQRCode();
             }
         };
+
+        // Logout function
+        function logout() {
+            if (confirm('確定要登出嗎?')) {
+                localStorage.removeItem('token');
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Reset all passwords function
+        async function resetAllPasswords() {
+            if (!confirm('確定要重置所有用戶密碼嗎?\n\n重置後:\n- Admin 密碼: admin\n- 學生密碼: 各自的用戶名(01, 02, 03...)\n- 所有小組名稱將被清空')) {
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE}/admin/reset-all-passwords`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '重置密碼失敗');
+                }
+
+                alert('✅ ' + data.message + '\n\nAdmin 密碼: admin\n學生密碼: 各自的用戶名');
+                console.log('重置詳情:', data.details);
+            } catch (error) {
+                console.error('重置密碼錯誤:', error);
+                alert('❌ 重置密碼失敗: ' + error.message);
+            }
+        }
 
         // Initialize the page
         document.addEventListener('DOMContentLoaded', function() {

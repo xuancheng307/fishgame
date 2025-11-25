@@ -491,6 +491,52 @@ app.put('/api/users/settings', authenticateToken, async (req, res) => {
     }
 });
 
+// 重置所有用戶密碼為預設值 (僅管理員)
+app.post('/api/admin/reset-all-passwords', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        console.log('===== 開始重置所有用戶密碼 =====');
+
+        // 重置 admin 密碼為 "admin"
+        const adminHash = await bcrypt.hash('admin', 10);
+        await pool.execute(
+            'UPDATE users SET password_hash = ? WHERE username = ?',
+            [adminHash, 'admin']
+        );
+        console.log('✅ Admin 密碼已重置為: admin');
+
+        // 重置所有學生帳號密碼為其用戶名 (01 -> 01, 02 -> 02, etc.)
+        const [students] = await pool.execute(
+            'SELECT id, username FROM users WHERE role = ?',
+            ['team']
+        );
+
+        let resetCount = 0;
+        for (const student of students) {
+            const hash = await bcrypt.hash(student.username, 10);
+            await pool.execute(
+                'UPDATE users SET password_hash = ?, team_name = NULL WHERE id = ?',
+                [hash, student.id]
+            );
+            console.log(`✅ ${student.username} 密碼已重置為: ${student.username}`);
+            resetCount++;
+        }
+
+        console.log(`===== 重置完成: ${resetCount + 1} 個帳號 =====`);
+
+        res.json({
+            message: `成功重置 ${resetCount + 1} 個帳號密碼`,
+            details: {
+                admin: 'admin',
+                students: '密碼重置為各自的用戶名',
+                teamNamesCleared: true
+            }
+        });
+    } catch (error) {
+        console.error('重置密碼錯誤:', error);
+        res.status(500).json({ error: '重置密碼失敗' });
+    }
+});
+
 // 創建遊戲（改進版）
 app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req, res) => {
     const {
