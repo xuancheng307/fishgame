@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>歷史遊戲記錄 - 魚市場遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .back-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .search-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 150px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #1890ff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #40a9ff;
+        }
+        
+        .btn-secondary {
+            background: #8c8c8c;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #a6a6a6;
+        }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .game-card {
+            background: #f9f9f9;
+            border: 1px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .game-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        
+        .game-card.completed {
+            border-left: 5px solid #52c41a;
+        }
+        
+        .game-card.active {
+            border-left: 5px solid #1890ff;
+        }
+        
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .game-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .game-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-completed {
+            background: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+        
+        .status-active {
+            background: #e6f7ff;
+            color: #1890ff;
+            border: 1px solid #91d5ff;
+        }
+        
+        .game-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .info-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .info-value {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .game-stats {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .stats-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .top-teams {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+        
+        .team-rank {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .rank-medal {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .rank-1 { background: #faad14; }
+        .rank-2 { background: #8c8c8c; }
+        .rank-3 { background: #d4670e; }
+        
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #cf1322;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .page-btn:hover {
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+        
+        .page-btn.active {
+            background: #1890ff;
+            color: white;
+            border-color: #1890ff;
+        }
+        
+        @media (max-width: 768px) {
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-filters {
+                flex-direction: column;
+            }
+            
+            .game-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="javascript:window.close()" class="back-btn">← 關閉</a>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📊 歷史遊戲記錄</h1>
+            <p>查看所有已完成和進行中的遊戲</p>
+        </div>
+        
+        <div class="content">
+            <!-- 搜尋篩選器 -->
+            <div class="search-filters">
+                <div class="filter-group">
+                    <label>遊戲狀態</label>
+                    <select id="statusFilter" class="filter-input">
+                        <option value="">全部狀態</option>
+                        <option value="active">進行中</option>
+                        <option value="completed">已結束</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>遊戲名稱</label>
+                    <input type="text" id="nameFilter" class="filter-input" placeholder="搜尋遊戲名稱">
+                </div>
+                
+                <div class="filter-group">
+                    <label>日期範圍</label>
+                    <input type="date" id="dateFromFilter" class="filter-input">
+                </div>
+                
+                <div class="filter-group">
+                    <label>至</label>
+                    <input type="date" id="dateToFilter" class="filter-input">
+                </div>
+                
+                <div class="filter-group" style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="applyFilters()">🔍 搜尋</button>
+                    <button class="btn btn-secondary" onclick="clearFilters()">清除</button>
+                </div>
+            </div>
+            
+            <!-- 錯誤訊息 -->
+            <div id="errorMessage" style="display: none;"></div>
+            
+            <!-- 載入中 -->
+            <div id="loadingMessage" class="loading">載入歷史遊戲中...</div>
+            
+            <!-- 遊戲列表 -->
+            <div id="gamesContainer">
+                <div id="gamesList" class="games-grid"></div>
+                
+                <!-- 分頁 -->
+                <div id="pagination" class="pagination" style="display: none;"></div>
+            </div>
+            
+            <!-- 無資料 -->
+            <div id="noDataMessage" class="no-data" style="display: none;">
+                <h3>📝 暫無遊戲記錄</h3>
+                <p>還沒有任何遊戲記錄，開始您的第一場遊戲吧！</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api';
+        let currentPage = 1;
+        let totalPages = 1;
+        const pageSize = 12;
+        
+        // 頁面載入時初始化
+        window.onload = function() {
+            loadGameHistory();
+        };
+        
+        // 載入歷史遊戲
+        async function loadGameHistory(page = 1) {
+            try {
+                showLoading();
+                
+                // 獲取篩選條件
+                const filters = getFilters();
+                const queryParams = new URLSearchParams({
+                    page: page,
+                    pageSize: pageSize
+                });
+                
+                // 逐一添加篩選條件
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value !== '' && value != null) {
+                        queryParams.append(key, value);
+                    }
+                });
+                
+                const response = await fetch(`${API_BASE}/admin/games/history?${queryParams}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('無法載入遊戲記錄');
+                }
+                
+                const data = await response.json();
+                displayGameHistory(data);
+                hideLoading();
+                
+            } catch (error) {
+                console.error('載入歷史遊戲錯誤:', error);
+                showError('載入失敗：' + error.message);
+                hideLoading();
+            }
+        }
+        
+        // 顯示遊戲歷史
+        function displayGameHistory(data) {
+            const gamesList = document.getElementById('gamesList');
+            const games = data.games || [];
+            
+            if (games.length === 0) {
+                showNoData();
+                return;
+            }
+            
+            hideNoData();
+            gamesList.innerHTML = games.map(game => createGameCard(game)).join('');
+            
+            // 更新分頁
+            updatePagination(data.totalPages || 1, data.currentPage || 1);
+        }
+        
+        // 創建遊戲卡片
+        function createGameCard(game) {
+            const statusClass = game.status === 'completed' ? 'completed' : 'active';
+            const statusText = game.status === 'completed' ? '已結束' : '進行中';
+            const statusStyle = game.status === 'completed' ? 'status-completed' : 'status-active';
+            
+            const startDate = new Date(game.created_at).toLocaleDateString('zh-TW');
+            const endDate = game.ended_at ? new Date(game.ended_at).toLocaleDateString('zh-TW') : '進行中';
+            
+            // 獲取前三名團隊
+            const topTeams = (game.final_rankings || []).slice(0, 3);
+            const topTeamsHtml = topTeams.length > 0 
+                ? topTeams.map((team, index) => `
+                    <div class="team-rank">
+                        <span class="rank-medal rank-${index + 1}">${index + 1}</span>
+                        <span>${team.team_name || `團隊${team.team_id}`}</span>
+                        <span>(${(team.roi * 100).toFixed(1)}%)</span>
+                    </div>
+                `).join('')
+                : '<div style="text-align: center; color: #999;">尚無排名資料</div>';
+            
+            return `
+                <div class="game-card ${statusClass}" onclick="viewGameDetails(${game.game_id})">
+                    <div class="game-header">
+                        <div class="game-title">${game.game_name}</div>
+                        <span class="game-status ${statusStyle}">${statusText}</span>
+                    </div>
+                    
+                    <div class="game-info">
+                        <div class="info-item">
+                            <span class="info-label">遊戲ID:</span>
+                            <span class="info-value">#${game.game_id}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">參與隊伍:</span>
+                            <span class="info-value">${game.num_teams} 隊</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">遊戲天數:</span>
+                            <span class="info-value">${game.total_days} 天</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">當前天數:</span>
+                            <span class="info-value">${game.current_day} 天</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">開始時間:</span>
+                            <span class="info-value">${startDate}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">結束時間:</span>
+                            <span class="info-value">${endDate}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="game-stats">
+                        <div class="stats-title">🏆 最終排名 (前三名)</div>
+                        <div class="top-teams">
+                            ${topTeamsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 查看遊戲詳情
+        function viewGameDetails(gameId) {
+            // 這裡可以開啟詳細的遊戲分析頁面
+            alert(`查看遊戲 #${gameId} 的詳細資料\n\n此功能可以顯示：\n- 完整排行榜\n- 每日交易記錄\n- 損益分析圖表\n- 團隊策略分析`);
+        }
+        
+        // 獲取篩選條件
+        function getFilters() {
+            const filters = {};
+            
+            const status = document.getElementById('statusFilter').value;
+            const name = document.getElementById('nameFilter').value.trim();
+            const dateFrom = document.getElementById('dateFromFilter').value;
+            const dateTo = document.getElementById('dateToFilter').value;
+            
+            if (status) filters.status = status;
+            if (name) filters.name = name;
+            if (dateFrom) filters.dateFrom = dateFrom;
+            if (dateTo) filters.dateTo = dateTo;
+            
+            return filters;
+        }
+        
+        // 應用篩選
+        function applyFilters() {
+            currentPage = 1;
+            loadGameHistory(currentPage);
+        }
+        
+        // 清除篩選
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('nameFilter').value = '';
+            document.getElementById('dateFromFilter').value = '';
+            document.getElementById('dateToFilter').value = '';
+            currentPage = 1;
+            loadGameHistory(currentPage);
+        }
+        
+        // 更新分頁
+        function updatePagination(total, current) {
+            totalPages = total;
+            currentPage = current;
+            
+            const pagination = document.getElementById('pagination');
+            if (total <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            pagination.style.display = 'flex';
+            
+            let html = '';
+            
+            // 上一頁
+            if (current > 1) {
+                html += `<button class="page-btn" onclick="loadGameHistory(${current - 1})">« 上一頁</button>`;
+            }
+            
+            // 頁碼
+            for (let i = Math.max(1, current - 2); i <= Math.min(total, current + 2); i++) {
+                const activeClass = i === current ? 'active' : '';
+                html += `<button class="page-btn ${activeClass}" onclick="loadGameHistory(${i})">${i}</button>`;
+            }
+            
+            // 下一頁
+            if (current < total) {
+                html += `<button class="page-btn" onclick="loadGameHistory(${current + 1})">下一頁 »</button>`;
+            }
+            
+            pagination.innerHTML = html;
+        }
+        
+        // 顯示載入中
+        function showLoading() {
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('gamesContainer').style.display = 'none';
+            document.getElementById('noDataMessage').style.display = 'none';
+            hideError();
+        }
+        
+        // 隱藏載入中
+        function hideLoading() {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('gamesContainer').style.display = 'block';
+        }
+        
+        // 顯示錯誤
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = `<div class="error">❌ ${message}</div>`;
+            errorDiv.style.display = 'block';
+        }
+        
+        // 隱藏錯誤
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+        
+        // 顯示無資料
+        function showNoData() {
+            document.getElementById('noDataMessage').style.display = 'block';
+            document.getElementById('gamesContainer').style.display = 'none';
+        }
+        
+        // 隱藏無資料
+        function hideNoData() {
+            document.getElementById('noDataMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

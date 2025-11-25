@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>遊戲說明 - 魚市場遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+            overflow-x: hidden;
+        }
+
+        .container {
+            background: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 15px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        /* 手機版導航選單 */
+        .mobile-nav {
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            position: sticky;
+            top: 65px;
+            z-index: 99;
+        }
+
+        .nav-select {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            background: white;
+            border-radius: 0;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667eea' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 20px;
+            padding-right: 45px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .content {
+            padding: 15px;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rule-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .rule-section h3 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rule-section h4 {
+            color: #667eea;
+            margin: 15px 0 10px 0;
+            font-size: 1em;
+        }
+
+        .rule-section p {
+            line-height: 1.6;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+        }
+
+        .rule-section ul {
+            padding-left: 20px;
+        }
+
+        .rule-section li {
+            margin: 8px 0;
+            line-height: 1.5;
+            font-size: 0.9em;
+        }
+
+        .formula-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+            margin: 15px 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .formula-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            font-size: 0.95em;
+        }
+
+        .formula-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+
+        .example-calculation {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #ffc107;
+        }
+
+        .example-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 12px;
+            font-size: 1em;
+        }
+
+        .calculation-step {
+            margin: 8px 0;
+            padding-left: 15px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .back-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            z-index: 1000;
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .back-btn:active {
+            transform: scale(0.95);
+        }
+
+        .strategy-tip {
+            background: #e8f5e8;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #52c41a;
+            margin: 12px 0;
+        }
+
+        .strategy-tip h4 {
+            color: #52c41a;
+            margin-bottom: 8px;
+        }
+
+        .warning-box {
+            background: #fff2e8;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #fa8c16;
+            margin: 12px 0;
+        }
+
+        .warning-box strong {
+            color: #fa8c16;
+        }
+
+        .info-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-top: 3px solid #667eea;
+            margin-bottom: 15px;
+        }
+
+        .info-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .info-card ul {
+            padding-left: 20px;
+        }
+
+        .info-card li {
+            font-size: 0.9em;
+            margin: 5px 0;
+        }
+
+        /* 流程步驟卡片 - 手機版垂直排列 */
+        .step-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .step-card {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .step-card::after {
+            content: '↓';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            color: #667eea;
+        }
+
+        .step-card:last-child::after {
+            display: none;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            min-width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .step-card h4 {
+            font-size: 0.95em;
+            margin: 0;
+            color: #333;
+        }
+
+        .step-card p {
+            font-size: 0.85em;
+            color: #666;
+            margin: 3px 0 0 0;
+        }
+
+        /* 摺疊內容 */
+        .collapsible {
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            padding: 12px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 1em;
+            border-radius: 8px;
+            margin: 10px 0 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+        }
+
+        .collapsible:active {
+            background: #5568d3;
+        }
+
+        .collapsible:after {
+            content: '\002B';
+            font-size: 1.2em;
+            margin-left: 5px;
+        }
+
+        .collapsible.active:after {
+            content: "\2212";
+        }
+
+        .collapse-content {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: #f9f9f9;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .collapse-content.show {
+            padding: 15px;
+            max-height: 3000px;
+        }
+
+        /* 針對小螢幕的額外優化 */
+        @media (max-width: 375px) {
+            .header h1 {
+                font-size: 1.3em;
+            }
+
+            .rule-section h3 {
+                font-size: 1.1em;
+            }
+
+            .formula-box {
+                font-size: 0.8em;
+                padding: 12px;
+            }
+        }
+
+        /* iOS 安全區域適配 */
+        @supports (padding: max(0px)) {
+            .container {
+                padding-bottom: max(70px, env(safe-area-inset-bottom));
+            }
+        }
+
+        /* 載入動畫 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-btn">←</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>🐟 魚市場遊戲說明</h1>
+            <p>完整的遊戲規則、策略指南與計算邏輯</p>
+        </div>
+
+        <div class="mobile-nav">
+            <select class="nav-select" onchange="showSection(this.value)">
+                <option value="overview">遊戲概述</option>
+                <option value="rules">遊戲規則</option>
+                <option value="strategy">策略指南</option>
+                <option value="calculations">計算邏輯</option>
+                <option value="examples">實戰範例</option>
+            </select>
+        </div>
+
+        <div class="content">
+            <!-- 遊戲概述 -->
+            <div id="overview" class="section active">
+                <div class="rule-section">
+                    <h3>🎯 遊戲目標</h3>
+                    <p>在魚市場遊戲中，您扮演魚貨批發商，需要從總代理手中進貨，再轉售給餐廳。您的目標是通過精明的買賣策略，在有限的資金下創造最高的投資報酬率（ROI）。</p>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🏪 市場結構</h3>
+
+                    <div class="info-card">
+                        <h4>🎣 供應端 - 總代理</h4>
+                        <ul>
+                            <li>每日提供兩種魚類：A級魚、B級魚</li>
+                            <li>供應量有限，價高者得</li>
+                            <li>設有底價保護供應商權益</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>🏢 需求端 - 餐廳</h4>
+                        <ul>
+                            <li>每日有固定預算採購魚貨</li>
+                            <li>價低者優先成交</li>
+                            <li>預算用完即停止採購</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>💼 您的角色 - 批發商</h4>
+                        <ul>
+                            <li>向總代理買魚、賣給餐廳</li>
+                            <li>管理資金與庫存</li>
+                            <li>承擔滯銷風險</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>⏰ 遊戲流程</h3>
+                    <div class="step-flow">
+                        <div class="step-card">
+                            <div class="step-number">1</div>
+                            <div>
+                                <h4>推進新一天</h4>
+                                <p>管理員設定市場參數</p>
+                            </div>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">2</div>
+                            <div>
+                                <h4>買入投標</h4>
+                                <p>向總代理出價收購魚貨</p>
+                            </div>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">3</div>
+                            <div>
+                                <h4>買入結算</h4>
+                                <p>系統分配魚貨給得標者</p>
+                            </div>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">4</div>
+                            <div>
+                                <h4>賣出投標</h4>
+                                <p>向餐廳出價銷售魚貨</p>
+                            </div>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">5</div>
+                            <div>
+                                <h4>賣出結算</h4>
+                                <p>系統處理餐廳採購</p>
+                            </div>
+                        </div>
+                        <div class="step-card">
+                            <div class="step-number">6</div>
+                            <div>
+                                <h4>每日結算</h4>
+                                <p>計算損益、利息、ROI</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🏆 獲勝條件</h3>
+                    <p><strong>投資報酬率（ROI）最高的團隊獲勝</strong></p>
+                    <div class="formula-box">
+                        <div class="formula-title">ROI 計算公式：</div>
+                        <pre>ROI = (累積利潤 / 總投資金額) × 100%
+總投資金額 = 初始資金 + 總借貸金額</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 遊戲規則 -->
+            <div id="rules" class="section">
+                <div class="rule-section">
+                    <h3>💰 資金管理規則</h3>
+
+                    <h4>初始資金</h4>
+                    <ul>
+                        <li>每個團隊獲得相同的初始預算</li>
+                        <li>資金可用於購買魚貨</li>
+                    </ul>
+
+                    <h4>⚠️ 重要：資金池只減不增</h4>
+                    <ul>
+                        <li><strong style="color: #e74c3c;">賣出魚貨的收入不會加回資金池</strong></li>
+                        <li>資金池只會因為買入成本、滯銷費、利息而減少</li>
+                        <li>這是為了模擬真實商業中的現金流管理</li>
+                        <li>必須謹慎管理每一筆支出</li>
+                    </ul>
+
+                    <h4>自動借貸機制</h4>
+                    <ul>
+                        <li>當購買金額超過現有資金時，系統自動提供貸款</li>
+                        <li>貸款額度上限：初始預算的 50%</li>
+                        <li>每日按複利計算利息（通常為 3%/日）</li>
+                        <li>利息會自動從現金中扣除</li>
+                    </ul>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🐟 魚貨交易規則</h3>
+
+                    <h4>魚種分類</h4>
+                    <ul>
+                        <li><strong>A級魚：</strong>高價值魚種，供應量較少，目標價格較高</li>
+                        <li><strong>B級魚：</strong>一般魚種，供應量較多，目標價格較低</li>
+                    </ul>
+
+                    <h4>投標限制</h4>
+                    <ul>
+                        <li>每種魚最多可出 2 個不同價格的標單</li>
+                        <li>買入時：總出價不得超過 現金 + 剩餘借貸額度</li>
+                        <li>賣出時：出售數量不得超過庫存</li>
+                    </ul>
+
+                    <h4>成交規則</h4>
+                    <ul>
+                        <li><strong>買入：</strong>價格由高到低分配，直到供應量用完</li>
+                        <li><strong>賣出：</strong>價格由低到高成交，直到餐廳預算用完</li>
+                    </ul>
+
+                    <h4>🔴 滯銷機制（重要更新）</h4>
+                    <ul>
+                        <li><strong>固定滯銷比例：</strong>全部成交量的 2.5% 最貴的部分會滯銷</li>
+                        <li><strong>計算方式：</strong>不是針對單一標單，而是所有標單中最貴的 2.5% 總量</li>
+                        <li><strong>同價格處理：</strong>如果多個標單價格相同，晚投標的先滯銷（鼓勵早投標）</li>
+                        <li><strong>滯銷費用：</strong>每公斤收取 $10 處理費</li>
+                    </ul>
+                </div>
+
+                <div class="rule-section">
+                    <h3>📦 庫存管理規則</h3>
+                    <ul>
+                        <li>每日結束後，所有庫存自動清零（模擬魚貨保鮮期限）</li>
+                        <li>未售出的魚貨收取滞銷費（通常 $10/kg）</li>
+                        <li>滯銷費會直接從現金中扣除</li>
+                    </ul>
+
+                    <div class="warning-box">
+                        <strong>⚠️ 重要提醒：</strong>
+                        <ul>
+                            <li>魚貨無法跨日保存，每日必須清倉</li>
+                            <li>滯銷費是固定成本，無法避免</li>
+                            <li>合理控制採購數量，避免過度庫存</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🎮 操作規則</h3>
+
+                    <h4>投標時間</h4>
+                    <ul>
+                        <li><strong>買入階段：</strong>通常 7 分鐘</li>
+                        <li><strong>賣出階段：</strong>通常 4 分鐘</li>
+                        <li>時間到後系統自動結算，無法再修改標單</li>
+                    </ul>
+
+                    <h4>團隊協作</h4>
+                    <ul>
+                        <li>每個團隊只能有一個人同時操作</li>
+                        <li>建議團隊內部先討論策略再投標</li>
+                        <li>可以查看市場資訊但無法看到其他團隊的標單</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 策略指南 -->
+            <div id="strategy" class="section">
+                <div class="rule-section">
+                    <h3>💡 買入策略</h3>
+
+                    <div class="strategy-tip">
+                        <h4>🎯 價格定位策略</h4>
+                        <ul>
+                            <li><strong>保守派：</strong>出價接近底價，確保低成本但可能得標量少</li>
+                            <li><strong>積極派：</strong>出價較高確保得標，但壓縮利潤空間</li>
+                            <li><strong>混合派：</strong>兩個標單設不同價格，分散風險</li>
+                        </ul>
+                    </div>
+
+                    <div class="strategy-tip">
+                        <h4>💰 資金管理策略</h4>
+                        <ul>
+                            <li>善用借貸額度，但控制利息成本</li>
+                            <li>預留資金因應後續幾天的機會</li>
+                            <li>計算每日可承受的最大利息支出</li>
+                        </ul>
+                    </div>
+
+                    <div class="strategy-tip">
+                        <h4>📊 數量分配策略</h4>
+                        <ul>
+                            <li>根據歷史銷售情況調整採購比例</li>
+                            <li>A級魚利潤高但風險大，B級魚較穩定</li>
+                            <li>考慮餐廳預算限制，避免過度採購</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🎯 賣出策略</h3>
+
+                    <div class="strategy-tip">
+                        <h4>⚠️ 滯銷風險控制</h4>
+                        <ul>
+                            <li><strong>避免最高價滯銷：</strong>全市場最貴的2.5%會滯銷，不要盲目追高價</li>
+                            <li><strong>早投標優勢：</strong>同價格時晚投標者先滯銷，建議儘早提交</li>
+                            <li><strong>價格梯度設計：</strong>用兩個價格測試市場接受度</li>
+                            <li><strong>競爭對手分析：</strong>觀察其他團隊的定價傾向，避免成為最高價</li>
+                        </ul>
+                    </div>
+
+                    <div class="strategy-tip">
+                        <h4>💸 定價策略</h4>
+                        <ul>
+                            <li><strong>成本加成法：</strong>買價 + 目標利潤 + 風險緩衝</li>
+                            <li><strong>市場導向法：</strong>參考目標價格設定合理區間</li>
+                            <li><strong>競爭導向法：</strong>略低於預期的競爭對手價格</li>
+                        </ul>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>📈 價格設定建議：</strong>
+                        <ul>
+                            <li>第一標：積極價格，確保部分成交</li>
+                            <li>第二標：保守價格，清倉止損</li>
+                            <li>務必考慮滯銷費成本 ($10/kg)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>⚖️ 風險管理</h3>
+
+                    <div class="info-card">
+                        <h4>💸 滞銷風險</h4>
+                        <ul>
+                            <li>每公斤 $10 的處理費</li>
+                            <li>最高價 2.5% 固定滯銷</li>
+                            <li>餐廳預算不足導致的滯銷</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>📈 利息風險</h4>
+                        <ul>
+                            <li>每日 3% 複利累積</li>
+                            <li>長期借貸成本驚人</li>
+                            <li>影響最終 ROI 計算</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h4>🎲 市場風險</h4>
+                        <ul>
+                            <li>供需量每日變化</li>
+                            <li>競爭對手策略影響</li>
+                            <li>價格波動不確定性</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 計算邏輯 -->
+            <div id="calculations" class="section">
+                <div class="rule-section">
+                    <h3>🔢 買入階段計算</h3>
+
+                    <div class="formula-box">
+                        <div class="formula-title">資金檢查邏輯：</div>
+                        <pre>總出價 = Σ(價格 × 數量)
+可用資金 = 現金 + 剩餘借貸額度
+if (總出價 > 可用資金) { 拒絕投標 }</pre>
+                    </div>
+
+                    <div class="formula-box">
+                        <div class="formula-title">成交分配邏輯：</div>
+                        <pre>1. 所有投標按價格降序排列
+2. 從最高價開始，逐一分配供應量
+3. 成交量 = min(投標量, 剩餘供應量)
+4. 更新團隊庫存和現金/借貸</pre>
+                    </div>
+
+                    <div class="formula-box">
+                        <div class="formula-title">借貸計算邏輯：</div>
+                        <pre>if (成交金額 > 現金) {
+  新借貸 = 成交金額 - 現金
+  總借貸 += 新借貸
+  現金 = 0
+} else {
+  現金 -= 成交金額
+}</pre>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🔢 賣出階段計算</h3>
+
+                    <div class="formula-box">
+                        <div class="formula-title">固定滞銷計算（新機制）：</div>
+                        <pre>1. 計算所有成交的總量
+2. 滯銷總量 = ceil(全部成交量 × 2.5%)
+3. 從最高價開始分配滯銷量
+4. 同價格時，晚投標者優先滯銷
+
+範例：總成交 1000kg，滯銷 25kg
+最高價$300有3個標單，
+將這25kg分配給最高價標單</pre>
+                    </div>
+
+                    <div class="formula-box">
+                        <div class="formula-title">正常成交計算：</div>
+                        <pre>1. 扣除固定滯銷後，剩餘投標按價格升序排列
+2. 從最低價開始，逐一購買
+3. 成交條件：餐廳預算 ≥ 價格 × 數量
+4. 預算不足時：
+   部分成交 = floor(預算 ÷ 價格)</pre>
+                    </div>
+
+                    <div class="formula-box">
+                        <div class="formula-title">滯銷費計算：</div>
+                        <pre>總滞銷量 = 庫存 - 售出量
+滯銷費 = 總滯銷量 × $10
+現金 -= 滯銷費</pre>
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🔢 每日結算計算</h3>
+
+                    <div class="formula-box">
+                        <div class="formula-title">利息計算（複利）：</div>
+                        <pre>每日利息 = 總借貸 × 日利率(3%)
+新總借貸 = 總借貸 + 每日利息
+現金 -= 每日利息
+if (現金 < 0) {
+  追加借貸 = |現金|
+  總借貸 += 追加借貸
+  現金 = 0
+}</pre>
+                    </div>
+
+                    <div class="formula-box">
+                        <div class="formula-title">每日損益計算：</div>
+                        <pre>每日收益 = 銷售收入 - 採購成本 - 滯銷費 - 利息
+累積收益 += 每日收益</pre>
+                    </div>
+
+                    <div class="formula-box">
+                        <div class="formula-title">ROI 更新計算：</div>
+                        <pre>總投資 = 初始預算 + 總借貸本金
+ROI = (累積收益 ÷ 總投資) × 100%</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 實戰範例 -->
+            <div id="examples" class="section">
+                <div class="example-calculation">
+                    <div class="example-title">📊 範例1：買入投標與成交</div>
+                    <div class="calculation-step">
+                        <strong>市場狀況：</strong>A級魚供應量 1,200kg，底價 $120/kg
+                    </div>
+                    <div class="calculation-step">
+                        <strong>投標情況：</strong>
+                    </div>
+                    <div class="calculation-step">
+                        • 團隊甲：$200/kg × 500kg = $100,000
+                    </div>
+                    <div class="calculation-step">
+                        • 團隊乙：$180/kg × 600kg = $108,000
+                    </div>
+                    <div class="calculation-step">
+                        • 團隊丙：$160/kg × 400kg = $64,000
+                    </div>
+                    <div class="calculation-step">
+                        <strong>成交結果：</strong>
+                    </div>
+                    <div class="calculation-step">
+                        1. 團隊甲：$200/kg × 500kg → 成交 500kg
+                    </div>
+                    <div class="calculation-step">
+                        2. 團隊乙：$180/kg × 600kg → 成交 600kg
+                    </div>
+                    <div class="calculation-step">
+                        3. 團隊丙：$160/kg × 400kg → 成交 100kg（剩餘供應量）
+                    </div>
+                </div>
+
+                <div class="example-calculation">
+                    <div class="example-title">💰 範例2：賣出投標與滯銷</div>
+                    <div class="calculation-step">
+                        <strong>市場狀況：</strong>A級魚餐廳預算 $300,000
+                    </div>
+                    <div class="calculation-step">
+                        <strong>投標情況：</strong>
+                    </div>
+                    <div class="calculation-step">
+                        • 團隊甲：$250/kg × 400kg（最高價）
+                    </div>
+                    <div class="calculation-step">
+                        • 團隊乙：$220/kg × 300kg
+                    </div>
+                    <div class="calculation-step">
+                        • 團隊丙：$200/kg × 500kg
+                    </div>
+                    <div class="calculation-step">
+                        <strong>固定滯銷：</strong>
+                    </div>
+                    <div class="calculation-step">
+                        最高價滯銷量 = ceil(400 × 2.5%) = 10kg
+                    </div>
+                    <div class="calculation-step">
+                        <strong>正常成交（按價格升序）：</strong>
+                    </div>
+                    <div class="calculation-step">
+                        1. 團隊丙：$200/kg × 500kg → 成交 500kg（花費 $100,000）
+                    </div>
+                    <div class="calculation-step">
+                        2. 團隊乙：$220/kg × 300kg → 成交 300kg（花費 $66,000）
+                    </div>
+                    <div class="calculation-step">
+                        3. 團隊甲：$250/kg × 390kg → 成交 390kg（花費 $97,500）
+                        <br>&nbsp;&nbsp;&nbsp;&nbsp;剩餘預算：$300,000 - $163,500 = $136,500
+                    </div>
+                    <div class="calculation-step">
+                        <strong>滯銷處理：</strong>團隊甲 10kg × $10 = $100 滯銷費
+                    </div>
+                </div>
+
+                <div class="example-calculation">
+                    <div class="example-title">📈 範例3：每日結算計算</div>
+                    <div class="calculation-step">
+                        <strong>團隊丙第3天結算：</strong>
+                    </div>
+                    <div class="calculation-step">
+                        • 買入成本：A級魚 200kg×$160 + B級魚 400kg×$90 = $68,000
+                    </div>
+                    <div class="calculation-step">
+                        • 銷售收入：A級魚 180kg×$200 + B級魚 350kg×$120 = $78,000
+                    </div>
+                    <div class="calculation-step">
+                        • 滯銷費：(20+50)kg×$10 = $700
+                    </div>
+                    <div class="calculation-step">
+                        • 前日借貸：$150,000，利息 = $150,000×3% = $4,500
+                    </div>
+                    <div class="calculation-step">
+                        <strong>當日損益：</strong>
+                    </div>
+                    <div class="calculation-step">
+                        當日利潤 = $78,000 - $68,000 - $700 - $4,500 = $4,800
+                    </div>
+                    <div class="calculation-step">
+                        <strong>更新借貸：</strong>總借貸 = $150,000 + $4,500 = $154,500
+                    </div>
+                    <div class="calculation-step">
+                        <strong>ROI更新：</strong>
+                        <br>假設累積利潤 = $25,000，初始預算 = $1,000,000
+                        <br>ROI = $25,000 ÷ ($1,000,000 + $154,500) × 100% = 2.16%
+                    </div>
+                </div>
+
+                <div class="rule-section">
+                    <h3>🎯 成功案例分析</h3>
+
+                    <div class="strategy-tip">
+                        <h4>保守穩健型策略</h4>
+                        <ul>
+                            <li>買入時出價略高於底價，確保穩定供應</li>
+                            <li>賣出時定價合理，避開最高價滯銷風險</li>
+                            <li>控制借貸規模，降低利息負擔</li>
+                            <li><strong>適合對象：</strong>求穩不求快的團隊</li>
+                        </ul>
+                    </div>
+
+                    <div class="strategy-tip">
+                        <h4>積極進取型策略</h4>
+                        <ul>
+                            <li>善用借貸額度，擴大交易規模</li>
+                            <li>重點投資A級魚，追求高利潤</li>
+                            <li>靈活調整策略，快速適應市場</li>
+                            <li><strong>適合對象：</strong>有經驗且願意承擔風險的團隊</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading 指示器 -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>載入中...</p>
+        </div>
+    </div>
+
+    <script>
+        // 顯示不同分頁
+        function showSection(sectionId) {
+            // 顯示載入動畫
+            const loading = document.getElementById('loading');
+            loading.classList.add('show');
+
+            // 移除所有 active 類
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // 延遲顯示新內容（模擬載入）
+            setTimeout(() => {
+                document.getElementById(sectionId).classList.add('active');
+                loading.classList.remove('show');
+
+                // 滾動到頂部
+                window.scrollTo(0, 0);
+            }, 200);
+        }
+
+        // 摺疊內容控制
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化摺疊按鈕（如果有的話）
+            const collapsibles = document.querySelectorAll('.collapsible');
+            collapsibles.forEach(button => {
+                button.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    const content = this.nextElementSibling;
+                    content.classList.toggle('show');
+                });
+            });
+
+            // 防止 iOS 彈性滾動
+            document.addEventListener('touchmove', function(e) {
+                if (e.target.closest('.formula-box')) {
+                    return; // 允許公式框內滾動
+                }
+            }, { passive: true });
+
+            // 優化選單切換體驗
+            const navSelect = document.querySelector('.nav-select');
+            if (navSelect) {
+                navSelect.addEventListener('focus', function() {
+                    this.style.background = '#f0f0f0';
+                });
+
+                navSelect.addEventListener('blur', function() {
+                    this.style.background = 'white';
+                });
+            }
+
+            console.log('手機版遊戲說明載入完成');
+        });
+
+        // 處理返回按鈕
+        const backBtn = document.querySelector('.back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = '/';
+                }
+            });
+        }
+
+        // 優化觸控反饋
+        document.querySelectorAll('button, .back-btn, .collapsible').forEach(elem => {
+            elem.addEventListener('touchstart', function() {
+                this.style.opacity = '0.7';
+            });
+
+            elem.addEventListener('touchend', function() {
+                this.style.opacity = '1';
+            });
+        });
+
+        // 頁面載入完成後的初始化
+        window.onload = function() {
+            console.log('遊戲說明頁面（手機版）載入完成');
+        };
+    </script>
+</body>
+</html>
