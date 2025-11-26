@@ -1369,9 +1369,9 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         
         // 處理賣出投標
         await processSellBids(currentDay[0]);
-        
+
         // 使用強化版結算功能（包含事務處理）
-        await enhancedDailySettlement(db, gameId, currentDay[0].id, currentDay[0].day_number);
+        await enhancedDailySettlement(pool, gameId, currentDay[0].id, currentDay[0].day_number);
         
         // 使用正確的狀態名稱
         await pool.execute(
