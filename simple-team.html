@@ -1550,14 +1550,20 @@
         function updateBidHistoryDayOptions(maxDay) {
             const daySelect = document.getElementById('bidHistoryDay');
             const currentValue = daySelect.value;
-            
+
             daySelect.innerHTML = '<option value="">請選擇天數</option>';
-            
+
             for (let i = 1; i <= maxDay; i++) {
                 const option = document.createElement('option');
                 option.value = i;
                 option.textContent = `第 ${i} 天`;
-                if (i.toString() === currentValue) {
+                // 如果已有選擇值，保留該值；否則自動選擇當前最新天數
+                if (currentValue) {
+                    if (i.toString() === currentValue) {
+                        option.selected = true;
+                    }
+                } else if (i === maxDay) {
+                    // 首次載入時，自動選擇最新的天數
                     option.selected = true;
                 }
                 daySelect.appendChild(option);

@@ -248,6 +248,7 @@ async function initDatabase() {
                 interest_incurred DECIMAL(15, 2) NOT NULL,
                 daily_profit DECIMAL(15, 2) NOT NULL,
                 cumulative_profit DECIMAL(15, 2) NOT NULL,
+                roi DECIMAL(10, 4) NOT NULL,
                 closing_budget DECIMAL(15, 2) NOT NULL,
                 closing_loan DECIMAL(15, 2) NOT NULL,
                 UNIQUE(game_day_id, team_id),
@@ -295,6 +296,10 @@ async function initDatabase() {
         // 釋放連接回連接池
         connection.release();
         console.log('資料庫初始化完成');
+
+        // 檢查並添加 roi 欄位（如果不存在）
+        const { checkAndAddRoiColumn } = require('./run_migration');
+        await checkAndAddRoiColumn();
 
     } catch (error) {
         console.error('資料庫初始化失敗:', error);
@@ -2125,6 +2130,164 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         });
     }
 });
+
+// 獲取指定天數的完整投標統計
+app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, async (req, res) => {
+    const { gameId, day } = req.params;
+
+    try {
+        // 1. 獲取當日遊戲資訊
+        const [dayInfo] = await pool.execute(
+            `SELECT gd.*, g.initial_budget, g.loan_interest_rate, g.unsold_fee_per_kg,
+                    g.distributor_floor_price_a, g.distributor_floor_price_b,
+                    g.target_price_a, g.target_price_b
+             FROM game_days gd
+             JOIN games g ON gd.game_id = g.id
+             WHERE gd.game_id = ? AND gd.day_number = ?`,
+            [gameId, day]
+        );
+
+        if (dayInfo.length === 0) {
+            return res.status(404).json({ error: `找不到遊戲 ${gameId} 的第 ${day} 天資料` });
+        }
+
+        const gameDayId = dayInfo[0].id;
+
+        // 2. 獲取買入投標
+        const [buyBids] = await pool.execute(
+            `SELECT b.*, u.username, u.team_name
+             FROM bids b
+             JOIN users u ON b.team_id = u.id
+             WHERE b.game_day_id = ? AND b.bid_type = 'buy'
+             ORDER BY b.fish_type, b.price DESC`,
+            [gameDayId]
+        );
+
+        // 3. 獲取賣出投標
+        const [sellBids] = await pool.execute(
+            `SELECT b.*, u.username, u.team_name
+             FROM bids b
+             JOIN users u ON b.team_id = u.id
+             WHERE b.game_day_id = ? AND b.bid_type = 'sell'
+             ORDER BY b.fish_type, b.price ASC`,
+            [gameDayId]
+        );
+
+        // 4. 獲取當日結算結果
+        const [dailyResults] = await pool.execute(
+            `SELECT dr.*, u.username, u.team_name
+             FROM daily_results dr
+             JOIN users u ON dr.team_id = u.id
+             WHERE dr.game_day_id = ?
+             ORDER BY dr.roi DESC`,
+            [gameDayId]
+        );
+
+        // 5. 統計資料處理
+        const statistics = {
+            buy: {
+                fishA: calculateBidStatistics(buyBids.filter(b => b.fish_type === 'A')),
+                fishB: calculateBidStatistics(buyBids.filter(b => b.fish_type === 'B'))
+            },
+            sell: {
+                fishA: calculateBidStatistics(sellBids.filter(b => b.fish_type === 'A')),
+                fishB: calculateBidStatistics(sellBids.filter(b => b.fish_type === 'B'))
+            }
+        };
+
+        // 6. 投標明細
+        const bidDetails = {
+            buy: {
+                fishA: buyBids.filter(b => b.fish_type === 'A'),
+                fishB: buyBids.filter(b => b.fish_type === 'B')
+            },
+            sell: {
+                fishA: sellBids.filter(b => b.fish_type === 'A'),
+                fishB: sellBids.filter(b => b.fish_type === 'B')
+            }
+        };
+
+        // 7. 返回完整資料
+        res.json({
+            dayInfo: {
+                dayNumber: dayInfo[0].day_number,
+                status: dayInfo[0].status,
+                supply: {
+                    fishA: dayInfo[0].fish_a_supply,
+                    fishB: dayInfo[0].fish_b_supply
+                },
+                budget: {
+                    fishA: dayInfo[0].fish_a_budget,
+                    fishB: dayInfo[0].fish_b_budget
+                }
+            },
+            statistics,
+            bidDetails,
+            dailyResults
+        });
+
+    } catch (error) {
+        console.error('獲取投標統計錯誤:', error);
+        res.status(500).json({
+            error: '獲取投標統計失敗',
+            message: error.message
+        });
+    }
+});
+
+// 計算投標統計的輔助函數
+function calculateBidStatistics(bids) {
+    if (!bids || bids.length === 0) {
+        return {
+            totalBids: 0,
+            totalQuantitySubmitted: 0,
+            totalQuantityFulfilled: 0,
+            fulfillmentRate: '0.00',
+            maxPrice: 0,
+            minPrice: 0,
+            avgPrice: 0,
+            weightedAvgPrice: 0
+        };
+    }
+
+    const totalBids = bids.length;
+    const totalQuantitySubmitted = bids.reduce((sum, b) => sum + (b.quantity_submitted || 0), 0);
+    const totalQuantityFulfilled = bids.reduce((sum, b) => sum + (b.quantity_fulfilled || 0), 0);
+    const fulfillmentRate = totalQuantitySubmitted > 0
+        ? ((totalQuantityFulfilled / totalQuantitySubmitted) * 100).toFixed(2)
+        : '0.00';
+
+    const prices = bids.map(b => b.price).filter(p => p > 0);
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const avgPrice = prices.length > 0
+        ? (prices.reduce((sum, p) => sum + p, 0) / prices.length).toFixed(2)
+        : 0;
+
+    // 加權平均價（按成交量加權）
+    let weightedSum = 0;
+    let weightedTotal = 0;
+    bids.forEach(b => {
+        if (b.quantity_fulfilled > 0) {
+            weightedSum += b.price * b.quantity_fulfilled;
+            weightedTotal += b.quantity_fulfilled;
+        }
+    });
+    const weightedAvgPrice = weightedTotal > 0
+        ? (weightedSum / weightedTotal).toFixed(2)
+        : 0;
+
+    return {
+        totalBids,
+        totalQuantitySubmitted,
+        totalQuantityFulfilled,
+        fulfillmentRate,
+        maxPrice,
+        minPrice,
+        avgPrice,
+        weightedAvgPrice
+    };
+}
 
 // 暫停遊戲
 app.post('/api/admin/games/:gameId/pause', authenticateToken, requireAdmin, async (req, res) => {
