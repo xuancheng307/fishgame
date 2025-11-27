@@ -17,7 +17,31 @@ async function checkAndAddRoiColumn() {
             database: process.env.DB_NAME
         });
 
-        console.log('🔍 檢查 daily_results 表結構...');
+        console.log('🔍 檢查 bids 表結構...');
+
+        // 檢查 bids 表的欄位
+        const [bidsColumns] = await connection.execute(
+            `SELECT COLUMN_NAME
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'bids'
+             ORDER BY ORDINAL_POSITION`,
+            [process.env.DB_NAME]
+        );
+
+        const bidsExistingColumns = bidsColumns.map(col => col.COLUMN_NAME);
+        console.log('bids 現有欄位:', bidsExistingColumns.join(', '));
+
+        // 檢查 bids 表是否有 game_id
+        if (!bidsExistingColumns.includes('game_id')) {
+            console.log('❌ bids 表缺少 game_id 欄位');
+            console.log('⚠️  這會導致查詢投標記錄失敗，需要重建 bids 表');
+            // 注意：不自動刪除 bids 表，因為可能有重要投標資料
+            console.log('⚠️  請手動備份 bids 表後重建，或執行 ALTER TABLE 添加欄位');
+        } else {
+            console.log('✅ bids 表結構正常');
+        }
+
+        console.log('\n🔍 檢查 daily_results 表結構...');
 
         // 檢查所有欄位
         const [allColumns] = await connection.execute(
