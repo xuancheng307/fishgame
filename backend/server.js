@@ -2915,12 +2915,14 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
             // 3.13 插入 daily_results 記錄
             await connection.execute(
                 `INSERT INTO daily_results (
-                    game_day_id, team_id, revenue, cost, unsold_fee,
+                    game_id, game_day_id, day_number, team_id, revenue, cost, unsold_fee,
                     interest_incurred, daily_profit, cumulative_profit, roi,
                     closing_budget, closing_loan
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
+                    gameId,
                     gameDayId,
+                    dayNumber,
                     participant.team_id,
                     totalRevenue.toFixed(2),
                     totalCost.toFixed(2),
