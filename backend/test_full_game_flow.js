@@ -48,7 +48,7 @@ async function testAdminLogin() {
     try {
         const response = await axios.post(`${API_BASE}/auth/login`, {
             username: 'admin',
-            password: '123'
+            password: 'admin'
         });
 
         if (response.data.token) {

@@ -8,7 +8,7 @@ async function testSettle() {
         // 登入獲取 token
         const loginRes = await axios.post(`${API_BASE}/auth/login`, {
             username: 'admin',
-            password: '123'
+            password: 'admin'
         });
 
         const token = loginRes.data.token;
