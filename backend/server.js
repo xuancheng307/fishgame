@@ -2096,10 +2096,11 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         
         // 獲取當日投標記錄
         const [bids] = await pool.execute(
-            `SELECT b.*, u.team_name 
+            `SELECT b.*, u.team_name
              FROM bids b
              JOIN users u ON b.team_id = u.id
-             WHERE b.game_id = ? AND b.day_number = ?
+             JOIN game_days gd ON b.game_day_id = gd.id
+             WHERE gd.game_id = ? AND b.day_number = ?
              ORDER BY b.created_at`,
             [gameId, day]
         );
