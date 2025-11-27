@@ -2095,14 +2095,14 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         }
         
         // 獲取當日投標記錄
+        const gameDayId = dayInfo[0].id;
         const [bids] = await pool.execute(
             `SELECT b.*, u.team_name
              FROM bids b
              JOIN users u ON b.team_id = u.id
-             JOIN game_days gd ON b.game_day_id = gd.id
-             WHERE gd.game_id = ? AND b.day_number = ?
+             WHERE b.game_day_id = ?
              ORDER BY b.created_at`,
-            [gameId, day]
+            [gameDayId]
         );
         
         // 獲取當日團隊結果
