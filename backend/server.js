@@ -2118,7 +2118,8 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         res.json({
             dayInfo: dayInfo[0],
             bids,
-            teamResults
+            teamResults,
+            results: teamResults  // 為向後兼容添加 results 別名
         });
     } catch (error) {
         console.error('獲取每日結果錯誤:', error);
