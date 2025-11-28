@@ -2110,9 +2110,9 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
             `SELECT dr.*, u.team_name
              FROM daily_results dr
              JOIN users u ON dr.team_id = u.id
-             WHERE dr.game_id = ? AND dr.day_number = ?
+             WHERE dr.game_day_id = ?
              ORDER BY dr.daily_profit DESC`,
-            [gameId, day]
+            [gameDayId]
         );
         
         res.json({
