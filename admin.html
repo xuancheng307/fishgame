@@ -899,17 +899,22 @@
             }
             
             // 映射後端phase值到前端期望的值
+            // 資料庫 game_days.status 可能的值: pending, buying_open, buying_closed, selling_open, selling_closed, settled
             const phaseMapping = {
+                'pending': 'pending',
                 'buying_open': 'buying',
-                'selling_open': 'selling',
                 'buying_closed': 'buying_closed',
+                'selling_open': 'selling',
                 'selling_closed': 'selling_closed',
-                'buy_ended': 'buying_closed',
-                'sell_ended': 'selling_closed',
                 'settled': 'settled',
-                'pending': 'pending'
+                // 舊版相容
+                'buy_ended': 'buying_closed',
+                'sell_ended': 'selling_closed'
             };
             const phase = phaseMapping[gameStatus.phase] || gameStatus.phase;
+
+            // Debug: 顯示當前狀態
+            console.log('當前遊戲階段:', gameStatus.phase, '→ 映射後:', phase);
             
             // Day advancement
             if (phase === 'pending' || phase === 'day_ended') {
@@ -1443,61 +1448,6 @@
             }
             
             html += '</div>';
-            return html;
-        }
-        
-        // Display team statistics
-        function displayTeamStats(teamStats) {
-            let html = `
-                <div class="card">
-                    <h4>📊 團隊成交統計</h4>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>團隊</th>
-                                <th>A魚買入</th>
-                                <th>B魚買入</th>
-                                <th>總買入成本</th>
-                                <th>A魚賣出</th>
-                                <th>B魚賣出</th>
-                                <th>總賣出收入</th>
-                                <th>毛利</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            teamStats.forEach(team => {
-                const buyA = parseFloat(team.buy_a_fulfilled) || 0;
-                const buyB = parseFloat(team.buy_b_fulfilled) || 0;
-                const sellA = parseFloat(team.sell_a_fulfilled) || 0;
-                const sellB = parseFloat(team.sell_b_fulfilled) || 0;
-                const totalCost = parseFloat(team.total_buy_cost) || 0;
-                const totalRevenue = parseFloat(team.total_sell_revenue) || 0;
-                const grossProfit = totalRevenue - totalCost;
-                
-                html += `
-                    <tr>
-                        <td>${team.team_name || `團隊${team.username}`}</td>
-                        <td>${buyA > 0 ? buyA.toLocaleString() + ' kg' : '-'}</td>
-                        <td>${buyB > 0 ? buyB.toLocaleString() + ' kg' : '-'}</td>
-                        <td>${totalCost > 0 ? '$' + totalCost.toLocaleString() : '-'}</td>
-                        <td>${sellA > 0 ? sellA.toLocaleString() + ' kg' : '-'}</td>
-                        <td>${sellB > 0 ? sellB.toLocaleString() + ' kg' : '-'}</td>
-                        <td>${totalRevenue > 0 ? '$' + totalRevenue.toLocaleString() : '-'}</td>
-                        <td style="color: ${grossProfit >= 0 ? '#52c41a' : '#f5222d'};">
-                            ${grossProfit !== 0 ? '$' + grossProfit.toLocaleString() : '-'}
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
             return html;
         }
 
