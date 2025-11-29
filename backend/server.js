@@ -824,16 +824,25 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
 // 獲取遊戲團隊狀態
 app.get('/api/admin/games/:gameId/teams', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
-    
+
     try {
         const [teams] = await pool.execute(`
-            SELECT gp.*, t.username, t.team_name
+            SELECT gp.*,
+                   t.username,
+                   t.team_name,
+                   g.initial_budget,
+                   CASE
+                       WHEN (g.initial_budget + gp.total_loan_principal) > 0
+                       THEN (gp.cumulative_profit / (g.initial_budget + gp.total_loan_principal)) * 100
+                       ELSE 0
+                   END as roi
             FROM game_participants gp
             JOIN users t ON gp.team_id = t.id
+            JOIN games g ON gp.game_id = g.id
             WHERE gp.game_id = ?
             ORDER BY gp.cumulative_profit DESC
         `, [gameId]);
-        
+
         res.json(teams);
     } catch (error) {
         console.error('獲取團隊狀態錯誤:', error);
