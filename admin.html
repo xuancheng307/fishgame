@@ -1867,7 +1867,7 @@
 
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_BASE}/admin/reset-all-passwords`, {
+                const response = await fetch('/api/admin/reset-all-passwords', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

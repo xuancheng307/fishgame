@@ -686,11 +686,21 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
     try {
         // 查詢 status = 'active' 的遊戲
         const [games] = await pool.execute(`
-            SELECT g.*, COUNT(gp.id) as participant_count
+            SELECT g.*,
+                   COUNT(gp.id) as participant_count,
+                   gd.id as day_id,
+                   gd.status as day_status,
+                   gd.day_number,
+                   gd.fish_a_supply,
+                   gd.fish_b_supply,
+                   gd.fish_a_restaurant_budget,
+                   gd.fish_b_restaurant_budget
             FROM games g
             LEFT JOIN game_participants gp ON g.id = gp.game_id
+            LEFT JOIN game_days gd ON g.id = gd.game_id AND gd.day_number = g.current_day
             WHERE g.status = 'active'
-            GROUP BY g.id
+            GROUP BY g.id, gd.id, gd.status, gd.day_number, gd.fish_a_supply,
+                     gd.fish_b_supply, gd.fish_a_restaurant_budget, gd.fish_b_restaurant_budget
             ORDER BY g.created_at DESC
             LIMIT 1
         `);
@@ -702,8 +712,41 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
             });
         }
 
-        // 返回第一個進行中的遊戲
-        res.json(games[0]);
+        // 轉換 snake_case 為 camelCase 以符合前端期待
+        const game = games[0];
+        const responseData = {
+            ...game,
+            gameName: game.game_name,
+            currentDay: game.current_day,
+            totalDays: game.total_days,
+            initialBudget: game.initial_budget,
+            loanInterestRate: game.loan_interest_rate,
+            unsoldFeePerKg: game.unsold_fee_per_kg,
+            fixedUnsoldRatio: game.fixed_unsold_ratio,
+            distributorFloorPriceA: game.distributor_floor_price_a,
+            distributorFloorPriceB: game.distributor_floor_price_b,
+            targetPriceA: game.target_price_a,
+            targetPriceB: game.target_price_b,
+            numTeams: game.num_teams,
+            createdBy: game.created_by,
+            createdAt: game.created_at,
+            participantCount: game.participant_count
+        };
+
+        // 如果有當前天數資料，添加 currentDayData 嵌套物件
+        if (game.day_id) {
+            responseData.currentDayData = {
+                id: game.day_id,
+                day_number: game.day_number,
+                fish_a_supply: game.fish_a_supply,
+                fish_b_supply: game.fish_b_supply,
+                fish_a_restaurant_budget: game.fish_a_restaurant_budget,
+                fish_b_restaurant_budget: game.fish_b_restaurant_budget,
+                status: game.day_status
+            };
+        }
+
+        res.json(responseData);
     } catch (error) {
         console.error('獲取進行中遊戲錯誤:', error);
         res.status(500).json({ error: '獲取遊戲資料失敗' });
@@ -713,23 +756,63 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
 // 獲取單一遊戲狀態
 app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
-    
+
     try {
         const [game] = await pool.execute(`
             SELECT g.*,
+                   gd.id as day_id,
                    gd.status as day_status,
-                   gd.day_number
+                   gd.day_number,
+                   gd.fish_a_supply,
+                   gd.fish_b_supply,
+                   gd.fish_a_restaurant_budget,
+                   gd.fish_b_restaurant_budget
             FROM games g
             LEFT JOIN game_days gd ON g.id = gd.game_id
                 AND gd.day_number = g.current_day
             WHERE g.id = ?
         `, [gameId]);
-        
+
         if (game.length === 0) {
             return res.status(404).json({ error: '遊戲不存在' });
         }
-        
-        res.json(game[0]);
+
+        // 轉換 snake_case 為 camelCase 以符合前端期待
+        const gameData = game[0];
+        const responseData = {
+            ...gameData,
+            gameName: gameData.game_name,
+            currentDay: gameData.current_day,
+            totalDays: gameData.total_days,
+            initialBudget: gameData.initial_budget,
+            loanInterestRate: gameData.loan_interest_rate,
+            unsoldFeePerKg: gameData.unsold_fee_per_kg,
+            fixedUnsoldRatio: gameData.fixed_unsold_ratio,
+            distributorFloorPriceA: gameData.distributor_floor_price_a,
+            distributorFloorPriceB: gameData.distributor_floor_price_b,
+            targetPriceA: gameData.target_price_a,
+            targetPriceB: gameData.target_price_b,
+            numTeams: gameData.num_teams,
+            createdBy: gameData.created_by,
+            createdAt: gameData.created_at,
+            dayStatus: gameData.day_status,
+            dayNumber: gameData.day_number
+        };
+
+        // 如果有當前天數資料，添加 currentDayData 嵌套物件
+        if (gameData.day_id) {
+            responseData.currentDayData = {
+                id: gameData.day_id,
+                day_number: gameData.day_number,
+                fish_a_supply: gameData.fish_a_supply,
+                fish_b_supply: gameData.fish_b_supply,
+                fish_a_restaurant_budget: gameData.fish_a_restaurant_budget,
+                fish_b_restaurant_budget: gameData.fish_b_restaurant_budget,
+                status: gameData.day_status
+            };
+        }
+
+        res.json(responseData);
     } catch (error) {
         console.error('獲取遊戲狀態錯誤:', error);
         res.status(500).json({ error: '獲取遊戲狀態失敗' });
