@@ -730,7 +730,8 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
             numTeams: game.num_teams,
             createdBy: game.created_by,
             createdAt: game.created_at,
-            participantCount: game.participant_count
+            participantCount: game.participant_count,
+            phase: game.day_status  // 添加 phase 給前端按鈕邏輯使用
         };
 
         // 如果有當前天數資料，添加 currentDayData 嵌套物件
@@ -796,7 +797,8 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
             createdBy: gameData.created_by,
             createdAt: gameData.created_at,
             dayStatus: gameData.day_status,
-            dayNumber: gameData.day_number
+            dayNumber: gameData.day_number,
+            phase: gameData.day_status  // 添加 phase 給前端按鈕邏輯使用
         };
 
         // 如果有當前天數資料，添加 currentDayData 嵌套物件
