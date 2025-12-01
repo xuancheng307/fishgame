@@ -297,9 +297,58 @@ async function initDatabase() {
         connection.release();
         console.log('資料庫初始化完成');
 
-        // 檢查並添加 roi 欄位（如果不存在）
-        const { checkAndAddRoiColumn } = require('./run_migration');
-        await checkAndAddRoiColumn();
+        // ========================================
+        // 架構修復: 確保資料庫與標準架構一致
+        // ========================================
+        try {
+            console.log('🔧 檢查資料庫架構一致性...');
+
+            // 1. 修復 game_days.status ENUM
+            console.log('   檢查 game_days.status ENUM...');
+            await pool.execute(`
+                ALTER TABLE game_days
+                MODIFY COLUMN status ENUM('pending', 'buying_open', 'buying_closed', 'selling_open', 'selling_closed', 'settled')
+                DEFAULT 'pending'
+            `);
+            console.log('   ✅ game_days.status ENUM 已更新');
+
+            // 2. 檢查並添加 bids.game_id 欄位
+            const [bidsCols] = await pool.execute(`
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'bids'
+            `);
+            const bidsColumns = bidsCols.map(col => col.COLUMN_NAME);
+
+            if (!bidsColumns.includes('game_id')) {
+                console.log('   添加 bids.game_id 欄位...');
+                await pool.execute(`
+                    ALTER TABLE bids
+                    ADD COLUMN game_id INT NOT NULL AFTER id
+                `);
+
+                // 填充數據
+                await pool.execute(`
+                    UPDATE bids b
+                    JOIN game_days gd ON b.game_day_id = gd.id
+                    SET b.game_id = gd.game_id
+                `);
+
+                // 添加外鍵
+                await pool.execute(`
+                    ALTER TABLE bids
+                    ADD CONSTRAINT fk_bids_game
+                    FOREIGN KEY (game_id) REFERENCES games(id)
+                `);
+                console.log('   ✅ bids.game_id 欄位已添加');
+            }
+
+            console.log('✅ 資料庫架構檢查完成');
+        } catch (schemaError) {
+            // 架構修復錯誤不應導致伺服器停止
+            console.error('⚠️  架構修復警告:', schemaError.message);
+        }
 
     } catch (error) {
         console.error('資料庫初始化失敗:', error);
