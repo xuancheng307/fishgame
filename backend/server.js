@@ -315,16 +315,14 @@ async function initDatabase() {
 
             // 1b. 更新現有數據，將舊值轉換為新值
             console.log('   更新現有 game_days 數據...');
+            // 先將所有非標準值轉為pending（安全的默認值）
             await pool.execute(`
                 UPDATE game_days
-                SET status = CASE
-                    WHEN status = 'waiting' THEN 'pending'
-                    WHEN status = 'buy_closed' THEN 'buying_closed'
-                    WHEN status = 'sell_closed' THEN 'selling_closed'
-                    WHEN status = 'completed' THEN 'settled'
-                    ELSE status
-                END
+                SET status = 'pending'
+                WHERE status NOT IN ('pending', 'buying_open', 'buying_closed', 'selling_open', 'selling_closed', 'settled')
             `);
+
+            console.log('   數據已標準化');
 
             // 1c. 轉換回 ENUM 並使用標準值
             await pool.execute(`
