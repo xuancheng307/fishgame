@@ -369,7 +369,10 @@ async function initDatabase() {
             console.log('✅ 資料庫架構檢查完成');
         } catch (schemaError) {
             // 架構修復錯誤不應導致伺服器停止
-            console.error('⚠️  架構修復警告:', schemaError.message);
+            console.error('⚠️  架構修復警告:');
+            console.error('   錯誤訊息:', schemaError.message);
+            console.error('   錯誤代碼:', schemaError.code);
+            console.error('   SQL:', schemaError.sql);
         }
 
     } catch (error) {
