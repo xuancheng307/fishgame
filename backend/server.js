@@ -153,21 +153,30 @@ async function initDatabase() {
             CREATE TABLE IF NOT EXISTS games (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100),
-                initial_budget DECIMAL(15, 2) NOT NULL,
+                description TEXT,
+                status ENUM('pending', 'active', 'paused', 'finished', 'force_ended') DEFAULT 'pending',
+                phase ENUM('waiting', 'buying', 'buying_closed', 'selling', 'selling_closed', 'settling', 'day_ended') DEFAULT 'waiting',
+                total_days INT NOT NULL DEFAULT 7,
+                current_day INT DEFAULT 0,
+                num_teams INT NOT NULL DEFAULT 12,
+                initial_budget DECIMAL(12, 2) NOT NULL,
+                daily_interest_rate DECIMAL(5, 4) DEFAULT 0.0001,
                 loan_interest_rate DECIMAL(5, 4) NOT NULL DEFAULT 0.03,
+                max_loan_ratio DECIMAL(5, 2) DEFAULT 2.00,
                 unsold_fee_per_kg DECIMAL(10, 2) NOT NULL DEFAULT 10.00,
                 fixed_unsold_ratio DECIMAL(5, 2) NOT NULL DEFAULT 2.50,
                 distributor_floor_price_a DECIMAL(10, 2) DEFAULT 100.00,
                 distributor_floor_price_b DECIMAL(10, 2) DEFAULT 100.00,
                 target_price_a DECIMAL(10, 2) NOT NULL,
                 target_price_b DECIMAL(10, 2) NOT NULL,
-                num_teams INT NOT NULL DEFAULT 12,
-                total_days INT NOT NULL DEFAULT 7,
-                status ENUM('pending', 'active', 'paused', 'finished') DEFAULT 'pending',
-                current_day INT DEFAULT 0,
-                created_by INT,
+                buying_duration INT DEFAULT 7,
+                selling_duration INT DEFAULT 4,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (created_by) REFERENCES users(id)
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                team_names JSON,
+                is_force_ended TINYINT(1) DEFAULT 0,
+                force_ended_at TIMESTAMP NULL,
+                force_end_day INT
             )
         `);
         
@@ -256,6 +265,24 @@ async function initDatabase() {
                 FOREIGN KEY (game_day_id) REFERENCES game_days(id),
                 FOREIGN KEY (team_id) REFERENCES users(id),
                 INDEX idx_game_day (game_id, day_number)
+            )
+        `);
+
+        await connection.execute(`
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                game_day_id INT NOT NULL,
+                team_id INT NOT NULL,
+                transaction_type ENUM('buy', 'sell') NOT NULL,
+                fish_type ENUM('A', 'B') NOT NULL,
+                quantity INT NOT NULL,
+                price_per_unit DECIMAL(10, 2) NOT NULL,
+                total_amount DECIMAL(15, 2) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (game_day_id) REFERENCES game_days(id),
+                FOREIGN KEY (team_id) REFERENCES users(id),
+                INDEX idx_game_day (game_day_id),
+                INDEX idx_team (team_id)
             )
         `);
         
@@ -1187,11 +1214,11 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         
         // 更詳細的狀態檢查 - 使用正確的 status 欄位
         const dayStatus = currentDay[0].status;
-        if (dayStatus === 'buying') {
+        if (dayStatus === 'buying_open') {
             return res.status(400).json({ error: '買入投標已經開放' });
-        } else if (dayStatus === 'buy_closed') {
+        } else if (dayStatus === 'buying_closed') {
             return res.status(400).json({ error: '買入投標已結束，請開始賣出投標' });
-        } else if (dayStatus === 'selling') {
+        } else if (dayStatus === 'selling_open') {
             return res.status(400).json({ error: '正在賣出投標中' });
         } else if (dayStatus === 'selling_closed') {
             return res.status(400).json({ error: '請先執行結算' });
@@ -1223,7 +1250,7 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
                 // 計時器結束時自動關閉買入投標
                 await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
-                    ['buy_closed', currentDay[0].id]
+                    ['buying_closed', currentDay[0].id]
                 );
 
                 console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已自動結束`);
@@ -1286,7 +1313,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
         );
         
         // 使用正確的 status 欄位
-        if (currentDay.length === 0 || currentDay[0].status !== 'buying') {
+        if (currentDay.length === 0 || currentDay[0].status !== 'buying_open') {
             return res.status(400).json({ error: '當前沒有進行中的買入投標' });
         }
         
@@ -1309,7 +1336,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
         // 更新為 buy_closed 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['buy_closed', currentDay[0].id]
+            ['buying_closed', currentDay[0].id]
         );
 
         await pool.execute(
@@ -1370,7 +1397,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         }
         
         // 使用正確的 status 欄位
-        if (currentDay[0].status !== 'buy_closed') {
+        if (currentDay[0].status !== 'buying_closed') {
             return res.status(400).json({ error: '請先完成買入投標' });
         }
         
@@ -1457,7 +1484,7 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
         );
         
         // 使用正確的 status 欄位
-        if (currentDay.length === 0 || currentDay[0].status !== 'selling') {
+        if (currentDay.length === 0 || currentDay[0].status !== 'selling_open') {
             return res.status(400).json({ error: '當前沒有進行中的賣出投標' });
         }
         
@@ -1934,7 +1961,7 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
             `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
              JOIN game_days gd ON g.id = gd.game_id AND g.current_day = gd.day_number
-             WHERE g.status = 'active' AND gd.status = 'buying'
+             WHERE g.status = 'active' AND gd.status = 'buying_open'
              ORDER BY g.created_at DESC LIMIT 1`
         );
         
@@ -2082,7 +2109,7 @@ app.post('/api/team/submit-sell-bids', authenticateToken, async (req, res) => {
             `SELECT g.*, gd.id as game_day_id, gd.day_number, gd.status
              FROM games g
              JOIN game_days gd ON g.id = gd.game_id AND g.current_day = gd.day_number
-             WHERE g.status = 'active' AND gd.status = 'selling'
+             WHERE g.status = 'active' AND gd.status = 'selling_open'
              ORDER BY g.created_at DESC LIMIT 1`
         );
         
