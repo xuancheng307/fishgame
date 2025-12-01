@@ -306,7 +306,14 @@ async function initDatabase() {
             // 1. 修復 game_days.status ENUM
             console.log('   檢查 game_days.status ENUM...');
 
-            // 1a. 先更新現有數據，將舊值轉換為新值
+            // 1a. 臨時轉換為 VARCHAR 以便更新數據
+            console.log('   臨時轉換 status 為 VARCHAR...');
+            await pool.execute(`
+                ALTER TABLE game_days
+                MODIFY COLUMN status VARCHAR(50)
+            `);
+
+            // 1b. 更新現有數據，將舊值轉換為新值
             console.log('   更新現有 game_days 數據...');
             await pool.execute(`
                 UPDATE game_days
@@ -317,10 +324,9 @@ async function initDatabase() {
                     WHEN status = 'completed' THEN 'settled'
                     ELSE status
                 END
-                WHERE status IN ('waiting', 'buy_closed', 'sell_closed', 'completed')
             `);
 
-            // 1b. 然後更新 ENUM 定義
+            // 1c. 轉換回 ENUM 並使用標準值
             await pool.execute(`
                 ALTER TABLE game_days
                 MODIFY COLUMN status ENUM('pending', 'buying_open', 'buying_closed', 'selling_open', 'selling_closed', 'settled')
