@@ -16,25 +16,52 @@ pnpm-debug.log*
 backend/check_*.js
 backend/compare_*.js
 backend/show_*.js
-backend/add_missing_*.js
-backend/run_migrations*.js
+backend/add_*.js
+backend/apply_*.js
+backend/direct_*.js
+backend/fix_*.js
+backend/full-*.js
+backend/migrate_*.js
+backend/run_*.js
+backend/system-*.js
+backend/test_*.js
+backend/test-*.js
 backend/import-*.js
 backend/patch-*.js
-backend/test-*.js
+backend/reset-*.js
 check_*.js
 check_*.sql
 *_check.bat
 
 # 備份檔案
 *.backup
+*.backup2
 *.broken
 *.fixed
+*.clean
+*.original
 *.bak
+backend/server.js.*
+!backend/server.js
 backend/修正驗證.txt
+backend/nul
 
 # 臨時文件
 params-list.txt
+*.txt~
+seed_*.sql
+*_check.*
+
+# 舊版檔案
+index2.html
+simple-team.html
+test.html
+
+# 批次檔案 (本地開發用)
+*魚市場遊戲.bat
+檢查系統狀態.bat
+railway_check.bat
 
 # misc
 .DS_Store
-backend/nul
+nul
