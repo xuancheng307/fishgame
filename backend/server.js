@@ -3152,6 +3152,84 @@ app.post('/api/admin/game-parameters', authenticateToken, requireAdmin, async (r
     }
 });
 
+// ===== 資料庫診斷 API =====
+app.get('/api/debug/database-status', async (req, res) => {
+    try {
+        const report = {
+            timestamp: new Date().toISOString(),
+            tables: {},
+            issues: []
+        };
+
+        // 檢查各表數量
+        const tables = ['users', 'games', 'game_days', 'game_participants', 'bids', 'daily_results'];
+        for (const table of tables) {
+            const [count] = await pool.execute(`SELECT COUNT(*) as count FROM ${table}`);
+            report.tables[table] = count[0].count;
+        }
+
+        // 檢查 game_days.status 分佈
+        const [statusDist] = await pool.execute(`
+            SELECT status, COUNT(*) as count
+            FROM game_days
+            GROUP BY status
+        `);
+        report.game_days_status = statusDist;
+
+        // 檢查非標準 status 值
+        const [nonStandard] = await pool.execute(`
+            SELECT id, game_id, day_number, status
+            FROM game_days
+            WHERE status NOT IN ('pending', 'buying_open', 'buying_closed', 'selling_open', 'selling_closed', 'settled')
+            LIMIT 5
+        `);
+        if (nonStandard.length > 0) {
+            report.issues.push({
+                type: 'non_standard_status',
+                count: nonStandard.length,
+                examples: nonStandard
+            });
+        }
+
+        // 檢查 bids.game_id
+        const [bidsColumns] = await pool.execute(`
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'bids'
+        `);
+        const bidsColumnNames = bidsColumns.map(col => col.COLUMN_NAME);
+        report.bids_has_game_id = bidsColumnNames.includes('game_id');
+
+        // 檢查 games 表欄位
+        const [gamesColumns] = await pool.execute(`
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'games'
+        `);
+        const gamesColumnNames = gamesColumns.map(col => col.COLUMN_NAME);
+        report.games_has_phase = gamesColumnNames.includes('phase');
+
+        // 檢查最近遊戲
+        const [recentGames] = await pool.execute(`
+            SELECT id, game_name, status, current_day, total_days
+            FROM games
+            ORDER BY id DESC
+            LIMIT 3
+        `);
+        report.recent_games = recentGames;
+
+        res.json(report);
+    } catch (error) {
+        console.error('資料庫診斷失敗:', error);
+        res.status(500).json({
+            error: '資料庫診斷失敗',
+            message: error.message
+        });
+    }
+});
+
 // ===== 新增：遊戲控制 API =====
 
 // 暫停遊戲
