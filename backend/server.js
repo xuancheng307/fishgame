@@ -3211,14 +3211,36 @@ app.get('/api/debug/database-status', async (req, res) => {
         const gamesColumnNames = gamesColumns.map(col => col.COLUMN_NAME);
         report.games_has_phase = gamesColumnNames.includes('phase');
 
-        // 檢查最近遊戲
-        const [recentGames] = await pool.execute(`
-            SELECT id, game_name, status, current_day, total_days
-            FROM games
-            ORDER BY id DESC
-            LIMIT 3
+        // 先查詢 games 表的實際欄位
+        const [gamesActualColumns] = await pool.execute(`
+            SELECT COLUMN_NAME, COLUMN_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'games'
+            ORDER BY ORDINAL_POSITION
         `);
-        report.recent_games = recentGames;
+        report.games_columns = gamesActualColumns.map(col => ({
+            name: col.COLUMN_NAME,
+            type: col.COLUMN_TYPE
+        }));
+
+        // 動態構建查詢，使用實際存在的欄位
+        const gamesColumnsList = gamesActualColumns.map(col => col.COLUMN_NAME);
+        const selectColumns = ['id', 'status', 'current_day', 'total_days']
+            .filter(col => gamesColumnsList.includes(col))
+            .join(', ');
+
+        if (selectColumns) {
+            const [recentGames] = await pool.execute(`
+                SELECT ${selectColumns}
+                FROM games
+                ORDER BY id DESC
+                LIMIT 3
+            `);
+            report.recent_games = recentGames;
+        } else {
+            report.recent_games = [];
+        }
 
         res.json(report);
     } catch (error) {
