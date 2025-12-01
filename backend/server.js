@@ -152,7 +152,7 @@ async function initDatabase() {
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS games (
                 id INT PRIMARY KEY AUTO_INCREMENT,
-                game_name VARCHAR(255) NOT NULL,
+                name VARCHAR(100),
                 initial_budget DECIMAL(15, 2) NOT NULL,
                 loan_interest_rate DECIMAL(5, 4) NOT NULL DEFAULT 0.03,
                 unsold_fee_per_kg DECIMAL(10, 2) NOT NULL DEFAULT 10.00,
@@ -433,7 +433,7 @@ app.get('/api/qr/:gameId', async (req, res) => {
     try {
         // 獲取遊戲資訊
         const [games] = await pool.execute(
-            'SELECT game_name FROM games WHERE id = ?',
+            'SELECT name FROM games WHERE id = ?',
             [gameId]
         );
 
@@ -469,7 +469,7 @@ app.get('/api/qr/:gameId', async (req, res) => {
 
         res.json({
             gameId,
-            gameName: games[0].game_name,
+            gameName: games[0].name,
             gameUrl,
             qrCode: qrCodeDataURL,
             serverIP,
@@ -673,7 +673,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         
         // 直接設定為第1天，準備開始
         await pool.execute(
-            'UPDATE games SET status = "active", current_day = 1 WHERE id = ?',
+            'UPDATE games SET status = "active", phase = "waiting", current_day = 1 WHERE id = ?',
             [gameId]
         );
         
@@ -788,7 +788,7 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
         const game = games[0];
         const responseData = {
             ...game,
-            gameName: game.game_name,
+            gameName: game.name,
             currentDay: game.current_day,
             totalDays: game.total_days,
             initialBudget: game.initial_budget,
@@ -854,7 +854,7 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
         const gameData = game[0];
         const responseData = {
             ...gameData,
-            gameName: gameData.game_name,
+            gameName: gameData.name,
             currentDay: gameData.current_day,
             totalDays: gameData.total_days,
             initialBudget: gameData.initial_budget,
@@ -1206,10 +1206,15 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 buying
+        // 更新狀態為 buying - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buying', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['buying', gameId]
         );
 
         // 啟動計時器 (duration 參數單位為秒)
@@ -1301,10 +1306,15 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
             [currentDay[0].id]
         );
         
-        // 更新為 buy_closed 狀態
+        // 更新為 buy_closed 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['buy_closed', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['buying_closed', gameId]
         );
 
         res.json({
@@ -1369,10 +1379,15 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 selling
+        // 更新狀態為 selling - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['selling', gameId]
         );
 
         // 啟動計時器 (duration 參數單位為秒)
@@ -1462,10 +1477,15 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
             [currentDay[0].id]
         );
         
-        // 更新為 selling_closed 狀態
+        // 更新為 selling_closed 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['selling_closed', currentDay[0].id]
+        );
+
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['selling_closed', gameId]
         );
 
         res.json({
@@ -1674,7 +1694,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
                 success: true, 
                 alreadyJoined: true,
                 gameId,
-                gameName: game.game_name,
+                gameName: game.name,
                 teamNumber,
                 teamName: customTeamName || existingTeamName,
                 message: '您已經在此遊戲中'
@@ -1731,7 +1751,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         res.json({ 
             success: true,
             gameId,
-            gameName: game.game_name,
+            gameName: game.name,
             teamNumber,
             teamName: finalTeamName,
             message: '成功加入遊戲'
@@ -1878,7 +1898,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         
         res.json({
             gameInfo: {
-                gameName: participant.game_name,
+                gameName: participant.name,
                 currentDay: participant.current_day,
                 status: participant.status,
                 dayStatus: currentDay[0]?.status || 'pending'
