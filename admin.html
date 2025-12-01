@@ -899,17 +899,14 @@
             }
             
             // 映射後端phase值到前端期望的值
-            // 資料庫 game_days.status 可能的值: pending, buying_open, buying_closed, selling_open, selling_closed, settled
+            // 資料庫 game_days.status 標準值: pending, buying_open, buying_closed, selling_open, selling_closed, settled
             const phaseMapping = {
                 'pending': 'pending',
                 'buying_open': 'buying',
                 'buying_closed': 'buying_closed',
                 'selling_open': 'selling',
                 'selling_closed': 'selling_closed',
-                'settled': 'settled',
-                // 舊版相容
-                'buy_ended': 'buying_closed',
-                'sell_ended': 'selling_closed'
+                'settled': 'settled'
             };
             const phase = phaseMapping[gameStatus.phase] || gameStatus.phase;
 

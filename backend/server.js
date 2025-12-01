@@ -621,7 +621,7 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
             `INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
                 fish_a_restaurant_budget, fish_b_restaurant_budget, status
-            ) VALUES (?, 1, ?, ?, ?, ?, 'waiting')`,
+            ) VALUES (?, 1, ?, ?, ?, ?, 'pending')`,
             [gameId, fishASupply, fishBSupply, fishABudget, fishBBudget]
         );
         
@@ -961,8 +961,8 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
             // 使用正確的 status 欄位和狀態名稱
             // 允許 sell_closed 或 completed 狀態才能進入下一天
             if (currentDayRecord.length > 0 &&
-                currentDayRecord[0].status !== 'sell_closed' &&
-                currentDayRecord[0].status !== 'completed') {
+                currentDayRecord[0].status !== 'selling_closed' &&
+                currentDayRecord[0].status !== 'settled') {
                 return res.status(400).json({ error: `請先完成第${currentDay}天的結算` });
             }
         }
@@ -1044,7 +1044,7 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
             `INSERT INTO game_days (
                 game_id, day_number, fish_a_supply, fish_b_supply,
                 fish_a_restaurant_budget, fish_b_restaurant_budget, status
-            ) VALUES (?, ?, ?, ?, ?, ?, 'waiting')`,
+            ) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
             [gameId, nextDay, fishASupply, fishBSupply, fishABudget, fishBBudget]
         );
         
@@ -1121,11 +1121,11 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
             return res.status(400).json({ error: '買入投標已結束，請開始賣出投標' });
         } else if (dayStatus === 'selling') {
             return res.status(400).json({ error: '正在賣出投標中' });
-        } else if (dayStatus === 'sell_closed') {
+        } else if (dayStatus === 'selling_closed') {
             return res.status(400).json({ error: '請先執行結算' });
-        } else if (dayStatus === 'completed') {
+        } else if (dayStatus === 'settled') {
             return res.status(400).json({ error: '當日已結算，請推進到下一天' });
-        } else if (dayStatus !== 'waiting') {
+        } else if (dayStatus !== 'pending') {
             return res.status(400).json({ error: `當前狀態(${dayStatus})不允許開始買入投標` });
         }
         
@@ -1324,7 +1324,7 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
                 // 計時器結束時自動關閉賣出投標
                 await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
-                    ['sell_closed', currentDay[0].id]
+                    ['selling_closed', currentDay[0].id]
                 );
 
                 console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天賣出投標已自動結束`);
@@ -1408,12 +1408,12 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
         // 更新為 sell_closed 狀態 - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['sell_closed', currentDay[0].id]
+            ['selling_closed', currentDay[0].id]
         );
 
         await pool.execute(
             'UPDATE games SET phase = ? WHERE id = ?',
-            ['waiting', gameId]
+            ['pending', gameId]
         );
 
         res.json({
@@ -1458,11 +1458,11 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         }
         
         // 使用正確的 status 欄位和狀態名稱
-        if (currentDay[0].status === 'completed') {
+        if (currentDay[0].status === 'settled') {
             return res.status(400).json({ error: '本日已經結算完成' });
         }
 
-        if (currentDay[0].status !== 'sell_closed') {
+        if (currentDay[0].status !== 'selling_closed') {
             return res.status(400).json({ error: '請先完成所有投標階段' });
         }
         
@@ -1475,7 +1475,7 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         // 使用正確的狀態名稱
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['completed', currentDay[0].id]
+            ['settled', currentDay[0].id]
         );
         
         if (currentDay[0].day_number === 7) {
