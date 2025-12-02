@@ -1002,7 +1002,7 @@
             if (!confirm('確定要推進到下一天嗎？')) return;
             
             try {
-                const response = await fetch('/api/admin/advance-day', {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/next-day`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1031,7 +1031,7 @@
             if (!duration) return;
             
             try {
-                const response = await fetch('/api/admin/start-buying', {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/start-buying`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1059,7 +1059,7 @@
             if (!confirm('確定要結束買入投標嗎？')) return;
             
             try {
-                const response = await fetch('/api/admin/close-buying', {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/close-buying`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1086,7 +1086,7 @@
             if (!duration) return;
             
             try {
-                const response = await fetch('/api/admin/start-selling', {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/start-selling`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1113,7 +1113,7 @@
             if (!confirm('確定要結束賣出投標嗎？')) return;
             
             try {
-                const response = await fetch('/api/admin/close-selling', {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/close-selling`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1139,7 +1139,7 @@
             if (!confirm('確定要執行每日結算嗎？')) return;
             
             try {
-                const response = await fetch('/api/admin/settle', {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/settle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
