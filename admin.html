@@ -819,19 +819,19 @@
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                             <div style="padding: 15px; background: #e6f7ff; border-radius: 8px;">
                                 <div style="font-weight: bold; color: #1890ff;">A級魚供給</div>
-                                <div style="font-size: 20px; margin-top: 5px;">${(gameStatus.currentDayData.fish_a_supply || 0).toLocaleString()} kg</div>
+                                <div style="font-size: 20px; margin-top: 5px;">${(gameStatus.currentDayData.fishASupply || 0).toLocaleString()} kg</div>
                             </div>
                             <div style="padding: 15px; background: #f6ffed; border-radius: 8px;">
                                 <div style="font-weight: bold; color: #52c41a;">B級魚供給</div>
-                                <div style="font-size: 20px; margin-top: 5px;">${(gameStatus.currentDayData.fish_b_supply || 0).toLocaleString()} kg</div>
+                                <div style="font-size: 20px; margin-top: 5px;">${(gameStatus.currentDayData.fishBSupply || 0).toLocaleString()} kg</div>
                             </div>
                             <div style="padding: 15px; background: #fff7e6; border-radius: 8px;">
                                 <div style="font-weight: bold; color: #fa8c16;">A級魚餐廳預算</div>
-                                <div style="font-size: 20px; margin-top: 5px;">$${(gameStatus.currentDayData.fish_a_restaurant_budget || 0).toLocaleString()}</div>
+                                <div style="font-size: 20px; margin-top: 5px;">$${(gameStatus.currentDayData.fishARestaurantBudget || 0).toLocaleString()}</div>
                             </div>
                             <div style="padding: 15px; background: #fff2f0; border-radius: 8px;">
                                 <div style="font-weight: bold; color: #ff4d4f;">B級魚餐廳預算</div>
-                                <div style="font-size: 20px; margin-top: 5px;">$${(gameStatus.currentDayData.fish_b_restaurant_budget || 0).toLocaleString()}</div>
+                                <div style="font-size: 20px; margin-top: 5px;">$${(gameStatus.currentDayData.fishBRestaurantBudget || 0).toLocaleString()}</div>
                             </div>
                         </div>
                     </div>

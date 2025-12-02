@@ -830,18 +830,18 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
             createdBy: game.created_by,
             createdAt: game.created_at,
             participantCount: game.participant_count,
-            phase: game.day_status || 'pending'  // 如果還沒有當天記錄，使用 pending
+            phase: game.day_status || game.phase || 'waiting'  // 優先使用 day_status，回退到 games.phase
         };
 
-        // 如果有當前天數資料，添加 currentDayData 嵌套物件
+        // 如果有當前天數資料，添加 currentDayData 嵌套物件（轉換為 camelCase）
         if (game.day_id) {
             responseData.currentDayData = {
                 id: game.day_id,
-                day_number: game.day_number,
-                fish_a_supply: game.fish_a_supply,
-                fish_b_supply: game.fish_b_supply,
-                fish_a_restaurant_budget: game.fish_a_restaurant_budget,
-                fish_b_restaurant_budget: game.fish_b_restaurant_budget,
+                dayNumber: game.day_number,
+                fishASupply: game.fish_a_supply,
+                fishBSupply: game.fish_b_supply,
+                fishARestaurantBudget: game.fish_a_restaurant_budget,
+                fishBRestaurantBudget: game.fish_b_restaurant_budget,
                 status: game.day_status
             };
         }
@@ -897,18 +897,18 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
             createdAt: gameData.created_at,
             dayStatus: gameData.day_status,
             dayNumber: gameData.day_number,
-            phase: gameData.day_status || 'pending'  // 如果還沒有當天記錄，使用 pending
+            phase: gameData.day_status || gameData.phase || 'waiting'  // 優先使用 day_status，回退到 games.phase
         };
 
-        // 如果有當前天數資料，添加 currentDayData 嵌套物件
+        // 如果有當前天數資料，添加 currentDayData 嵌套物件（轉換為 camelCase）
         if (gameData.day_id) {
             responseData.currentDayData = {
                 id: gameData.day_id,
-                day_number: gameData.day_number,
-                fish_a_supply: gameData.fish_a_supply,
-                fish_b_supply: gameData.fish_b_supply,
-                fish_a_restaurant_budget: gameData.fish_a_restaurant_budget,
-                fish_b_restaurant_budget: gameData.fish_b_restaurant_budget,
+                dayNumber: gameData.day_number,
+                fishASupply: gameData.fish_a_supply,
+                fishBSupply: gameData.fish_b_supply,
+                fishARestaurantBudget: gameData.fish_a_restaurant_budget,
+                fishBRestaurantBudget: gameData.fish_b_restaurant_budget,
                 status: gameData.day_status
             };
         }
