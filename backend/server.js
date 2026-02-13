@@ -38,7 +38,7 @@ let defaultGameParameters = {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 let db;
 let pool;
