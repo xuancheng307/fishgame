@@ -455,7 +455,7 @@
                 ? topTeams.map((team, index) => `
                     <div class="team-rank">
                         <span class="rank-medal rank-${index + 1}">${index + 1}</span>
-                        <span>${team.display_name || `團隊${team.user_id}`}</span>
+                        <span>${team.team_name || `團隊${team.team_id}`}</span>
                         <span>(${(team.roi * 100).toFixed(1)}%)</span>
                     </div>
                 `).join('')
@@ -464,7 +464,7 @@
             return `
                 <div class="game-card ${statusClass}" onclick="viewGameDetails(${game.game_id})">
                     <div class="game-header">
-                        <div class="game-title">${game.name}</div>
+                        <div class="game-title">${game.game_name}</div>
                         <span class="game-status ${statusStyle}">${statusText}</span>
                     </div>
                     
