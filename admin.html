@@ -864,8 +864,8 @@
                     
                     html += `
                         <tr>
-                            <td><strong>${team.team_name || `團隊${team.username}`}</strong></td>
-                            <td>$${(team.current_budget || 0).toLocaleString()}</td>
+                            <td><strong>${team.display_name || `團隊${team.username}`}</strong></td>
+                            <td>$${(team.cash || 0).toLocaleString()}</td>
                             <td>$${(team.total_loan || 0).toLocaleString()}</td>
                             <td>${team.fish_a_inventory || 0} kg</td>
                             <td>${team.fish_b_inventory || 0} kg</td>
@@ -1348,7 +1348,7 @@
 
                     html += `
                         <tr ${isHighestPrice ? 'style="background-color: #ffebee;"' : ''}>
-                            <td>${bid.team_name || `團隊${bid.team_id}`}</td>
+                            <td>${bid.display_name || `團隊${bid.team_id}`}</td>
                             <td>$${bid.price.toLocaleString()} ${isHighestPrice ? '🔴' : ''}</td>
                             <td>${bid.quantity_submitted.toLocaleString()}${unsoldNote}</td>
                             <td>$${totalAmount.toLocaleString()}</td>
@@ -1429,7 +1429,7 @@
 
                     html += `
                         <tr ${isHighestPrice ? 'style="background-color: #ffebee;"' : ''}>
-                            <td>${bid.team_name || `團隊${bid.team_id}`}</td>
+                            <td>${bid.display_name || `團隊${bid.team_id}`}</td>
                             <td>$${bid.price.toLocaleString()} ${isHighestPrice ? '🔴' : ''}</td>
                             <td>${bid.quantity_submitted.toLocaleString()}${unsoldNote}</td>
                             <td>$${totalAmount.toLocaleString()}</td>
@@ -1523,20 +1523,20 @@
             `;
             
             data.results.forEach((result, index) => {
-                const profitClass = result.daily_profit >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
+                const profitClass = result.profit >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
                 const roiClass = result.roi >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
                 
                 html += `
                     <tr>
                         <td><strong>${index + 1}</strong></td>
-                        <td>${result.team_name || `團隊${result.username}`}</td>
+                        <td>${result.display_name || `團隊${result.username}`}</td>
                         <td>$${(result.starting_cash || 0).toLocaleString()}</td>
                         <td>$${(result.ending_cash || 0).toLocaleString()}</td>
                         <td>$${(result.buy_cost || 0).toLocaleString()}</td>
                         <td>$${(result.sell_revenue || 0).toLocaleString()}</td>
                         <td>$${(result.unsold_fee || 0).toLocaleString()}</td>
                         <td>$${(result.interest_paid || 0).toLocaleString()}</td>
-                        <td ${profitClass}>$${(result.daily_profit || 0).toLocaleString()}</td>
+                        <td ${profitClass}>$${(result.profit || 0).toLocaleString()}</td>
                         <td ${profitClass}>$${(result.cumulative_profit || 0).toLocaleString()}</td>
                         <td ${roiClass}>${(result.roi || 0).toFixed(2)}%</td>
                     </tr>
@@ -1548,7 +1548,7 @@
             // Add summary statistics
             const totalRevenue = data.results.reduce((sum, r) => sum + (r.sell_revenue || 0), 0);
             const totalCost = data.results.reduce((sum, r) => sum + (r.buy_cost || 0), 0);
-            const totalProfit = data.results.reduce((sum, r) => sum + (r.daily_profit || 0), 0);
+            const totalProfit = data.results.reduce((sum, r) => sum + (r.profit || 0), 0);
             
             html += `
                 <div class="card">
