@@ -22,20 +22,7 @@
             padding: 48px 24px 40px;
         }
         .hero h1 { font-size: 2em; margin-bottom: 8px; }
-        .hero p { font-size: 1.1em; opacity: .85; margin-bottom: 24px; }
-        .btn-login {
-            display: inline-block;
-            background: white;
-            color: #2563eb;
-            font-size: 1.1em;
-            font-weight: 700;
-            padding: 14px 40px;
-            border-radius: 40px;
-            text-decoration: none;
-            transition: transform .15s, box-shadow .15s;
-            box-shadow: 0 4px 14px rgba(0,0,0,.15);
-        }
-        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+        .hero p { font-size: 1.1em; opacity: .85; }
 
         /* 主要內容 */
         .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px 60px; }
@@ -149,25 +136,6 @@
             overflow-x: auto;
         }
 
-        /* 底部登入按鈕 */
-        .bottom-cta {
-            text-align: center;
-            padding: 40px 20px;
-        }
-        .btn-login-lg {
-            display: inline-block;
-            background: linear-gradient(135deg, #2563eb, #7c3aed);
-            color: white;
-            font-size: 1.2em;
-            font-weight: 700;
-            padding: 16px 52px;
-            border-radius: 40px;
-            text-decoration: none;
-            transition: transform .15s, box-shadow .15s;
-            box-shadow: 0 4px 14px rgba(37,99,235,.3);
-        }
-        .btn-login-lg:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,99,235,.35); }
-
         @media (max-width: 600px) {
             .hero h1 { font-size: 1.5em; }
             .cards { grid-template-columns: 1fr; }
@@ -181,7 +149,6 @@
 <div class="hero">
     <h1>魚市場遊戲</h1>
     <p>扮演魚貨批發商，買低賣高，賺取最高報酬率！</p>
-    <a href="login.html" class="btn-login">前往登入</a>
 </div>
 
 <div class="wrap">
@@ -331,46 +298,6 @@
         </div>
     </section>
 
-    <!-- 操作方式 -->
-    <section>
-        <h2>怎麼操作？</h2>
-        <div class="steps">
-            <div class="step">
-                <div class="step-num">1</div>
-                <div class="step-body">
-                    <h3>用帳號登入</h3>
-                    <p>帳號 = 你的組號（01~12），初始密碼 = 帳號</p>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num">2</div>
-                <div class="step-body">
-                    <h3>加入遊戲</h3>
-                    <p>點「一鍵加入」進入老師創建的遊戲，可以設定組名</p>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num">3</div>
-                <div class="step-body">
-                    <h3>等老師開始投標</h3>
-                    <p>畫面會顯示倒數計時，在時間內填好價格和數量並送出</p>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num">4</div>
-                <div class="step-body">
-                    <h3>查看結果</h3>
-                    <p>每個階段結束後可以看到成交情況和目前排名</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 底部登入 -->
-    <div class="bottom-cta">
-        <p style="margin-bottom:16px;color:#64748b;">準備好了嗎？</p>
-        <a href="login.html" class="btn-login-lg">前往登入開始遊戲</a>
-    </div>
 
 </div>
 
