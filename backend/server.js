@@ -191,6 +191,7 @@ async function initDatabase() {
                 fish_a_inventory INT DEFAULT 0,
                 fish_b_inventory INT DEFAULT 0,
                 cumulative_profit DECIMAL(15, 2) DEFAULT 0.00,
+                roi DECIMAL(10, 4) DEFAULT 0.0000,
                 UNIQUE(game_id, team_id),
                 FOREIGN KEY (game_id) REFERENCES games(id),
                 FOREIGN KEY (team_id) REFERENCES users(id)
@@ -2664,15 +2665,15 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
              JOIN users u ON gp.team_id = u.id
              JOIN games game ON gp.game_id = game.id
              LEFT JOIN (
-                SELECT team_id, cumulative_profit 
-                FROM daily_results 
-                WHERE id IN (
-                    SELECT MAX(id) FROM daily_results GROUP BY team_id
+                SELECT team_id, cumulative_profit
+                FROM daily_results
+                WHERE game_id = ? AND id IN (
+                    SELECT MAX(id) FROM daily_results WHERE game_id = ? GROUP BY team_id
                 )
              ) dr ON gp.team_id = dr.team_id
              WHERE gp.game_id = ?
              ORDER BY roi DESC`,
-            [gameId]
+            [gameId, gameId, gameId]
         );
         
         res.json(results);
@@ -3295,6 +3296,7 @@ app.post('/api/admin/games/:gameId/force-end', authenticateToken, requireAdmin, 
 
         // 停止計時器（避免 force-end 後殘留 timer 回呼覆蓋遊戲狀態）
         stopTimer(gameId);
+        stopTimer(`${gameId}-selling`);
 
         // 獲取當前天數
         const [currentDay] = await connection.execute(
