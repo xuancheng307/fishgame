@@ -28,9 +28,9 @@ let defaultGameParameters = {
     loanInterestRate: 0.03,
     unsoldFeePerKg: 10,
     distributorFloorPriceA: 100,
-    targetPriceA: 150,
+    targetPriceA: 500,
     distributorFloorPriceB: 100,
-    targetPriceB: 120,
+    targetPriceB: 300,
     totalDays: 7,
     buyingDuration: 7,  // 分鐘
     sellingDuration: 4   // 分鐘
@@ -167,8 +167,8 @@ async function initDatabase() {
                 fixed_unsold_ratio DECIMAL(5, 2) NOT NULL DEFAULT 2.50,
                 distributor_floor_price_a DECIMAL(10, 2) DEFAULT 100.00,
                 distributor_floor_price_b DECIMAL(10, 2) DEFAULT 100.00,
-                target_price_a DECIMAL(10, 2) NOT NULL,
-                target_price_b DECIMAL(10, 2) NOT NULL,
+                target_price_a DECIMAL(10, 2) NOT NULL DEFAULT 500.00,
+                target_price_b DECIMAL(10, 2) NOT NULL DEFAULT 300.00,
                 buying_duration INT DEFAULT 7,
                 selling_duration INT DEFAULT 4,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -330,34 +330,8 @@ async function initDatabase() {
         try {
             console.log('🔧 檢查資料庫架構一致性...');
 
-            // 1. 修復 game_days.status ENUM
-            console.log('   檢查 game_days.status ENUM...');
-
-            // 1a. 臨時轉換為 VARCHAR 以便更新數據
-            console.log('   臨時轉換 status 為 VARCHAR...');
-            await pool.execute(`
-                ALTER TABLE game_days
-                MODIFY COLUMN status VARCHAR(50)
-            `);
-
-            // 1b. 更新現有數據，將舊值轉換為新值
-            console.log('   更新現有 game_days 數據...');
-            // 先將所有非標準值轉為pending（安全的默認值）
-            await pool.execute(`
-                UPDATE game_days
-                SET status = 'pending'
-                WHERE status NOT IN ('pending', 'buying_open', 'buying_closed', 'selling_open', 'selling_closed', 'settled')
-            `);
-
-            console.log('   數據已標準化');
-
-            // 1c. 轉換回 ENUM 並使用標準值
-            await pool.execute(`
-                ALTER TABLE game_days
-                MODIFY COLUMN status ENUM('pending', 'buying_open', 'buying_closed', 'selling_open', 'selling_closed', 'settled')
-                DEFAULT 'pending'
-            `);
-            console.log('   ✅ game_days.status ENUM 已更新');
+            // 1. game_days.status ENUM — 已確認正確，無需每次啟動轉換
+            console.log('   game_days.status ENUM 已是正確格式，跳過轉換');
 
             // 2. 檢查並添加 bids.game_id 欄位
             const [bidsCols] = await pool.execute(`
@@ -367,6 +341,22 @@ async function initDatabase() {
                 AND TABLE_NAME = 'bids'
             `);
             const bidsColumns = bidsCols.map(col => col.COLUMN_NAME);
+
+            if (!bidsColumns.includes('day_number')) {
+                console.log('   添加 bids.day_number 欄位...');
+                await pool.execute(`
+                    ALTER TABLE bids
+                    ADD COLUMN day_number INT AFTER game_day_id
+                `);
+
+                // 從 game_days 表回填 day_number
+                await pool.execute(`
+                    UPDATE bids b
+                    JOIN game_days gd ON b.game_day_id = gd.id
+                    SET b.day_number = gd.day_number
+                `);
+                console.log('   ✅ bids.day_number 欄位已添加');
+            }
 
             if (!bidsColumns.includes('game_id')) {
                 console.log('   添加 bids.game_id 欄位...');
@@ -468,21 +458,16 @@ app.get('/api/qr/:gameId', async (req, res) => {
             return res.status(404).json({ error: '遊戲不存在' });
         }
 
-        // 獲取網路 IP
-        const os = require('os');
-        const networkInterfaces = os.networkInterfaces();
-        let serverIP = 'localhost';
-        
-        Object.keys(networkInterfaces).forEach(interfaceName => {
-            networkInterfaces[interfaceName].forEach(interface => {
-                if (interface.family === 'IPv4' && !interface.internal && serverIP === 'localhost') {
-                    serverIP = interface.address;
-                }
-            });
-        });
-
-        // 生成遊戲連結
-        const gameUrl = `http://${serverIP}:${process.env.PORT || 3000}/team?gameId=${gameId}`;
+        // 生成遊戲連結：優先使用 Railway 公開域名，否則使用請求來源
+        let gameUrl;
+        if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+            gameUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/team?gameId=${gameId}`;
+        } else {
+            const host = req.headers.host || `localhost:${process.env.PORT || 3000}`;
+            const protocol = req.secure ? 'https' : 'http';
+            gameUrl = `${protocol}://${host}/team?gameId=${gameId}`;
+        }
+        const serverIP = process.env.RAILWAY_PUBLIC_DOMAIN || req.headers.host || 'localhost';
         
         // 生成 QR Code
         const qrCodeDataURL = await QRCode.toDataURL(gameUrl, {
@@ -600,13 +585,13 @@ app.post('/api/admin/reset-all-passwords', authenticateToken, requireAdmin, asyn
     try {
         console.log('===== 開始重置所有用戶密碼 =====');
 
-        // 重置 admin 密碼為 "admin"
-        const adminHash = await bcrypt.hash('admin', 10);
+        // 重置 admin 密碼為 "123"（與 initDatabase 一致）
+        const adminHash = await bcrypt.hash('123', 10);
         await pool.execute(
             'UPDATE users SET password_hash = ? WHERE username = ?',
             [adminHash, 'admin']
         );
-        console.log('✅ Admin 密碼已重置為: admin');
+        console.log('✅ Admin 密碼已重置為: 123');
 
         // 重置所有學生帳號密碼為其用戶名 (01 -> 01, 02 -> 02, etc.)
         const [students] = await pool.execute(
@@ -630,7 +615,7 @@ app.post('/api/admin/reset-all-passwords', authenticateToken, requireAdmin, asyn
         res.json({
             message: `成功重置 ${resetCount + 1} 個帳號密碼`,
             details: {
-                admin: 'admin',
+                admin: '123',
                 students: '密碼重置為各自的用戶名',
                 teamNamesCleared: true
             }
@@ -707,8 +692,8 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         // 自動創建第1天的記錄
         const baselineSupplyA = teamCount * 150;
         const baselineSupplyB = teamCount * 300;
-        const baselineBudgetA = baselineSupplyA * (targetPriceA || 150);
-        const baselineBudgetB = baselineSupplyB * (targetPriceB || 120);
+        const baselineBudgetA = baselineSupplyA * (targetPriceA || defaultGameParameters.targetPriceA);
+        const baselineBudgetB = baselineSupplyB * (targetPriceB || defaultGameParameters.targetPriceB);
         
         // 第1天使用標準參數
         const fishASupply = baselineSupplyA;
@@ -1046,7 +1031,7 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
         }
         
         const currentDay = game[0].current_day;
-        if (currentDay >= 7) {
+        if (currentDay >= game[0].total_days) {
             return res.status(400).json({ error: '遊戲已結束' });
         }
         
@@ -1233,10 +1218,10 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 buying - 同時更新 game_days.status 和 games.phase
+        // 更新狀態為 buying_open - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['buying', currentDay[0].id]
+            ['buying_open', currentDay[0].id]
         );
 
         await pool.execute(
@@ -1247,13 +1232,19 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         // 啟動計時器 (duration 參數單位為秒)
         startTimer(gameId, biddingDuration * 60, async () => {
             try {
-                // 計時器結束時自動關閉買入投標
+                // 計時器結束時自動處理買入投標並關閉
+                await processBuyBids(currentDay[0]);
+
                 await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['buying_closed', currentDay[0].id]
                 );
+                await pool.execute(
+                    'UPDATE games SET phase = ? WHERE id = ?',
+                    ['buying_closed', gameId]
+                );
 
-                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已自動結束`);
+                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天買入投標已自動結束（含處理）`);
 
                 // 通知所有客戶端買入階段結束
                 io.emit('phaseChange', {
@@ -1406,10 +1397,10 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 selling - 同時更新 game_days.status 和 games.phase
+        // 更新狀態為 selling_open - 同時更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
-            ['selling', currentDay[0].id]
+            ['selling_open', currentDay[0].id]
         );
 
         await pool.execute(
@@ -1420,13 +1411,19 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         // 啟動計時器 (duration 參數單位為秒)
         startTimer(`${gameId}-selling`, biddingDuration * 60, async () => {
             try {
-                // 計時器結束時自動關閉賣出投標
+                // 計時器結束時自動處理賣出投標並關閉
+                await processSellBids(currentDay[0]);
+
                 await pool.execute(
                     'UPDATE game_days SET status = ? WHERE id = ?',
                     ['selling_closed', currentDay[0].id]
                 );
+                await pool.execute(
+                    'UPDATE games SET phase = ? WHERE id = ?',
+                    ['selling_closed', gameId]
+                );
 
-                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天賣出投標已自動結束`);
+                console.log(`遊戲 ${gameId} 第 ${currentDay[0].day_number} 天賣出投標已自動結束（含處理）`);
 
                 // 通知所有客戶端賣出階段結束
                 io.emit('phaseChange', {
@@ -1564,11 +1561,10 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         if (currentDay[0].status !== 'selling_closed') {
             return res.status(400).json({ error: '請先完成所有投標階段' });
         }
-        
-        // 處理賣出投標
-        await processSellBids(currentDay[0]);
 
         // 使用強化版結算功能（包含事務處理）
+        // 注意：processBuyBids/processSellBids 已在 close-buying/close-selling 中執行完畢
+        // 此處只做利息、滯銷費、daily_results 記錄
         await enhancedDailySettlement(pool, gameId, currentDay[0].id, currentDay[0].day_number);
         
         // 使用正確的狀態名稱
@@ -1577,7 +1573,9 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
             ['settled', currentDay[0].id]
         );
         
-        if (currentDay[0].day_number === 7) {
+        // 檢查是否為最後一天
+        const [settleGame] = await pool.execute('SELECT total_days FROM games WHERE id = ?', [gameId]);
+        if (currentDay[0].day_number >= settleGame[0].total_days) {
             await pool.execute(
                 'UPDATE games SET status = "finished" WHERE id = ?',
                 [gameId]
@@ -2016,11 +2014,12 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
         }
         
         // 檢查資金是否足夠（貸款不超過初始預算的50%）
-        const currentBudget = teamData.current_budget || 0;
-        const currentLoan = teamData.total_loan || 0;
-        const initialBudget = game.initial_budget || 1000000;
+        // 注意：MySQL DECIMAL 欄位返回字串，必須用 Number() 轉換才能正確做加法
+        const currentBudget = Number(teamData.current_budget) || 0;
+        const currentLoan = Number(teamData.total_loan) || 0;
+        const initialBudget = Number(game.initial_budget) || 1000000;
         const maxTotalLoan = initialBudget * 0.5;  // 最大貸款為初始預算的50%
-        
+
         // 計算需要借貸的金額
         const loanNeeded = Math.max(0, totalBidAmount - currentBudget);
         const newTotalLoan = currentLoan + loanNeeded;
@@ -2412,8 +2411,8 @@ app.get('/api/admin/games/:gameId/day/:day/bid-summary', authenticateToken, asyn
                     fishB: dayInfo[0].fish_b_supply
                 },
                 budget: {
-                    fishA: dayInfo[0].fish_a_budget,
-                    fishB: dayInfo[0].fish_b_budget
+                    fishA: dayInfo[0].fish_a_restaurant_budget,
+                    fishB: dayInfo[0].fish_b_restaurant_budget
                 }
             },
             statistics,
@@ -2452,7 +2451,7 @@ function calculateBidStatistics(bids) {
         ? ((totalQuantityFulfilled / totalQuantitySubmitted) * 100).toFixed(2)
         : '0.00';
 
-    const prices = bids.map(b => b.price).filter(p => p > 0);
+    const prices = bids.map(b => Number(b.price)).filter(p => p > 0);
     const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
     const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
     const avgPrice = prices.length > 0
@@ -2534,38 +2533,7 @@ app.post('/api/admin/games/:gameId/resume', authenticateToken, requireAdmin, asy
     }
 });
 
-// 強制結束遊戲
-app.post('/api/admin/games/:gameId/force-end', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    
-    try {
-        const [game] = await pool.execute('SELECT * FROM games WHERE id = ?', [gameId]);
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        if (game[0].status === 'finished') {
-            return res.status(400).json({ error: '遊戲已經結束' });
-        }
-        
-        // 更新遊戲狀態為結束
-        await pool.execute('UPDATE games SET status = "finished" WHERE id = ?', [gameId]);
-        
-        // 記錄強制結束的原因和時間
-        await pool.execute(
-            `INSERT INTO game_logs (game_id, action, details, created_at) 
-             VALUES (?, 'force_ended', 'Game was forcefully ended by admin', NOW())`,
-            [gameId]
-        );
-        
-        console.log(`遊戲 ${gameId} 已強制結束`);
-        res.json({ success: true, message: '遊戲已強制結束' });
-        io.emit('gameUpdate', { gameId, event: 'gameForceEnded' });
-    } catch (error) {
-        console.error('強制結束遊戲錯誤:', error);
-        res.status(500).json({ error: '強制結束遊戲失敗' });
-    }
-});
+// 強制結束遊戲（簡易版已移除，改用下方完整版 /admin/games/:gameId/force-end）
 
 // 獲取歷史遊戲列表
 app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req, res) => {
@@ -2732,14 +2700,14 @@ async function processBuyBids(gameDay) {
         let remainingSupply = supply;
         
         const [bids] = await connection.execute(
-            `SELECT * FROM bids 
-             WHERE game_day_id = ? AND bid_type = 'buy' AND fish_type = ?
+            `SELECT * FROM bids
+             WHERE game_day_id = ? AND bid_type = 'buy' AND fish_type = ? AND status = 'pending'
              ORDER BY price DESC, created_at ASC`,
             [gameDay.id, fishType]
         );
         
         for (const bid of bids) {
-            if (bid.price < floorPrice) {
+            if (Number(bid.price) < Number(floorPrice)) {
                 await connection.execute(
                     'UPDATE bids SET status = "failed" WHERE id = ?',
                     [bid.id]
@@ -2823,10 +2791,10 @@ async function processSellBids(gameDay) {
             const budget = fishType === 'A' ? gameDay.fish_a_restaurant_budget : gameDay.fish_b_restaurant_budget;
             let remainingBudget = Decimal(budget); // 使用 Decimal.js 確保精度
             
-            // 獲取所有賣出投標（價格由低到高 - 價低者得）
+            // 獲取所有賣出投標（價格由低到高 - 價低者得，只處理未結算的）
             const [allBids] = await connection.execute(
-                `SELECT * FROM bids 
-                 WHERE game_day_id = ? AND bid_type = 'sell' AND fish_type = ?
+                `SELECT * FROM bids
+                 WHERE game_day_id = ? AND bid_type = 'sell' AND fish_type = ? AND status = 'pending'
                  ORDER BY price ASC, created_at ASC`,
                 [gameDay.id, fishType]
             );
@@ -2834,15 +2802,31 @@ async function processSellBids(gameDay) {
             if (allBids.length === 0) continue;
             
             // 步驟1：找出最高價並處理2.5%固定滯銷
-            const maxPrice = Math.max(...allBids.map(bid => bid.price));
-            const highPriceBids = allBids.filter(bid => bid.price === maxPrice);
-            
+            const maxPrice = Math.max(...allBids.map(bid => Number(bid.price)));
+            const highPriceBids = allBids.filter(bid => Number(bid.price) === maxPrice);
+
             // 計算最高價投標的滯銷數量
             const totalHighPriceQuantity = highPriceBids.reduce((sum, bid) => sum + bid.quantity_submitted, 0);
             let unsoldQuantity = Math.ceil(totalHighPriceQuantity * fixedUnsoldRatio / 100);
-            
+
             console.log(`${fishType}級魚：最高價${maxPrice}，總量${totalHighPriceQuantity}kg，固定滯銷${unsoldQuantity}kg`);
-            
+
+            // 步驟1b：預計算每個最高價投標的滯銷扣除量
+            // 規格要求「同價位時，晚出價者優先滯銷」→ created_at DESC
+            const unsoldMap = new Map(); // bid.id -> unsold deduction
+            const highPriceBidsLatestFirst = [...highPriceBids].sort((a, b) =>
+                new Date(b.created_at) - new Date(a.created_at)
+            );
+            let remainingUnsold = unsoldQuantity;
+            for (const hpBid of highPriceBidsLatestFirst) {
+                const bidUnsoldQty = Math.min(hpBid.quantity_submitted, remainingUnsold);
+                unsoldMap.set(hpBid.id, bidUnsoldQty);
+                remainingUnsold -= bidUnsoldQty;
+                if (bidUnsoldQty > 0) {
+                    console.log(`團隊${hpBid.team_id}最高價投標：總量${hpBid.quantity_submitted}kg，滯銷${bidUnsoldQty}kg`);
+                }
+            }
+
             // 步驟2：處理所有投標（價低者得，最高價部分滯銷）
             for (const bid of allBids) {
                 if (remainingBudget.lte(0)) {
@@ -2853,16 +2837,13 @@ async function processSellBids(gameDay) {
                     );
                     continue;
                 }
-                
+
                 let availableQuantity = bid.quantity_submitted;
-                
-                // 如果是最高價投標，需要扣除滯銷數量
-                if (bid.price === maxPrice && unsoldQuantity > 0) {
-                    const bidUnsoldQuantity = Math.min(bid.quantity_submitted, unsoldQuantity);
+
+                // 如果是最高價投標，需要扣除預計算的滯銷數量
+                if (Number(bid.price) === maxPrice && unsoldMap.has(bid.id)) {
+                    const bidUnsoldQuantity = unsoldMap.get(bid.id);
                     availableQuantity = bid.quantity_submitted - bidUnsoldQuantity;
-                    unsoldQuantity -= bidUnsoldQuantity;
-                    
-                    console.log(`團隊${bid.team_id}最高價投標：總量${bid.quantity_submitted}kg，滯銷${bidUnsoldQuantity}kg，可售${availableQuantity}kg`);
                 }
                 
                 if (availableQuantity <= 0) {
@@ -2885,7 +2866,7 @@ async function processSellBids(gameDay) {
                     // 更新投標記錄
                     await connection.execute(
                         'UPDATE bids SET quantity_fulfilled = ?, status = ? WHERE id = ?',
-                        [fulfilledQuantity, fulfilledQuantity === bid.quantity_submitted ? 'fulfilled' : 'partial', bid.id]
+                        [fulfilledQuantity, fulfilledQuantity >= availableQuantity ? 'fulfilled' : 'partial', bid.id]
                     );
                     
                     // 更新團隊現金和扣除庫存
@@ -2932,182 +2913,167 @@ async function processSellBids(gameDay) {
 }
 
 /**
- * 強化版每日結算功能 - 使用事務和高精度計算
- * @param {Object} pool - MySQL 連接池
+ * 每日結算功能 - 只處理利息、滯銷費、記錄 daily_results
+ * 注意：買賣的 budget 調整已由 processBuyBids/processSellBids 完成
+ *       此函數不再重複計算 revenue/cost 到 budget
+ *
+ * @param {Object} poolOrConn - MySQL 連接池，或外部傳入的 connection（用於 force-end）
  * @param {Number} gameId - 遊戲ID
  * @param {Number} gameDayId - 遊戲天ID
  * @param {Number} dayNumber - 天數
- * @param {Boolean} isForceEnd - 是否為強制結束（強制計算ROI）
+ * @param {Object} options - { externalConnection: connection } 可選，使用外部事務
  */
-async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isForceEnd = false) {
-    // 獲取資料庫連接以開始事務
-    const connection = await pool.getConnection();
-    
+async function enhancedDailySettlement(poolOrConn, gameId, gameDayId, dayNumber, options = {}) {
+    const useExternalConn = !!options.externalConnection;
+    const connection = useExternalConn
+        ? options.externalConnection
+        : await poolOrConn.getConnection();
+
     try {
-        // 開始事務
-        await connection.beginTransaction();
+        if (!useExternalConn) {
+            await connection.beginTransaction();
+        }
         console.log(`開始第 ${dayNumber} 天結算（事務模式）`);
-        
+
         // 1. 讀取遊戲基本資訊
         const [game] = await connection.execute(
             'SELECT * FROM games WHERE id = ? FOR UPDATE',
             [gameId]
         );
-        
+
         if (game.length === 0) {
             throw new Error('遊戲不存在');
         }
-        
+
         const gameInfo = game[0];
-        
+
         // 使用 Decimal.js 處理所有金額
         const initialBudget = new Decimal(gameInfo.initial_budget);
-        const loanInterestRate = new Decimal(gameInfo.loan_interest_rate).dividedBy(100); // 轉換為小數
+        // loan_interest_rate 存的是 0.03 = 3%，直接使用，不再除以 100
+        const loanInterestRate = new Decimal(gameInfo.loan_interest_rate);
         const unsoldFeePerKg = new Decimal(gameInfo.unsold_fee_per_kg);
-        
+
         // 2. 讀取所有參與團隊（加鎖防止並發修改）
         const [participants] = await connection.execute(
             'SELECT * FROM game_participants WHERE game_id = ? FOR UPDATE',
             [gameId]
         );
-        
+
         // 3. 處理每個團隊的結算
         for (const participant of participants) {
             console.log(`處理團隊 ${participant.team_id} 的結算...`);
-            
-            // 3.1 讀取當日所有買入投標
-            const [buyBids] = await connection.execute(
-                `SELECT fish_type, price, quantity_fulfilled 
-                 FROM bids 
+
+            // 3.1 從 bids 讀取 revenue/cost（僅用於 daily_results 記錄，不影響 budget）
+            // 注意：force-end 時 processBuyBids/processSellBids 在獨立連線上 commit，
+            // 但 connection 是 force-end 的交易連線（REPEATABLE READ 快照看不到外部 commit）。
+            // 必須用 poolOrConn（= pool）取得新連線來讀取已 commit 的 bids 資料。
+            const bidQueryConn = useExternalConn ? poolOrConn : connection;
+            const [buyBids] = await bidQueryConn.execute(
+                `SELECT fish_type, price, quantity_fulfilled
+                 FROM bids
                  WHERE game_day_id = ? AND team_id = ? AND bid_type = 'buy'`,
                 [gameDayId, participant.team_id]
             );
-            
-            // 3.2 讀取當日所有賣出投標
-            const [sellBids] = await connection.execute(
-                `SELECT fish_type, price, quantity_fulfilled 
-                 FROM bids 
+
+            const [sellBids] = await bidQueryConn.execute(
+                `SELECT fish_type, price, quantity_fulfilled
+                 FROM bids
                  WHERE game_day_id = ? AND team_id = ? AND bid_type = 'sell'`,
                 [gameDayId, participant.team_id]
             );
-            
-            // 3.3 使用高精度計算成本
+
+            // 計算成本（僅用於記錄）
             let totalCost = new Decimal(0);
-            let fishABought = 0;
-            let fishBBought = 0;
-            
             for (const bid of buyBids) {
-                const price = new Decimal(bid.price);
-                const quantity = new Decimal(bid.quantity_fulfilled || 0);
-                totalCost = totalCost.plus(price.times(quantity));
-                
-                if (bid.fish_type === 'A') {
-                    fishABought += bid.quantity_fulfilled || 0;
-                } else {
-                    fishBBought += bid.quantity_fulfilled || 0;
-                }
+                totalCost = totalCost.plus(
+                    new Decimal(bid.price).times(bid.quantity_fulfilled || 0)
+                );
             }
-            
-            // 3.4 使用高精度計算收入
+
+            // 計算收入（僅用於記錄）
             let totalRevenue = new Decimal(0);
-            let fishASold = 0;
-            let fishBSold = 0;
-            
             for (const bid of sellBids) {
-                const price = new Decimal(bid.price);
-                const quantity = new Decimal(bid.quantity_fulfilled || 0);
-                totalRevenue = totalRevenue.plus(price.times(quantity));
-                
-                if (bid.fish_type === 'A') {
-                    fishASold += bid.quantity_fulfilled || 0;
-                } else {
-                    fishBSold += bid.quantity_fulfilled || 0;
-                }
+                totalRevenue = totalRevenue.plus(
+                    new Decimal(bid.price).times(bid.quantity_fulfilled || 0)
+                );
             }
-            
-            // 3.5 計算庫存變化
+
+            // 3.2 讀取當前狀態（budget 已由 processBuyBids/processSellBids 更新完畢）
             const currentBudget = new Decimal(participant.current_budget);
             const currentLoan = new Decimal(participant.total_loan);
             const currentLoanPrincipal = new Decimal(participant.total_loan_principal);
-            
-            // 計算當日未售出數量（當日買入 - 當日賣出）
-            const fishAUnsold = Math.max(0, fishABought - fishASold);
-            const fishBUnsold = Math.max(0, fishBBought - fishBSold);
-            
-            // 3.6 計算滯銷費（未售出的魚）
+
+            // 3.3 計算滯銷費 — 直接從庫存讀取（已反映 bought - sold）
+            const fishAUnsold = participant.fish_a_inventory || 0;
+            const fishBUnsold = participant.fish_b_inventory || 0;
             const unsoldQuantity = fishAUnsold + fishBUnsold;
             const unsoldFee = unsoldFeePerKg.times(unsoldQuantity);
 
-            // 庫存在推進天數時清空,這裡不處理
-
-            // 3.7 計算利息（使用複利）
+            // 3.4 計算利息
             const interestIncurred = currentLoan.times(loanInterestRate);
             const newTotalLoan = currentLoan.plus(interestIncurred);
-            
-            // 3.8 計算新預算
-            let newBudget = currentBudget.plus(totalRevenue).minus(totalCost).minus(unsoldFee);
+
+            // 3.5 計算新預算（只扣滯銷費和利息，不再重複計算 revenue/cost）
+            let newBudget = currentBudget.minus(unsoldFee).minus(interestIncurred);
             let additionalLoan = new Decimal(0);
-            
-            // 如果預算不足，自動借貸
+
+            // 如果預算不足，自動借貸（上限為初始預算的50%）
             if (newBudget.lessThan(0)) {
-                additionalLoan = newBudget.abs();
-                newBudget = new Decimal(0);
+                const maxTotalLoan = initialBudget.times(0.5);
+                const availableLoan = Decimal.max(0, maxTotalLoan.minus(currentLoanPrincipal));
+                additionalLoan = Decimal.min(newBudget.abs(), availableLoan);
+                newBudget = newBudget.plus(additionalLoan); // 可能仍為負（超過貸款上限）
             }
-            
+
             const newLoanPrincipal = currentLoanPrincipal.plus(additionalLoan);
             const finalTotalLoan = newTotalLoan.plus(additionalLoan);
-            
-            // 3.9 計算每日利潤
+
+            // 3.6 計算每日利潤（用於記錄）
             const dailyProfit = totalRevenue.minus(totalCost).minus(unsoldFee).minus(interestIncurred);
-            
-            // 3.10 獲取累積利潤
+
+            // 3.7 獲取累積利潤
             const [prevResults] = await connection.execute(
-                `SELECT cumulative_profit FROM daily_results 
-                 WHERE team_id = ? 
+                `SELECT cumulative_profit FROM daily_results
+                 WHERE team_id = ? AND game_id = ?
                  ORDER BY id DESC LIMIT 1`,
-                [participant.team_id]
+                [participant.team_id, gameId]
             );
-            
-            const prevCumulativeProfit = prevResults.length > 0 
-                ? new Decimal(prevResults[0].cumulative_profit) 
+
+            const prevCumulativeProfit = prevResults.length > 0
+                ? new Decimal(prevResults[0].cumulative_profit)
                 : new Decimal(0);
             const cumulativeProfit = prevCumulativeProfit.plus(dailyProfit);
-            
-            // 3.11 計算 ROI（在最後一天或強制結束時）
+
+            // 3.8 每天都計算 ROI（規格要求）
             let roi = new Decimal(0);
-            const [gameSettings] = await connection.execute(
-                'SELECT total_days FROM games WHERE id = ?',
-                [gameId]
-            );
-            const totalDays = gameSettings[0].total_days || 7;
-            
-            if (isForceEnd || dayNumber === totalDays) {
-                // 使用精確公式: ROI = (cumulative_profit / (initial_budget + total_loan_principal)) * 100
-                const totalInvestment = initialBudget.plus(newLoanPrincipal);
-                if (totalInvestment.greaterThan(0)) {
-                    roi = cumulativeProfit.dividedBy(totalInvestment).times(100);
-                }
-                console.log(`團隊 ${participant.team_id} ${isForceEnd ? '強制結束' : '最終'} ROI: ${roi.toFixed(2)}%`);
+            const totalInvestment = initialBudget.plus(newLoanPrincipal);
+            if (totalInvestment.greaterThan(0)) {
+                roi = cumulativeProfit.dividedBy(totalInvestment).times(100);
             }
-            
-            // 3.12 更新 game_participants 表(庫存在推進天數時清空)
+            console.log(`團隊 ${participant.team_id} 第${dayNumber}天 ROI: ${roi.toFixed(2)}%`);
+
+            // 3.9 更新 game_participants 表（含庫存歸零 — 規格：「當日不論有沒有賣出 庫存都歸0」）
             await connection.execute(
                 `UPDATE game_participants
                  SET current_budget = ?,
                      total_loan = ?,
                      total_loan_principal = ?,
-                     cumulative_profit = ?
+                     cumulative_profit = ?,
+                     roi = ?,
+                     fish_a_inventory = 0,
+                     fish_b_inventory = 0
                  WHERE id = ?`,
                 [
                     newBudget.toFixed(2),
                     finalTotalLoan.toFixed(2),
                     newLoanPrincipal.toFixed(2),
                     cumulativeProfit.toFixed(2),
+                    roi.toFixed(4),
                     participant.id
                 ]
             );
-            
-            // 3.13 插入 daily_results 記錄
+
+            // 3.10 插入 daily_results 記錄
             await connection.execute(
                 `INSERT INTO daily_results (
                     game_id, game_day_id, day_number, team_id, revenue, cost, unsold_fee,
@@ -3125,30 +3091,33 @@ async function enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, isFor
                     interestIncurred.toFixed(2),
                     dailyProfit.toFixed(2),
                     cumulativeProfit.toFixed(2),
-                    roi.toFixed(2),
+                    roi.toFixed(4),
                     newBudget.toFixed(2),
                     finalTotalLoan.toFixed(2)
                 ]
             );
-            
+
             console.log(`團隊 ${participant.team_id} 結算完成`);
         }
-        
-        // 提交事務
-        await connection.commit();
-        console.log(`第 ${dayNumber} 天結算成功完成（事務已提交）`);
-        
+
+        if (!useExternalConn) {
+            await connection.commit();
+        }
+        console.log(`第 ${dayNumber} 天結算成功完成`);
+
         return { success: true, message: '結算完成' };
-        
+
     } catch (error) {
-        // 發生錯誤，回滾事務
-        await connection.rollback();
-        console.error('結算失敗，事務已回滾:', error);
+        if (!useExternalConn) {
+            await connection.rollback();
+        }
+        console.error('結算失敗:', error);
         throw error;
-        
+
     } finally {
-        // 釋放連接
-        connection.release();
+        if (!useExternalConn) {
+            connection.release();
+        }
     }
 }
 
@@ -3200,7 +3169,7 @@ app.post('/api/admin/game-parameters', authenticateToken, requireAdmin, async (r
 });
 
 // ===== 資料庫診斷 API =====
-app.get('/api/debug/database-status', async (req, res) => {
+app.get('/api/debug/database-status', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const report = {
             timestamp: new Date().toISOString(),
@@ -3299,86 +3268,8 @@ app.get('/api/debug/database-status', async (req, res) => {
     }
 });
 
-// ===== 新增：遊戲控制 API =====
-
-// 暫停遊戲
-app.post('/admin/games/:gameId/pause', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    
-    try {
-        // 檢查遊戲狀態
-        const [game] = await pool.execute(
-            'SELECT * FROM games WHERE id = ?',
-            [gameId]
-        );
-        
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        if (game[0].status !== 'active') {
-            return res.status(400).json({ error: '只有進行中的遊戲可以暫停' });
-        }
-        
-        // 更新狀態為暫停
-        await pool.execute(
-            'UPDATE games SET status = ?, paused_at = NOW() WHERE id = ?',
-            ['paused', gameId]
-        );
-        
-        // 通知所有連接的客戶端
-        io.to(`game-${gameId}`).emit('gameStatusUpdate', {
-            status: 'paused',
-            message: '遊戲已暫停'
-        });
-        
-        res.json({ message: '遊戲已暫停' });
-    } catch (error) {
-        console.error('暫停遊戲失敗:', error);
-        res.status(500).json({ error: '暫停遊戲失敗' });
-    }
-});
-
-// 恢復遊戲
-app.post('/admin/games/:gameId/resume', authenticateToken, requireAdmin, async (req, res) => {
-    const { gameId } = req.params;
-    
-    try {
-        // 檢查遊戲狀態
-        const [game] = await pool.execute(
-            'SELECT * FROM games WHERE id = ?',
-            [gameId]
-        );
-        
-        if (game.length === 0) {
-            return res.status(404).json({ error: '遊戲不存在' });
-        }
-        
-        if (game[0].status !== 'paused') {
-            return res.status(400).json({ error: '只有暫停的遊戲可以恢復' });
-        }
-        
-        // 更新狀態為進行中
-        await pool.execute(
-            'UPDATE games SET status = ?, paused_at = NULL WHERE id = ?',
-            ['active', gameId]
-        );
-        
-        // 通知所有連接的客戶端
-        io.to(`game-${gameId}`).emit('gameStatusUpdate', {
-            status: 'active',
-            message: '遊戲已恢復'
-        });
-        
-        res.json({ message: '遊戲已恢復' });
-    } catch (error) {
-        console.error('恢復遊戲失敗:', error);
-        res.status(500).json({ error: '恢復遊戲失敗' });
-    }
-});
-
 // 強制結束遊戲（計算 ROI）
-app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/admin/games/:gameId/force-end', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
 
     const connection = await pool.getConnection();
@@ -3401,7 +3292,10 @@ app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, asyn
             await connection.rollback();
             return res.status(400).json({ error: '遊戲已結束' });
         }
-        
+
+        // 停止計時器（避免 force-end 後殘留 timer 回呼覆蓋遊戲狀態）
+        stopTimer(gameId);
+
         // 獲取當前天數
         const [currentDay] = await connection.execute(
             'SELECT * FROM game_days WHERE game_id = ? ORDER BY day_number DESC LIMIT 1',
@@ -3421,7 +3315,7 @@ app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, asyn
             }
             
             // 執行當天結算（強制計算 ROI）
-            await forceEndDailySettlement(connection, gameId, currentDay[0].id, currentDayNumber, true);
+            await forceEndDailySettlement(connection, gameId, currentDay[0].id, currentDayNumber);
             
             await connection.execute(
                 'UPDATE game_days SET status = ? WHERE id = ?',
@@ -3463,17 +3357,10 @@ app.post('/admin/games/:gameId/force-end', authenticateToken, requireAdmin, asyn
 });
 
 // 強制結束時的結算函數（計算 ROI）
-async function forceEndDailySettlement(connection, gameId, gameDayId, dayNumber, isForceEnd = true) {
+async function forceEndDailySettlement(connection, gameId, gameDayId, dayNumber) {
     console.log(`開始強制結束結算（第 ${dayNumber} 天）`);
-    
-    // 直接調用 enhancedDailySettlement，但使用 connection 而不是 pool
-    // 創建一個模擬的 pool 對象以適配
-    const mockPool = {
-        getConnection: async () => connection
-    };
-    
-    // 調用原始的 enhancedDailySettlement，傳入 isForceEnd = true
-    await enhancedDailySettlement(mockPool, gameId, gameDayId, dayNumber, true);
+    // 使用外部事務連接，避免嵌套事務
+    await enhancedDailySettlement(pool, gameId, gameDayId, dayNumber, { externalConnection: connection });
 }
 
 // 計算最終 ROI（用於已結算但需要強制結束的情況）
@@ -3509,7 +3396,7 @@ async function calculateFinalROI(connection, gameId, dayNumber) {
              WHERE team_id = ? 
              ORDER BY id DESC 
              LIMIT 1`,
-            [roi.toFixed(2), participant.team_id]
+            [roi.toFixed(4), participant.team_id]
         );
         
         console.log(`團隊 ${participant.team_id} 強制結束 ROI: ${roi.toFixed(2)}%`);
