@@ -259,28 +259,35 @@
     <!-- 簡單範例 -->
     <section>
         <h2>簡單範例</h2>
-        <p>假設你的組有 $1,000,000 現金，今天 A 級魚供應 300kg、餐廳預算 $150,000：</p>
+        <p>3 組人買賣同一批魚，跟著數字走一遍：</p>
 
         <div class="example">
-            <h4>買入階段 — 出價高的先拿貨</h4>
+            <h4>早上買魚 — 出價高的先拿貨（今日供應 200kg）</h4>
             <table>
-                <tr><th>組別</th><th>出價</th><th>數量</th><th>結果</th></tr>
-                <tr><td>你的組</td><td>$250/kg</td><td>100kg</td><td class="result">全部成交（出價最高）</td></tr>
-                <tr><td>第 3 組</td><td>$200/kg</td><td>150kg</td><td class="result">成交 150kg</td></tr>
-                <tr><td>第 5 組</td><td>$180/kg</td><td>100kg</td><td class="fail">成交 50kg（剩餘量不夠）</td></tr>
+                <tr><th>組別</th><th>出價</th><th>想買</th><th>結果</th></tr>
+                <tr><td>你</td><td>$200/kg</td><td>100kg</td><td class="result">買到 100kg，花 $20,000</td></tr>
+                <tr><td>B 組</td><td>$150/kg</td><td>100kg</td><td class="result">買到 100kg，花 $15,000</td></tr>
+                <tr><td>C 組</td><td>$100/kg</td><td>100kg</td><td class="fail">供應量用完，買到 0kg</td></tr>
             </table>
-            <p style="margin-top:8px;font-size:.88em;color:#64748b">你花了 100kg × $250 = <strong>$25,000</strong> 買到 100kg A 級魚。</p>
         </div>
 
         <div class="example">
-            <h4>賣出階段 — 出價低的先成交</h4>
+            <h4>下午賣魚 — 出價低的先成交（餐廳預算 $60,000）</h4>
             <table>
-                <tr><th>組別</th><th>出價</th><th>數量</th><th>結果</th></tr>
-                <tr><td>第 3 組</td><td>$350/kg</td><td>100kg</td><td class="result">成交 100kg（出價最低）</td></tr>
-                <tr><td>你的組</td><td>$400/kg</td><td>100kg</td><td class="result">成交 100kg</td></tr>
-                <tr><td>第 5 組</td><td>$500/kg</td><td>50kg</td><td class="fail">最高價 → 2.5% 滯銷 2kg</td></tr>
+                <tr><th>組別</th><th>出價</th><th>想賣</th><th>結果</th></tr>
+                <tr><td>B 組</td><td>$300/kg</td><td>100kg</td><td class="result">全賣，收 $30,000（最低價先賣）</td></tr>
+                <tr><td>你</td><td>$400/kg</td><td>100kg</td><td class="fail">只賣 75kg（預算剩 $30,000）</td></tr>
             </table>
-            <p style="margin-top:8px;font-size:.88em;color:#64748b">你收入 100kg × $400 = <strong>$40,000</strong>。今日利潤 = $40,000 - $25,000 = <strong style="color:#15803d">+$15,000</strong></p>
+            <p style="margin-top:10px;font-size:.88em;color:#64748b">
+                你賣 75kg 收 $30,000，剩 25kg 賣不掉 → 滯銷處理費 25 × $10 = $250<br>
+                <strong>今日利潤 = $30,000 - $20,000 - $250 = <span style="color:#15803d">+$9,750</span></strong>
+            </p>
+        </div>
+
+        <div class="warn" style="margin-top:14px">
+            <strong>賣出兩大風險：</strong><br>
+            ① <strong>預算用完</strong> — 餐廳錢花光就不買了，出價高的排後面，可能賣不掉（如上例）<br>
+            ② <strong>最高價強制滯銷</strong> — 出最高價的人，2.5% 數量直接被判滯銷，就算預算還夠也沒用
         </div>
     </section>
 
