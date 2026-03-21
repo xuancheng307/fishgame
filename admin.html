@@ -537,10 +537,10 @@
                         displayGameControlPanel(activeGame);
                         break;
                     case 'bidding-results':
-                        populateDaySelectors();
+                        populateDaySelectors('bidding-results');
                         break;
                     case 'daily-stats':
-                        populateDaySelectors();
+                        populateDaySelectors('daily-stats');
                         break;
                 }
                 
@@ -571,11 +571,12 @@
         }
 
         // Populate day selectors based on activeGame data
-        function populateDaySelectors() {
+        function populateDaySelectors(autoLoad) {
             if (!activeGame) return;
-            
+
             const currentDay = activeGame.current_day;
-            
+            const phase = activeGame.phase; // pending, buying_open, buying_closed, selling_open, selling_closed, settled
+
             // Update bidding results day selector
             const biddingDaySelect = document.getElementById('biddingDaySelect');
             if (biddingDaySelect) {
@@ -583,14 +584,41 @@
                 for (let i = 1; i <= currentDay; i++) {
                     biddingDaySelect.innerHTML += `<option value="${i}">第 ${i} 天</option>`;
                 }
+                // Auto-select current day
+                if (autoLoad === 'bidding-results') {
+                    biddingDaySelect.value = String(currentDay);
+                    // Auto-select bid type based on phase
+                    const typeSelect = document.getElementById('biddingTypeSelect');
+                    if (typeSelect) {
+                        if (phase === 'buying_open' || phase === 'buying_closed') {
+                            typeSelect.value = 'buy';
+                        } else if (phase === 'selling_open' || phase === 'selling_closed') {
+                            typeSelect.value = 'sell';
+                        } else {
+                            typeSelect.value = 'all';
+                        }
+                    }
+                    loadBiddingResults();
+                }
             }
-            
+
             // Update daily stats day selector
             const statsDaySelect = document.getElementById('statsDaySelect');
             if (statsDaySelect) {
                 statsDaySelect.innerHTML = '<option value="">選擇天數</option>';
                 for (let i = 1; i <= currentDay; i++) {
                     statsDaySelect.innerHTML += `<option value="${i}">第 ${i} 天</option>`;
+                }
+                // Auto-select the latest day with completed selling
+                if (autoLoad === 'daily-stats') {
+                    // If current day is settled, show current day
+                    // If current day is still in progress (pending/buying/selling), show previous day (if exists)
+                    let defaultDay = currentDay;
+                    if (phase !== 'settled' && currentDay > 1) {
+                        defaultDay = currentDay - 1;
+                    }
+                    statsDaySelect.value = String(defaultDay);
+                    loadDailyStats();
                 }
             }
         }
