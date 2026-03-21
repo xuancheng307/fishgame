@@ -60,8 +60,7 @@
 <div class="modal-overlay" id="pwdModal">
     <div class="modal-box">
         <h3 data-i18n="st.changepw.title">修改密碼</h3>
-        <input type="password" id="newPwd" data-i18n-ph="st.changepw.ph" placeholder="輸入新密碼">
-        <input type="password" id="confirmPwd" data-i18n-ph="st.changepw.ph2" placeholder="再次輸入新密碼">
+        <input type="text" id="newPwd" data-i18n-ph="st.changepw.ph" placeholder="輸入新密碼">
         <div class="btn-row">
             <button class="btn" onclick="closePwdModal()" style="background:#e5e7eb;color:#333;" data-i18n="st.changepw.cancel">取消</button>
             <button class="btn btn-primary" onclick="changePwd()" data-i18n="st.changepw.submit">確認修改</button>
@@ -437,7 +436,6 @@ function logout() {
 function showChangePwd() {
     document.getElementById('pwdModal').classList.add('active');
     document.getElementById('newPwd').value = '';
-    document.getElementById('confirmPwd').value = '';
     document.getElementById('newPwd').focus();
 }
 function closePwdModal() {
@@ -445,23 +443,20 @@ function closePwdModal() {
 }
 async function changePwd() {
     const np = document.getElementById('newPwd').value.trim();
-    const cp = document.getElementById('confirmPwd').value.trim();
     const isEn = localStorage.getItem('i18n_lang') === 'en';
     if (!np) return alert(isEn ? 'Please enter a new password' : '請輸入新密碼');
-    if (np !== cp) return alert(isEn ? 'Passwords do not match' : '兩次密碼不一致');
     try {
         const res = await fetch('/api/users/settings', {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
             body: JSON.stringify({ newPassword: np })
         });
-        const data = await res.json();
         if (res.ok) {
-            alert(isEn ? 'Password changed successfully! Please login again.' : '密碼修改成功！請重新登入。');
+            alert(isEn ? 'Your new password is: ' + np : '你的新密碼是：' + np);
             closePwdModal();
-            logout();
         } else {
-            alert(data.error || (isEn ? 'Failed to change password' : '修改失敗'));
+            const data = await res.json();
+            alert(data.error || (isEn ? 'Failed' : '修改失敗'));
         }
     } catch (e) {
         alert(isEn ? 'Network error' : '網路錯誤');
