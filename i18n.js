@@ -65,6 +65,13 @@
         'st.bids.qty': 'Qty',
         'st.bids.filled': 'Filled',
         'st.bids.status': 'Status',
+        // Change password
+        'st.changepw.btn': 'Password',
+        'st.changepw.title': 'Change Password',
+        'st.changepw.ph': 'Enter new password',
+        'st.changepw.ph2': 'Confirm new password',
+        'st.changepw.cancel': 'Cancel',
+        'st.changepw.submit': 'Confirm',
 
         // ===== login.html =====
         'login.title': 'Fish Market Game',

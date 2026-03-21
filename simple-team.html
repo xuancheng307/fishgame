@@ -46,9 +46,28 @@
         .name-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1em; margin-bottom: 12px; }
         .hidden { display: none; }
         #alertBox { position: fixed; top: 16px; right: 16px; z-index: 1000; max-width: 360px; }
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.4); z-index:2000; justify-content:center; align-items:center; }
+        .modal-overlay.active { display:flex; }
+        .modal-box { background:white; border-radius:12px; padding:24px; width:90%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,.2); }
+        .modal-box h3 { margin-bottom:16px; font-size:1.1em; }
+        .modal-box input { width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:1em; margin-bottom:12px; box-sizing:border-box; }
+        .modal-box .btn-row { display:flex; gap:8px; justify-content:flex-end; }
     </style>
 </head>
 <body>
+
+<!-- 改密碼 modal -->
+<div class="modal-overlay" id="pwdModal">
+    <div class="modal-box">
+        <h3 data-i18n="st.changepw.title">修改密碼</h3>
+        <input type="password" id="newPwd" data-i18n-ph="st.changepw.ph" placeholder="輸入新密碼">
+        <input type="password" id="confirmPwd" data-i18n-ph="st.changepw.ph2" placeholder="再次輸入新密碼">
+        <div class="btn-row">
+            <button class="btn" onclick="closePwdModal()" style="background:#e5e7eb;color:#333;" data-i18n="st.changepw.cancel">取消</button>
+            <button class="btn btn-primary" onclick="changePwd()" data-i18n="st.changepw.submit">確認修改</button>
+        </div>
+    </div>
+</div>
 
 <div class="header">
     <div>
@@ -58,6 +77,7 @@
     <div>
         <button id="langToggle" onclick="toggleLang()" style="background:rgba(255,255,255,.2);color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;margin-right:8px;font-size:.85em;">EN</button>
         <a href="game-instructions.html" style="color:white;margin-right:12px;font-size:.9em;" data-i18n="st.instructions">遊戲說明</a>
+        <button onclick="showChangePwd()" data-i18n="st.changepw.btn" style="margin-right:8px;">改密碼</button>
         <button onclick="logout()" data-i18n="st.logout">登出</button>
     </div>
 </div>
@@ -412,6 +432,40 @@ async function submitSellBids() {
 function logout() {
     localStorage.clear();
     window.location.href = 'login.html';
+}
+
+function showChangePwd() {
+    document.getElementById('pwdModal').classList.add('active');
+    document.getElementById('newPwd').value = '';
+    document.getElementById('confirmPwd').value = '';
+    document.getElementById('newPwd').focus();
+}
+function closePwdModal() {
+    document.getElementById('pwdModal').classList.remove('active');
+}
+async function changePwd() {
+    const np = document.getElementById('newPwd').value.trim();
+    const cp = document.getElementById('confirmPwd').value.trim();
+    const isEn = localStorage.getItem('i18n_lang') === 'en';
+    if (!np) return alert(isEn ? 'Please enter a new password' : '請輸入新密碼');
+    if (np !== cp) return alert(isEn ? 'Passwords do not match' : '兩次密碼不一致');
+    try {
+        const res = await fetch('/api/users/settings', {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newPassword: np })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert(isEn ? 'Password changed successfully! Please login again.' : '密碼修改成功！請重新登入。');
+            closePwdModal();
+            logout();
+        } else {
+            alert(data.error || (isEn ? 'Failed to change password' : '修改失敗'));
+        }
+    } catch (e) {
+        alert(isEn ? 'Network error' : '網路錯誤');
+    }
 }
 
 // Initial load
