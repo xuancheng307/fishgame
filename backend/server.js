@@ -137,40 +137,43 @@ async function initDatabase() {
         
         console.log('資料庫連接成功');
         
-        // 建立所有必要的資料表
+        // 建立所有必要的資料表（以 Railway 生產 DB 為準）
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS users (
                 id INT PRIMARY KEY AUTO_INCREMENT,
-                username VARCHAR(255) UNIQUE NOT NULL,
+                username VARCHAR(50) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
-                team_name VARCHAR(255),
-                role ENUM('admin', 'team') NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                plain_password VARCHAR(50),
+                role ENUM('admin', 'team') NOT NULL DEFAULT 'team',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                team_name VARCHAR(100)
             )
         `);
-        
+
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS games (
                 id INT PRIMARY KEY AUTO_INCREMENT,
-                name VARCHAR(100),
+                name VARCHAR(100) NOT NULL,
                 description TEXT,
                 status ENUM('pending', 'active', 'paused', 'finished', 'force_ended') DEFAULT 'pending',
                 phase ENUM('waiting', 'buying', 'buying_closed', 'selling', 'selling_closed', 'settling', 'day_ended') DEFAULT 'waiting',
                 total_days INT NOT NULL DEFAULT 7,
-                current_day INT DEFAULT 0,
-                num_teams INT NOT NULL DEFAULT 12,
-                initial_budget DECIMAL(12, 2) NOT NULL,
-                daily_interest_rate DECIMAL(5, 4) DEFAULT 0.0001,
-                loan_interest_rate DECIMAL(5, 4) NOT NULL DEFAULT 0.03,
-                max_loan_ratio DECIMAL(5, 2) DEFAULT 2.00,
+                current_day INT NOT NULL DEFAULT 0,
+                num_teams INT NOT NULL DEFAULT 10,
+                initial_budget DECIMAL(12, 2) NOT NULL DEFAULT 1000000.00,
+                daily_interest_rate DECIMAL(5, 4) NOT NULL DEFAULT 0.0300,
+                loan_interest_rate DECIMAL(5, 4) NOT NULL DEFAULT 0.0300,
+                max_loan_ratio DECIMAL(5, 2) NOT NULL DEFAULT 0.50,
                 unsold_fee_per_kg DECIMAL(10, 2) NOT NULL DEFAULT 10.00,
                 fixed_unsold_ratio DECIMAL(5, 2) NOT NULL DEFAULT 2.50,
-                distributor_floor_price_a DECIMAL(10, 2) DEFAULT 100.00,
-                distributor_floor_price_b DECIMAL(10, 2) DEFAULT 100.00,
-                target_price_a DECIMAL(10, 2) NOT NULL DEFAULT 500.00,
-                target_price_b DECIMAL(10, 2) NOT NULL DEFAULT 300.00,
-                buying_duration INT DEFAULT 7,
-                selling_duration INT DEFAULT 4,
+                distributor_floor_price_a DECIMAL(10, 2) NOT NULL DEFAULT 100.00,
+                distributor_floor_price_b DECIMAL(10, 2) NOT NULL DEFAULT 80.00,
+                target_price_a DECIMAL(10, 2) NOT NULL DEFAULT 150.00,
+                target_price_b DECIMAL(10, 2) NOT NULL DEFAULT 120.00,
+                buying_duration INT NOT NULL DEFAULT 7,
+                selling_duration INT NOT NULL DEFAULT 4,
+                enable_randomness TINYINT(1) NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 team_names JSON,
@@ -179,72 +182,88 @@ async function initDatabase() {
                 force_end_day INT
             )
         `);
-        
+
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS game_participants (
                 id INT PRIMARY KEY AUTO_INCREMENT,
-                game_id INT,
-                team_id INT,
-                current_budget DECIMAL(15, 2) NOT NULL,
-                total_loan DECIMAL(15, 2) DEFAULT 0.00,
-                total_loan_principal DECIMAL(15, 2) DEFAULT 0.00,
-                fish_a_inventory INT DEFAULT 0,
-                fish_b_inventory INT DEFAULT 0,
-                cumulative_profit DECIMAL(15, 2) DEFAULT 0.00,
-                roi DECIMAL(10, 4) DEFAULT 0.0000,
+                game_id INT NOT NULL,
+                team_id INT NOT NULL,
+                team_name VARCHAR(100),
+                current_budget DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                total_loan DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                total_loan_principal DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                fish_a_inventory INT NOT NULL DEFAULT 0,
+                fish_b_inventory INT NOT NULL DEFAULT 0,
+                cumulative_profit DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                roi DECIMAL(10, 4) NOT NULL DEFAULT 0.0000,
+                status ENUM('active', 'bankrupt', 'withdrawn') NOT NULL DEFAULT 'active',
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE(game_id, team_id),
                 FOREIGN KEY (game_id) REFERENCES games(id),
                 FOREIGN KEY (team_id) REFERENCES users(id)
             )
         `);
-        
+
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS game_days (
                 id INT PRIMARY KEY AUTO_INCREMENT,
-                game_id INT,
+                game_id INT NOT NULL,
                 day_number INT NOT NULL,
-                fish_a_supply INT NOT NULL,
-                fish_b_supply INT NOT NULL,
-                fish_a_restaurant_budget DECIMAL(15, 2) NOT NULL,
-                fish_b_restaurant_budget DECIMAL(15, 2) NOT NULL,
                 status ENUM('pending', 'buying_open', 'buying_closed', 'selling_open', 'selling_closed', 'settled') DEFAULT 'pending',
+                fish_a_supply INT NOT NULL DEFAULT 0,
+                fish_b_supply INT NOT NULL DEFAULT 0,
+                fish_a_restaurant_budget DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                fish_b_restaurant_budget DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+                buy_start_time DATETIME,
+                buy_end_time DATETIME,
+                sell_start_time DATETIME,
+                sell_end_time DATETIME,
+                settle_time DATETIME,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE(game_id, day_number),
                 FOREIGN KEY (game_id) REFERENCES games(id)
             )
         `);
-        
+
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS bids (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 game_id INT NOT NULL,
                 game_day_id INT NOT NULL,
-                day_number INT NOT NULL,
+                day_number INT,
                 team_id INT NOT NULL,
                 bid_type ENUM('buy', 'sell') NOT NULL,
                 fish_type ENUM('A', 'B') NOT NULL,
                 price DECIMAL(10, 2) NOT NULL,
                 quantity_submitted INT NOT NULL,
                 quantity_fulfilled INT DEFAULT 0,
-                status ENUM('pending', 'fulfilled', 'partial', 'failed') DEFAULT 'pending',
+                status ENUM('pending', 'fulfilled', 'partial', 'failed') NOT NULL DEFAULT 'pending',
+                price_index INT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (game_id) REFERENCES games(id),
                 FOREIGN KEY (game_day_id) REFERENCES game_days(id),
                 FOREIGN KEY (team_id) REFERENCES users(id),
                 INDEX idx_game_bids (game_id, day_number)
             )
         `);
-        
+
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS game_logs (
                 id INT PRIMARY KEY AUTO_INCREMENT,
-                game_id INT,
-                action VARCHAR(50),
-                details TEXT,
+                game_id INT NOT NULL,
+                day_number INT,
+                action VARCHAR(50) NOT NULL,
+                actor_id INT,
+                actor_type ENUM('admin', 'team', 'system') NOT NULL,
+                details JSON,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (game_id) REFERENCES games(id)
             )
         `);
-        
+
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS daily_results (
                 id INT PRIMARY KEY AUTO_INCREMENT,
@@ -274,11 +293,13 @@ async function initDatabase() {
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 game_day_id INT NOT NULL,
                 team_id INT NOT NULL,
-                transaction_type ENUM('buy', 'sell') NOT NULL,
-                fish_type ENUM('A', 'B') NOT NULL,
-                quantity INT NOT NULL,
-                price_per_unit DECIMAL(10, 2) NOT NULL,
-                total_amount DECIMAL(15, 2) NOT NULL,
+                transaction_type ENUM('buy', 'sell', 'loan', 'interest', 'unsold_fee', 'initial_budget') NOT NULL,
+                fish_type ENUM('A', 'B'),
+                quantity INT,
+                price_per_unit DECIMAL(10, 2),
+                total_amount DECIMAL(12, 2) NOT NULL,
+                balance_after DECIMAL(12, 2),
+                description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (game_day_id) REFERENCES game_days(id),
                 FOREIGN KEY (team_id) REFERENCES users(id),
@@ -294,12 +315,12 @@ async function initDatabase() {
         );
         
         if (adminExists.length === 0) {
-            const hashedPassword = await bcrypt.hash('123', 10);
+            const hashedPassword = await bcrypt.hash('admin', 10);
             await connection.execute(
                 'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
                 ['admin', hashedPassword, 'admin']
             );
-            console.log('預設管理員帳號已建立 - 帳號: admin, 密碼: 123');
+            console.log('預設管理員帳號已建立 - 帳號: admin, 密碼: admin');
         }
         
         // 建立01-12的團隊帳號
@@ -380,6 +401,23 @@ async function initDatabase() {
                     FOREIGN KEY (game_id) REFERENCES games(id)
                 `);
                 console.log('   ✅ bids.game_id 欄位已添加');
+            }
+
+            // 3. 檢查並添加 games.enable_randomness 欄位（供需隨機開關）
+            const [gamesCols] = await pool.execute(`
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'games'
+            `);
+            const gamesColumns = gamesCols.map(col => col.COLUMN_NAME);
+            if (!gamesColumns.includes('enable_randomness')) {
+                console.log('   添加 games.enable_randomness 欄位...');
+                await pool.execute(`
+                    ALTER TABLE games
+                    ADD COLUMN enable_randomness TINYINT(1) NOT NULL DEFAULT 0 AFTER selling_duration
+                `);
+                console.log('   ✅ games.enable_randomness 欄位已添加');
             }
 
             console.log('✅ 資料庫架構檢查完成');
@@ -533,6 +571,11 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// 驗證 token 並返回用戶資訊
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+    res.json({ userId: req.user.userId, username: req.user.username, role: req.user.role });
+});
+
 // 更新用戶設定 (小組名稱和密碼)
 app.put('/api/users/settings', authenticateToken, async (req, res) => {
     const { teamName, newPassword } = req.body;
@@ -586,13 +629,13 @@ app.post('/api/admin/reset-all-passwords', authenticateToken, requireAdmin, asyn
     try {
         console.log('===== 開始重置所有用戶密碼 =====');
 
-        // 重置 admin 密碼為 "123"（與 initDatabase 一致）
-        const adminHash = await bcrypt.hash('123', 10);
+        // 重置 admin 密碼為 "admin"
+        const adminHash = await bcrypt.hash('admin', 10);
         await pool.execute(
             'UPDATE users SET password_hash = ? WHERE username = ?',
             [adminHash, 'admin']
         );
-        console.log('✅ Admin 密碼已重置為: 123');
+        console.log('✅ Admin 密碼已重置為: admin');
 
         // 重置所有學生帳號密碼為其用戶名 (01 -> 01, 02 -> 02, etc.)
         const [students] = await pool.execute(
@@ -616,7 +659,7 @@ app.post('/api/admin/reset-all-passwords', authenticateToken, requireAdmin, asyn
         res.json({
             message: `成功重置 ${resetCount + 1} 個帳號密碼`,
             details: {
-                admin: '123',
+                admin: 'admin',
                 students: '密碼重置為各自的用戶名',
                 teamNamesCleared: true
             }
@@ -642,7 +685,8 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         numTeams,
         totalDays,  // 新增：可配置的遊戲天數
         buyingDuration,  // 買入階段時間（分鐘）
-        sellingDuration  // 賣出階段時間（分鐘）
+        sellingDuration,  // 賣出階段時間（分鐘）
+        enableRandomness  // 供需隨機開關（0=固定乘數表, 1=固定乘數表+±20%隨機）
     } = req.body;
 
     // 詳細記錄請求參數（用於調試）
@@ -663,8 +707,8 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
                 name, initial_budget, loan_interest_rate,
                 unsold_fee_per_kg, fixed_unsold_ratio, distributor_floor_price_a, distributor_floor_price_b,
                 target_price_a, target_price_b, num_teams, total_days,
-                buying_duration, selling_duration
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                buying_duration, selling_duration, enable_randomness
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 gameName,
                 initialBudget || defaultGameParameters.initialBudget,
@@ -678,7 +722,8 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
                 teamCount,
                 totalDays || defaultGameParameters.totalDays,
                 buyingDuration || 7,  // 買入階段時間（分鐘）
-                sellingDuration || 4  // 賣出階段時間（分鐘）
+                sellingDuration || 4,  // 賣出階段時間（分鐘）
+                enableRandomness ? 1 : 0  // 預設關閉
             ]
         );
         
@@ -813,7 +858,6 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
             targetPriceA: game.target_price_a,
             targetPriceB: game.target_price_b,
             numTeams: game.num_teams,
-            createdBy: game.created_by,
             createdAt: game.created_at,
             participantCount: game.participant_count,
             phase: game.day_status || game.phase || 'waiting'  // 優先使用 day_status，回退到 games.phase
@@ -879,7 +923,6 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
             targetPriceA: gameData.target_price_a,
             targetPriceB: gameData.target_price_b,
             numTeams: gameData.num_teams,
-            createdBy: gameData.created_by,
             createdAt: gameData.created_at,
             dayStatus: gameData.day_status,
             dayNumber: gameData.day_number,
@@ -1043,10 +1086,8 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
                 [gameId, currentDay]
             );
 
-            // 使用正確的 status 欄位和狀態名稱
-            // 允許 sell_closed 或 completed 狀態才能進入下一天
+            // 只有結算完成才能進入下一天（防止跳過結算）
             if (currentDayRecord.length > 0 &&
-                currentDayRecord[0].status !== 'selling_closed' &&
                 currentDayRecord[0].status !== 'settled') {
                 return res.status(400).json({ error: `請先完成第${currentDay}天的結算` });
             }
@@ -1114,10 +1155,11 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
                     break;
             }
             
-            // 隨機因子：±5%的額外變動
-            const randomFactorA = 0.95 + Math.random() * 0.1;
-            const randomFactorB = 0.95 + Math.random() * 0.1;
-            
+            // 隨機因子：enable_randomness=1 時 ±20%，否則無隨機
+            const useRandom = !!game[0].enable_randomness;
+            const randomFactorA = useRandom ? (0.8 + Math.random() * 0.4) : 1;
+            const randomFactorB = useRandom ? (0.8 + Math.random() * 0.4) : 1;
+
             fishASupply = Math.round(baselineSupplyA * supplyMultiplierA * randomFactorA);
             fishBSupply = Math.round(baselineSupplyB * supplyMultiplierB * randomFactorB);
             fishABudget = Math.ceil(baselineBudgetA * budgetMultiplierA * randomFactorA / 50000) * 50000;
@@ -1568,12 +1610,16 @@ app.post('/api/admin/games/:gameId/settle', authenticateToken, requireAdmin, asy
         // 此處只做利息、滯銷費、daily_results 記錄
         await enhancedDailySettlement(pool, gameId, currentDay[0].id, currentDay[0].day_number);
         
-        // 使用正確的狀態名稱
+        // 更新 game_days.status 和 games.phase
         await pool.execute(
             'UPDATE game_days SET status = ? WHERE id = ?',
             ['settled', currentDay[0].id]
         );
-        
+        await pool.execute(
+            'UPDATE games SET phase = ? WHERE id = ?',
+            ['day_ended', gameId]
+        );
+
         // 檢查是否為最後一天
         const [settleGame] = await pool.execute('SELECT total_days FROM games WHERE id = ?', [gameId]);
         if (currentDay[0].day_number >= settleGame[0].total_days) {
@@ -2014,30 +2060,69 @@ app.post('/api/team/submit-buy-bids', authenticateToken, async (req, res) => {
             }
         }
         
-        // 檢查資金是否足夠（貸款不超過初始預算的50%）
+        // 回滾舊投標的貸款（防止重新提交時累積不必要的貸款）
+        const [oldBids] = await pool.execute(
+            'SELECT SUM(price * quantity_submitted) as old_total FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "buy"',
+            [gameDayId, teamId]
+        );
+        const oldBidTotal = Number(oldBids[0].old_total) || 0;
+        if (oldBidTotal > 0) {
+            // 找出上一次結算後的貸款本金（= 不含本次投標的歷史本金）
+            const [prevResult] = await pool.execute(
+                `SELECT closing_loan FROM daily_results
+                 WHERE game_id = ? AND team_id = ?
+                 ORDER BY day_number DESC LIMIT 1`,
+                [gameId, teamId]
+            );
+            // 若無歷史結算（第1天），歷史本金=0
+            const prevClosingLoan = prevResult.length > 0 ? Number(prevResult[0].closing_loan) : 0;
+            const curLoan = Number(teamData.total_loan) || 0;
+            const curPrincipal = Number(teamData.total_loan_principal) || 0;
+            // bid_time_loan 加到 total_loan 和 total_loan_principal 相同金額
+            // total_loan = prevClosingLoan + bid_time_loan (interest 在結算時才加)
+            const bidTimeLoan = Math.max(0, curLoan - prevClosingLoan);
+            if (bidTimeLoan > 0) {
+                await pool.execute(
+                    `UPDATE game_participants
+                     SET total_loan = total_loan - ?,
+                         total_loan_principal = total_loan_principal - ?,
+                         current_budget = current_budget - ?
+                     WHERE team_id = ? AND game_id = ?`,
+                    [bidTimeLoan, bidTimeLoan, bidTimeLoan, teamId, gameId]
+                );
+                // 重新讀取更新後的資料
+                const [updatedParticipant] = await pool.execute(
+                    'SELECT * FROM game_participants WHERE team_id = ? AND game_id = ?',
+                    [teamId, gameId]
+                );
+                Object.assign(teamData, updatedParticipant[0]);
+            }
+        }
+
+        // 檢查資金是否足夠（貸款本金不超過初始預算的50%）
         // 注意：MySQL DECIMAL 欄位返回字串，必須用 Number() 轉換才能正確做加法
         const currentBudget = Number(teamData.current_budget) || 0;
-        const currentLoan = Number(teamData.total_loan) || 0;
+        const currentLoanPrincipal = Number(teamData.total_loan_principal) || 0;
         const initialBudget = Number(game.initial_budget) || 1000000;
-        const maxTotalLoan = initialBudget * 0.5;  // 最大貸款為初始預算的50%
+        const maxTotalLoan = initialBudget * 0.5;  // 最大貸款本金為初始預算的50%
 
         // 計算需要借貸的金額
         const loanNeeded = Math.max(0, totalBidAmount - currentBudget);
-        const newTotalLoan = currentLoan + loanNeeded;
-        
-        // 檢查貸款上限
-        if (newTotalLoan > maxTotalLoan) {
-            return res.status(400).json({ 
-                error: `貸款總額 $${newTotalLoan.toFixed(2)} 超過上限 $${maxTotalLoan.toFixed(2)} (初始預算的50%)`,
+        const newTotalLoanPrincipal = currentLoanPrincipal + loanNeeded;
+
+        // 檢查貸款本金上限（與結算的緊急貸款邏輯一致）
+        if (newTotalLoanPrincipal > maxTotalLoan) {
+            return res.status(400).json({
+                error: `貸款本金 $${newTotalLoanPrincipal.toFixed(2)} 超過上限 $${maxTotalLoan.toFixed(2)} (初始預算的50%)`,
                 currentBudget: currentBudget,
-                currentLoan: currentLoan,
+                currentLoanPrincipal: currentLoanPrincipal,
                 loanNeeded: loanNeeded,
                 totalBidAmount: totalBidAmount,
                 maxTotalLoan: maxTotalLoan
             });
         }
-        
-        // 開始交易：刪除舊的買入投標
+
+        // 刪除舊的買入投標
         await pool.execute(
             'DELETE FROM bids WHERE game_day_id = ? AND team_id = ? AND bid_type = "buy"',
             [gameDayId, teamId]

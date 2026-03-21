@@ -426,7 +426,7 @@
         // 顯示遊戲歷史
         function displayGameHistory(data) {
             const gamesList = document.getElementById('gamesList');
-            const games = data.games || [];
+            const games = Array.isArray(data) ? data : (data.games || []);
             
             if (games.length === 0) {
                 showNoData();
@@ -462,16 +462,16 @@
                 : '<div style="text-align: center; color: #999;">尚無排名資料</div>';
             
             return `
-                <div class="game-card ${statusClass}" onclick="viewGameDetails(${game.game_id})">
+                <div class="game-card ${statusClass}" onclick="viewGameDetails(${game.id})">
                     <div class="game-header">
-                        <div class="game-title">${game.game_name}</div>
+                        <div class="game-title">${game.name}</div>
                         <span class="game-status ${statusStyle}">${statusText}</span>
                     </div>
                     
                     <div class="game-info">
                         <div class="info-item">
                             <span class="info-label">遊戲ID:</span>
-                            <span class="info-value">#${game.game_id}</span>
+                            <span class="info-value">#${game.id}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">參與隊伍:</span>

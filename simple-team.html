@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學生端 - 魚市場遊戲</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, 'Microsoft JhengHei', 'Segoe UI', sans-serif; background: #f5f7fa; color: #333; }
+        .header { background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.2em; }
+        .header .info { font-size: .9em; opacity: .85; }
+        .header button { background: rgba(255,255,255,.2); color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; }
+        .container { max-width: 800px; margin: 0 auto; padding: 16px; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+        .card h2 { font-size: 1.1em; margin-bottom: 12px; color: #1e293b; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+        .stat { background: #f8fafc; padding: 12px; border-radius: 8px; text-align: center; }
+        .stat .label { font-size: .8em; color: #64748b; }
+        .stat .value { font-size: 1.2em; font-weight: 700; color: #1e293b; margin-top: 4px; }
+        .phase-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: .85em; font-weight: 600; }
+        .phase-buying { background: #dbeafe; color: #1d4ed8; }
+        .phase-selling { background: #fef3c7; color: #92400e; }
+        .phase-settled { background: #d1fae5; color: #065f46; }
+        .phase-waiting { background: #f1f5f9; color: #475569; }
+        .timer { font-size: 1.8em; font-weight: 700; color: #dc2626; text-align: center; padding: 12px; }
+        .bid-form { margin-top: 12px; }
+        .bid-row { display: grid; grid-template-columns: 80px 1fr 1fr; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .bid-row label { font-weight: 600; font-size: .9em; }
+        .bid-row input { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .95em; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: .95em; font-weight: 600; cursor: pointer; transition: .15s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-join { background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; width: 100%; padding: 14px; font-size: 1.1em; }
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; font-size: .9em; }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: .9em; margin-top: 8px; }
+        .results-table th, .results-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        .results-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .name-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1em; margin-bottom: 12px; }
+        .hidden { display: none; }
+        #alertBox { position: fixed; top: 16px; right: 16px; z-index: 1000; max-width: 360px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>魚市場遊戲</h1>
+        <span class="info" id="userInfo"></span>
+    </div>
+    <div>
+        <a href="game-instructions.html" style="color:white;margin-right:12px;font-size:.9em;">遊戲說明</a>
+        <button onclick="logout()">登出</button>
+    </div>
+</div>
+
+<div id="alertBox"></div>
+
+<div class="container">
+    <!-- 加入遊戲 -->
+    <div id="joinSection" class="card hidden">
+        <h2>加入遊戲</h2>
+        <p style="margin-bottom:12px;color:#64748b;">輸入你的組名，然後加入當前遊戲</p>
+        <input type="text" class="name-input" id="teamNameInput" placeholder="輸入組名（選填）">
+        <button class="btn btn-join" onclick="joinGame()">一鍵加入遊戲</button>
+    </div>
+
+    <!-- 遊戲狀態 -->
+    <div id="gameSection" class="hidden">
+        <!-- 狀態概覽 -->
+        <div class="card">
+            <h2>遊戲狀態</h2>
+            <div id="gameStatus"></div>
+            <div id="timerDisplay" class="timer hidden"></div>
+        </div>
+
+        <!-- 財務狀況 -->
+        <div class="card">
+            <h2>我的財務</h2>
+            <div id="financials" class="stats"></div>
+        </div>
+
+        <!-- 買入投標 -->
+        <div id="buySection" class="card hidden">
+            <h2>買入投標</h2>
+            <div id="marketInfo" class="alert alert-info" style="margin-bottom:12px;"></div>
+            <div class="bid-form">
+                <p style="font-weight:600;margin-bottom:8px;">A 級魚</p>
+                <div class="bid-row">
+                    <label>標單 1</label>
+                    <input type="number" id="buyA1Price" placeholder="價格" min="0">
+                    <input type="number" id="buyA1Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <div class="bid-row">
+                    <label>標單 2</label>
+                    <input type="number" id="buyA2Price" placeholder="價格（選填）" min="0">
+                    <input type="number" id="buyA2Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <p style="font-weight:600;margin:12px 0 8px;">B 級魚</p>
+                <div class="bid-row">
+                    <label>標單 1</label>
+                    <input type="number" id="buyB1Price" placeholder="價格" min="0">
+                    <input type="number" id="buyB1Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <div class="bid-row">
+                    <label>標單 2</label>
+                    <input type="number" id="buyB2Price" placeholder="價格（選填）" min="0">
+                    <input type="number" id="buyB2Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <button class="btn btn-primary" onclick="submitBuyBids()" style="margin-top:12px;width:100%;">送出買入投標</button>
+            </div>
+        </div>
+
+        <!-- 賣出投標 -->
+        <div id="sellSection" class="card hidden">
+            <h2>賣出投標</h2>
+            <div id="inventoryInfo" class="alert alert-info" style="margin-bottom:12px;"></div>
+            <div class="bid-form">
+                <p style="font-weight:600;margin-bottom:8px;">A 級魚</p>
+                <div class="bid-row">
+                    <label>標單 1</label>
+                    <input type="number" id="sellA1Price" placeholder="價格" min="0">
+                    <input type="number" id="sellA1Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <div class="bid-row">
+                    <label>標單 2</label>
+                    <input type="number" id="sellA2Price" placeholder="價格（選填）" min="0">
+                    <input type="number" id="sellA2Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <p style="font-weight:600;margin:12px 0 8px;">B 級魚</p>
+                <div class="bid-row">
+                    <label>標單 1</label>
+                    <input type="number" id="sellB1Price" placeholder="價格" min="0">
+                    <input type="number" id="sellB1Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <div class="bid-row">
+                    <label>標單 2</label>
+                    <input type="number" id="sellB2Price" placeholder="價格（選填）" min="0">
+                    <input type="number" id="sellB2Qty" placeholder="數量 (kg)" min="0">
+                </div>
+                <button class="btn btn-success" onclick="submitSellBids()" style="margin-top:12px;width:100%;">送出賣出投標</button>
+            </div>
+        </div>
+
+        <!-- 歷史結果 -->
+        <div class="card">
+            <h2>每日結果</h2>
+            <div id="dailyResults"><p style="color:#94a3b8;">尚無結算資料</p></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+const username = localStorage.getItem('username');
+
+if (!token) { window.location.href = 'login.html'; }
+
+document.getElementById('userInfo').textContent = `組別: ${username}`;
+
+const socket = io({ auth: { token } });
+let dashboardData = null;
+
+// --- Socket events ---
+socket.on('phaseChange', () => refreshDashboard());
+socket.on('gameUpdate', () => refreshDashboard());
+socket.on('buyingResults', () => refreshDashboard());
+socket.on('sellingResults', () => refreshDashboard());
+socket.on('timer', (data) => {
+    const timerEl = document.getElementById('timerDisplay');
+    if (data.remaining > 0) {
+        const min = Math.floor(data.remaining / 60);
+        const sec = data.remaining % 60;
+        timerEl.textContent = `⏱ ${min}:${String(sec).padStart(2, '0')}`;
+        timerEl.classList.remove('hidden');
+    } else {
+        timerEl.classList.add('hidden');
+        refreshDashboard();
+    }
+});
+
+// --- API helpers ---
+async function apiFetch(url, options = {}) {
+    const res = await fetch(url, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...options.headers }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '請求失敗');
+    return data;
+}
+
+function showAlert(msg, type = 'info') {
+    const box = document.getElementById('alertBox');
+    const el = document.createElement('div');
+    el.className = `alert alert-${type}`;
+    el.textContent = msg;
+    box.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+}
+
+function fmt(n) { return Number(n || 0).toLocaleString('zh-TW', { maximumFractionDigits: 0 }); }
+
+// --- Main flow ---
+async function refreshDashboard() {
+    try {
+        dashboardData = await apiFetch(`${API}/team/dashboard`);
+        document.getElementById('joinSection').classList.add('hidden');
+        document.getElementById('gameSection').classList.remove('hidden');
+        renderDashboard(dashboardData);
+    } catch (err) {
+        if (err.message.includes('尚未加入') || err.message.includes('沒有進行中')) {
+            document.getElementById('joinSection').classList.remove('hidden');
+            document.getElementById('gameSection').classList.add('hidden');
+        } else {
+            showAlert(err.message, 'error');
+        }
+    }
+}
+
+function renderDashboard(data) {
+    const gi = data.gameInfo;
+    const fi = data.financials;
+    const phase = gi.dayStatus;
+
+    // Phase mapping for display
+    const phaseNames = {
+        'pending': '等待中', 'buying_open': '買入投標中', 'buying_closed': '買入結算完成',
+        'selling_open': '賣出投標中', 'selling_closed': '賣出結算完成', 'settled': '每日結算完成'
+    };
+    const phaseClass = phase.includes('buy') ? 'buying' : phase.includes('sell') ? 'selling' : phase === 'settled' ? 'settled' : 'waiting';
+
+    document.getElementById('gameStatus').innerHTML = `
+        <div class="stats">
+            <div class="stat"><div class="label">遊戲</div><div class="value">${gi.gameName || '進行中'}</div></div>
+            <div class="stat"><div class="label">目前天數</div><div class="value">第 ${gi.currentDay} 天</div></div>
+            <div class="stat"><div class="label">階段</div><div class="value"><span class="phase-badge phase-${phaseClass}">${phaseNames[phase] || phase}</span></div></div>
+        </div>
+    `;
+
+    document.getElementById('financials').innerHTML = `
+        <div class="stat"><div class="label">現金</div><div class="value">$${fmt(fi.currentBudget)}</div></div>
+        <div class="stat"><div class="label">借貸</div><div class="value">$${fmt(fi.totalLoan)}</div></div>
+        <div class="stat"><div class="label">A 級魚庫存</div><div class="value">${fi.fishAInventory || 0} kg</div></div>
+        <div class="stat"><div class="label">B 級魚庫存</div><div class="value">${fi.fishBInventory || 0} kg</div></div>
+    `;
+
+    // Show/hide bid sections based on phase
+    const buySection = document.getElementById('buySection');
+    const sellSection = document.getElementById('sellSection');
+    buySection.classList.toggle('hidden', phase !== 'buying_open');
+    sellSection.classList.toggle('hidden', phase !== 'selling_open');
+
+    // Market info for buying
+    if (phase === 'buying_open' && data.marketInfo) {
+        const cd = data.marketInfo;
+        document.getElementById('marketInfo').innerHTML =
+            `今日供應：A 級 <b>${cd.fishASupply || 0} kg</b>、B 級 <b>${cd.fishBSupply || 0} kg</b><br>` +
+            `餐廳預算：A 級 <b>$${fmt(cd.fishABudget)}</b>、B 級 <b>$${fmt(cd.fishBBudget)}</b><br>` +
+            `你的現金：<b>$${fmt(fi.currentBudget)}</b>`;
+    }
+
+    // Inventory info for selling
+    if (phase === 'selling_open') {
+        document.getElementById('inventoryInfo').innerHTML =
+            `你的庫存：A 級 <b>${fi.fishAInventory || 0} kg</b>、B 級 <b>${fi.fishBInventory || 0} kg</b>`;
+    }
+
+    // Daily results
+    if (data.history && data.history.length > 0) {
+        let html = '<table class="results-table"><tr><th>天</th><th>收入</th><th>成本</th><th>滯銷費</th><th>利息</th><th>日利潤</th><th>累積利潤</th><th>ROI</th></tr>';
+        for (const r of data.history) {
+            html += `<tr>
+                <td>${r.day_number}</td>
+                <td>$${fmt(r.revenue)}</td>
+                <td>$${fmt(r.cost)}</td>
+                <td>$${fmt(r.unsold_fee)}</td>
+                <td>$${fmt(r.interest_incurred)}</td>
+                <td style="color:${Number(r.daily_profit) >= 0 ? '#16a34a' : '#dc2626'}">$${fmt(r.daily_profit)}</td>
+                <td>$${fmt(r.cumulative_profit)}</td>
+                <td>${Number(r.roi).toFixed(1)}%</td>
+            </tr>`;
+        }
+        html += '</table>';
+        document.getElementById('dailyResults').innerHTML = html;
+    }
+}
+
+async function joinGame() {
+    try {
+        const teamName = document.getElementById('teamNameInput').value.trim();
+        await apiFetch(`${API}/team/join-current`, {
+            method: 'POST', body: JSON.stringify({ teamName: teamName || undefined })
+        });
+        showAlert('成功加入遊戲！', 'success');
+        refreshDashboard();
+    } catch (err) {
+        showAlert(err.message, 'error');
+    }
+}
+
+function collectBids(prefix, type) {
+    const bids = [];
+    for (const fish of ['A', 'B']) {
+        for (const idx of ['1', '2']) {
+            const price = Number(document.getElementById(`${prefix}${fish}${idx}Price`).value);
+            const qty = Number(document.getElementById(`${prefix}${fish}${idx}Qty`).value);
+            if (price > 0 && qty > 0) {
+                bids.push({ fishType: fish, price, quantity: qty });
+            }
+        }
+    }
+    return bids;
+}
+
+async function submitBuyBids() {
+    const bids = collectBids('buy', 'buy');
+    if (bids.length === 0) { showAlert('請至少填寫一筆投標', 'error'); return; }
+    try {
+        const result = await apiFetch(`${API}/team/submit-buy-bids`, {
+            method: 'POST', body: JSON.stringify({ buyBids: bids })
+        });
+        showAlert(`買入投標已送出（${result.summary?.bidsSubmitted || bids.length} 筆）`, 'success');
+        refreshDashboard();
+    } catch (err) {
+        showAlert(err.message, 'error');
+    }
+}
+
+async function submitSellBids() {
+    const bids = collectBids('sell', 'sell');
+    if (bids.length === 0) { showAlert('請至少填寫一筆投標', 'error'); return; }
+    try {
+        await apiFetch(`${API}/team/submit-sell-bids`, {
+            method: 'POST', body: JSON.stringify({ sellBids: bids })
+        });
+        showAlert(`賣出投標已送出（${bids.length} 筆）`, 'success');
+        refreshDashboard();
+    } catch (err) {
+        showAlert(err.message, 'error');
+    }
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = 'login.html';
+}
+
+// Initial load
+refreshDashboard();
+</script>
+</body>
+</html>

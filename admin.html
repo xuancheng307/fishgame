@@ -349,6 +349,13 @@
                             <label class="form-label">賣出投標時間 (分鐘)</label>
                             <input type="number" class="form-input" id="sellingDuration" value="4" min="1" max="30">
                         </div>
+                        <div class="form-group">
+                            <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="enableRandomness">
+                                啟用供需隨機 (±20%)
+                            </label>
+                            <small style="color:#888;">關閉時使用固定乘數表，開啟後在固定乘數基礎上加 ±20% 隨機擾動</small>
+                        </div>
                     </div>
                     <div style="text-align: center; margin-top: 30px;">
                         <button type="submit" class="btn btn-primary" style="padding: 15px 40px; font-size: 16px;">
@@ -639,7 +646,8 @@
                 targetPriceB: parseInt(document.getElementById('targetPriceB').value),
                 fixedUnsoldRatio: parseFloat(document.getElementById('fixedUnsoldRatio').value),
                 buyingDuration: parseInt(document.getElementById('buyingDuration').value),
-                sellingDuration: parseInt(document.getElementById('sellingDuration').value)
+                sellingDuration: parseInt(document.getElementById('sellingDuration').value),
+                enableRandomness: document.getElementById('enableRandomness').checked
             };
 
             try {
@@ -668,6 +676,7 @@
                     document.getElementById('fixedUnsoldRatio').value = '2.5';
                     document.getElementById('buyingDuration').value = '7';
                     document.getElementById('sellingDuration').value = '4';
+                    document.getElementById('enableRandomness').checked = false;
                 } else {
                     showAlert('遊戲創建失敗: ' + result.error, 'error');
                 }
@@ -913,8 +922,8 @@
             // Debug: 顯示當前狀態
             console.log('當前遊戲階段:', gameStatus.phase, '→ 映射後:', phase);
             
-            // Day advancement
-            if (phase === 'pending' || phase === 'day_ended') {
+            // Day advancement (settled = game_days.status after settlement)
+            if (phase === 'pending' || phase === 'day_ended' || phase === 'settled') {
                 html += `
                     <div style="margin-bottom: 15px;">
                         <button class="btn btn-success" onclick="advanceDay()">
@@ -954,15 +963,24 @@
                 `;
             }
             
-            // Settlement
-            if (phase === 'selling_closed' || phase === 'settled') {
+            // Settlement (only show when selling is closed but not yet settled)
+            if (phase === 'selling_closed') {
                 html += `
                     <button class="btn btn-success" onclick="settleDailyResults()">
                         💎 執行每日結算
                     </button>
                 `;
             }
-            
+
+            // Force end game (always available)
+            html += `
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+                    <button class="btn" style="background:#dc3545;color:white;" onclick="forceEndGame()">
+                        ⚠️ 強制結束遊戲
+                    </button>
+                </div>
+            `;
+
             return html;
         }
         
@@ -1002,7 +1020,7 @@
             if (!confirm('確定要推進到下一天嗎？')) return;
             
             try {
-                const response = await fetch(`/api/admin/games/${activeGame.id}/next-day`, {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/advance-day`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1082,7 +1100,7 @@
         }
         
         async function startSelling() {
-            const duration = prompt('請輸入賣出投標時間 (分鐘):', '5');
+            const duration = prompt('請輸入賣出投標時間 (分鐘):', '4');
             if (!duration) return;
             
             try {
@@ -1161,6 +1179,29 @@
             }
         }
 
+
+        async function forceEndGame() {
+            if (!confirm('確定要強制結束遊戲嗎？此操作無法撤銷！')) return;
+            try {
+                const response = await fetch(`/api/admin/games/${activeGame.id}/force-end`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showAlert('遊戲已強制結束', 'success');
+                    loadActiveGameData('game-control');
+                } else {
+                    showAlert('強制結束失敗: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error force-ending game:', error);
+                showAlert('強制結束失敗: 網路錯誤', 'error');
+            }
+        }
 
         // Load bidding results - 使用新的 bid-summary API
         async function loadBiddingResults() {
@@ -1523,22 +1564,25 @@
             `;
             
             data.results.forEach((result, index) => {
-                const profitClass = result.daily_profit >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
-                const roiClass = result.roi >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
+                const dp = Number(result.daily_profit) || 0;
+                const cp = Number(result.cumulative_profit) || 0;
+                const roiVal = Number(result.roi) || 0;
+                const profitClass = dp >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
+                const roiClass = roiVal >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
                 
                 html += `
                     <tr>
                         <td><strong>${index + 1}</strong></td>
                         <td>${result.team_name || `團隊${result.username}`}</td>
-                        <td>$${(result.starting_cash || 0).toLocaleString()}</td>
-                        <td>$${(result.ending_cash || 0).toLocaleString()}</td>
-                        <td>$${(result.buy_cost || 0).toLocaleString()}</td>
-                        <td>$${(result.sell_revenue || 0).toLocaleString()}</td>
-                        <td>$${(result.unsold_fee || 0).toLocaleString()}</td>
-                        <td>$${(result.interest_paid || 0).toLocaleString()}</td>
-                        <td ${profitClass}>$${(result.daily_profit || 0).toLocaleString()}</td>
-                        <td ${profitClass}>$${(result.cumulative_profit || 0).toLocaleString()}</td>
-                        <td ${roiClass}>${(result.roi || 0).toFixed(2)}%</td>
+                        <td>$${(Number(result.closing_budget) - Number(result.daily_profit) || 0).toLocaleString()}</td>
+                        <td>$${(Number(result.closing_budget) || 0).toLocaleString()}</td>
+                        <td>$${(Number(result.cost) || 0).toLocaleString()}</td>
+                        <td>$${(Number(result.revenue) || 0).toLocaleString()}</td>
+                        <td>$${(Number(result.unsold_fee) || 0).toLocaleString()}</td>
+                        <td>$${(Number(result.interest_incurred) || 0).toLocaleString()}</td>
+                        <td ${profitClass}>$${dp.toLocaleString()}</td>
+                        <td ${profitClass}>$${cp.toLocaleString()}</td>
+                        <td ${roiClass}>${roiVal.toFixed(2)}%</td>
                     </tr>
                 `;
             });
@@ -1546,9 +1590,9 @@
             html += '</tbody></table></div>';
             
             // Add summary statistics
-            const totalRevenue = data.results.reduce((sum, r) => sum + (r.sell_revenue || 0), 0);
-            const totalCost = data.results.reduce((sum, r) => sum + (r.buy_cost || 0), 0);
-            const totalProfit = data.results.reduce((sum, r) => sum + (r.daily_profit || 0), 0);
+            const totalRevenue = data.results.reduce((sum, r) => sum + (Number(r.revenue) || 0), 0);
+            const totalCost = data.results.reduce((sum, r) => sum + (Number(r.cost) || 0), 0);
+            const totalProfit = data.results.reduce((sum, r) => sum + (Number(r.daily_profit) || 0), 0);
             
             html += `
                 <div class="card">
