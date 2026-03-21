@@ -57,7 +57,7 @@
         'st.ph.priceOpt': 'Price (optional)',
         'st.ph.teamName': 'Team name (optional)',
         // Bid history
-        'st.bids.title': 'Today\'s Bids',
+        'st.bids.title': 'Bid History',
         'st.bids.buy': 'Buy Bids',
         'st.bids.sell': 'Sell Bids',
         'st.bids.fish': 'Fish',

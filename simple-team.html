@@ -149,9 +149,9 @@
             </div>
         </div>
 
-        <!-- 本日投標紀錄 -->
+        <!-- 投標紀錄 -->
         <div class="card" id="myBidsCard" style="display:none;">
-            <h2 data-i18n="st.bids.title">本日投標紀錄</h2>
+            <h2 data-i18n="st.bids.title">投標紀錄</h2>
             <div id="myBidsContent"></div>
         </div>
 
@@ -288,30 +288,44 @@ function renderDashboard(data) {
             `<span data-i18n="st.inventory" data-val-a="${fi.fishAInventory || 0}" data-val-b="${fi.fishBInventory || 0}">你的庫存：A 級 <b>${fi.fishAInventory || 0} kg</b>、B 級 <b>${fi.fishBInventory || 0} kg</b></span>`;
     }
 
-    // My bids for today
+    // Bid history (all days)
     const bidsCard = document.getElementById('myBidsCard');
     if (data.myBids && data.myBids.length > 0) {
         bidsCard.style.display = '';
-        const buyBids = data.myBids.filter(b => b.bid_type === 'buy');
-        const sellBids = data.myBids.filter(b => b.bid_type === 'sell');
-        let bhtml = '';
-        if (buyBids.length > 0) {
-            bhtml += `<h3 style="font-size:.95em;margin-bottom:6px;" data-i18n="st.bids.buy">買入投標</h3>`;
-            bhtml += '<table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
-            for (const b of buyBids) {
-                const filled = b.quantity_fulfilled != null ? b.quantity_fulfilled : '-';
-                bhtml += `<tr><td>${b.fish_type}</td><td>$${fmt(b.price)}</td><td>${b.quantity_submitted} kg</td><td>${filled === '-' ? '-' : filled + ' kg'}</td><td>${bidStatusText(b.status)}</td></tr>`;
-            }
-            bhtml += '</table>';
+        // Group by day
+        const byDay = {};
+        for (const b of data.myBids) {
+            const d = b.day_number;
+            if (!byDay[d]) byDay[d] = [];
+            byDay[d].push(b);
         }
-        if (sellBids.length > 0) {
-            bhtml += `<h3 style="font-size:.95em;margin:12px 0 6px;" data-i18n="st.bids.sell">賣出投標</h3>`;
-            bhtml += '<table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
-            for (const b of sellBids) {
-                const filled = b.quantity_fulfilled != null ? b.quantity_fulfilled : '-';
-                bhtml += `<tr><td>${b.fish_type}</td><td>$${fmt(b.price)}</td><td>${b.quantity_submitted} kg</td><td>${filled === '-' ? '-' : filled + ' kg'}</td><td>${bidStatusText(b.status)}</td></tr>`;
+        const isEn = localStorage.getItem('i18n_lang') === 'en';
+        let bhtml = '';
+        // Sort days descending (newest first)
+        const days = Object.keys(byDay).map(Number).sort((a, b) => b - a);
+        for (const day of days) {
+            const dayBids = byDay[day];
+            const buyBids = dayBids.filter(b => b.bid_type === 'buy');
+            const sellBids = dayBids.filter(b => b.bid_type === 'sell');
+            bhtml += `<h3 style="font-size:1em;margin:${day === days[0] ? '0' : '16px'} 0 8px;color:#1e293b;border-bottom:1px solid #e5e7eb;padding-bottom:4px;">${isEn ? 'Day ' + day : '第 ' + day + ' 天'}</h3>`;
+            if (buyBids.length > 0) {
+                bhtml += `<h4 style="font-size:.9em;margin-bottom:4px;color:#1d4ed8;" data-i18n="st.bids.buy">買入投標</h4>`;
+                bhtml += '<table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
+                for (const b of buyBids) {
+                    const filled = b.quantity_fulfilled != null ? b.quantity_fulfilled : '-';
+                    bhtml += `<tr><td>${b.fish_type}</td><td>$${fmt(b.price)}</td><td>${b.quantity_submitted} kg</td><td>${filled === '-' ? '-' : filled + ' kg'}</td><td>${bidStatusText(b.status)}</td></tr>`;
+                }
+                bhtml += '</table>';
             }
-            bhtml += '</table>';
+            if (sellBids.length > 0) {
+                bhtml += `<h4 style="font-size:.9em;margin:8px 0 4px;color:#92400e;" data-i18n="st.bids.sell">賣出投標</h4>`;
+                bhtml += '<table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
+                for (const b of sellBids) {
+                    const filled = b.quantity_fulfilled != null ? b.quantity_fulfilled : '-';
+                    bhtml += `<tr><td>${b.fish_type}</td><td>$${fmt(b.price)}</td><td>${b.quantity_submitted} kg</td><td>${filled === '-' ? '-' : filled + ' kg'}</td><td>${bidStatusText(b.status)}</td></tr>`;
+                }
+                bhtml += '</table>';
+            }
         }
         document.getElementById('myBidsContent').innerHTML = bhtml;
     } else {

@@ -1968,18 +1968,15 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
             [req.user.userId, currentGame.id]
         );
 
-        // 查詢當天自己的投標紀錄
-        const myBids = [];
-        if (currentDay[0]) {
-            const [bids] = await pool.execute(
-                `SELECT bid_type, fish_type, price, quantity_submitted, quantity_fulfilled, status, created_at
-                 FROM bids
-                 WHERE game_day_id = ? AND team_id = ?
-                 ORDER BY bid_type, fish_type, price DESC`,
-                [currentDay[0].id, req.user.userId]
-            );
-            myBids.push(...bids);
-        }
+        // 查詢所有天數的投標紀錄
+        const [myBids] = await pool.execute(
+            `SELECT b.bid_type, b.fish_type, b.price, b.quantity_submitted, b.quantity_fulfilled, b.status, b.created_at, gd.day_number
+             FROM bids b
+             JOIN game_days gd ON b.game_day_id = gd.id
+             WHERE gd.game_id = ? AND b.team_id = ?
+             ORDER BY gd.day_number DESC, b.bid_type, b.fish_type, b.price DESC`,
+            [currentGame.id, req.user.userId]
+        );
 
         res.json({
             gameInfo: {
