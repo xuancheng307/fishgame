@@ -121,7 +121,21 @@
         'gi.roi.desc': 'At game end, the team with the <strong>highest ROI (Return on Investment) wins</strong>:',
         'gi.roi.formula': 'ROI = Cumulative Profit \u00f7 (Initial Capital + Loan Principal) \u00d7 100%',
         'gi.roi.daily': 'Daily Profit = Sales Revenue \u2212 Purchase Cost \u2212 Unsold Fees \u2212 Loan Interest',
-        'gi.roi.warn': '<strong>Note:</strong> The more you borrow, the larger the denominator, making ROI harder to increase. Loans are not free!'
+        'gi.roi.warn': '<strong>Note:</strong> The more you borrow, the larger the denominator, making ROI harder to increase. Loans are not free!',
+
+        // ===== index.html =====
+        'idx.login.btn': 'Go to Login',
+        'idx.howto.title': 'How to Play?',
+        'idx.howto.1.t': 'Log in with your account',
+        'idx.howto.1.d': 'Username = your team number (01\u201312), default password = username',
+        'idx.howto.2.t': 'Join the game',
+        'idx.howto.2.d': 'Click "Join Game" to enter the teacher\'s game session; you can set a team name',
+        'idx.howto.3.t': 'Wait for bidding to open',
+        'idx.howto.3.d': 'A countdown timer appears on screen; fill in price and quantity before time runs out',
+        'idx.howto.4.t': 'View results',
+        'idx.howto.4.d': 'After each phase, you can see trade results and current rankings',
+        'idx.ready': 'Ready?',
+        'idx.login.start': 'Login to Start Playing'
     };
 
     var lang = localStorage.getItem('i18n_lang') || 'zh';
