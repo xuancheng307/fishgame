@@ -962,14 +962,12 @@
         // Generate control buttons based on game status
         function generateControlButtons(gameStatus) {
             let html = '';
-            
+
             if (gameStatus.status === 'completed') {
                 html += '<div class="alert alert-info">遊戲已結束</div>';
                 return html;
             }
-            
-            // 映射後端phase值到前端期望的值
-            // 資料庫 game_days.status 標準值: pending, buying_open, buying_closed, selling_open, selling_closed, settled
+
             const phaseMapping = {
                 'pending': 'pending',
                 'buying_open': 'buying',
@@ -980,65 +978,65 @@
             };
             const phase = phaseMapping[gameStatus.phase] || gameStatus.phase;
 
-            // Debug: 顯示當前狀態
-            console.log('當前遊戲階段:', gameStatus.phase, '→ 映射後:', phase);
-            
-            // Day advancement (settled = game_days.status after settlement)
-            if (phase === 'pending' || phase === 'day_ended' || phase === 'settled') {
-                html += `
-                    <div style="margin-bottom: 15px;">
-                        <button class="btn btn-success" onclick="advanceDay()">
-                            ➡️ 推進到第 ${gameStatus.currentDay + 1} 天
-                        </button>
-                    </div>
-                `;
-            }
-            
-            // Buying phase controls
+            const btnStyle = (bg, color) => `display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:${bg};color:${color};transition:opacity .15s;`;
+            const stepStyle = (active) => `display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;background:${active ? '#f0f9ff' : '#fafafa'};border:2px solid ${active ? '#3b82f6' : '#e5e7eb'};margin-bottom:10px;`;
+            const stepNum = (n, active) => `display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:13px;font-weight:700;background:${active ? '#3b82f6' : '#d1d5db'};color:white;flex-shrink:0;`;
+            const stepLabel = (active) => `font-size:14px;color:${active ? '#1e293b' : '#94a3b8'};`;
+
+            // Flow: pending → buying → buying_closed → selling → selling_closed → settle → settled
+            const steps = [
+                { id: 'buy', label: '買入投標', phases: ['pending', 'buying', 'buying_closed'] },
+                { id: 'sell', label: '賣出投標', phases: ['buying_closed', 'selling', 'selling_closed'] },
+                { id: 'settle', label: '每日結算', phases: ['selling_closed', 'settled'] }
+            ];
+            const currentStep = steps.findIndex(s => s.phases.includes(phase));
+
+            // Step indicators
+            html += '<div style="display:flex;gap:8px;margin-bottom:16px;">';
+            steps.forEach((s, i) => {
+                const done = i < currentStep;
+                const active = i === currentStep;
+                const dotBg = done ? '#22c55e' : active ? '#3b82f6' : '#d1d5db';
+                html += `<div style="flex:1;text-align:center;padding:8px;border-radius:8px;background:${done ? '#f0fdf4' : active ? '#eff6ff' : '#f9fafb'};border:1px solid ${done ? '#bbf7d0' : active ? '#bfdbfe' : '#e5e7eb'};">
+                    <div style="${stepNum(i+1, done || active)}">${done ? '✓' : i+1}</div>
+                    <div style="font-size:12px;margin-top:4px;color:${done ? '#16a34a' : active ? '#2563eb' : '#9ca3af'};font-weight:${active ? '700' : '500'};">${s.label}</div>
+                </div>`;
+            });
+            html += '</div>';
+
+            // Action buttons based on phase
+            html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+
             if (phase === 'pending') {
-                html += `
-                    <button class="btn btn-primary" onclick="startBuying()">
-                        🛒 開始買入投標
-                    </button>
-                `;
+                html += `<button style="${btnStyle('#2563eb','white')}" onclick="startBuying()">🛒 開始買入投標</button>`;
             } else if (phase === 'buying') {
-                html += `
-                    <button class="btn btn-warning" onclick="closeBuying()">
-                        ⏹️ 結束買入投標
-                    </button>
-                `;
-            }
-            
-            // Selling phase controls
-            if (phase === 'buying_closed') {
-                html += `
-                    <button class="btn btn-primary" onclick="startSelling()">
-                        💰 開始賣出投標
-                    </button>
-                `;
+                html += `<button style="${btnStyle('#f59e0b','white')}" onclick="closeBuying()">⏹ 結束買入投標</button>`;
+            } else if (phase === 'buying_closed') {
+                html += `<div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button style="${btnStyle('#2563eb','white')}" onclick="startSelling()">💰 開始賣出投標</button>
+                    <button style="${btnStyle('#6366f1','white')}" onclick="startBuying()">🔄 重新開放買入投標</button>
+                </div>`;
             } else if (phase === 'selling') {
-                html += `
-                    <button class="btn btn-warning" onclick="closeSelling()">
-                        ⏹️ 結束賣出投標
-                    </button>
-                `;
-            }
-            
-            // Settlement (only show when selling is closed but not yet settled)
-            if (phase === 'selling_closed') {
-                html += `
-                    <button class="btn btn-success" onclick="settleDailyResults()">
-                        💎 執行每日結算
-                    </button>
-                `;
+                html += `<button style="${btnStyle('#f59e0b','white')}" onclick="closeSelling()">⏹ 結束賣出投標</button>`;
+            } else if (phase === 'selling_closed') {
+                html += `<div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button style="${btnStyle('#16a34a','white')}" onclick="settleDailyResults()">📊 執行每日結算</button>
+                    <button style="${btnStyle('#6366f1','white')}" onclick="startSelling()">🔄 重新開放賣出投標</button>
+                </div>`;
+            } else if (phase === 'settled') {
+                if (gameStatus.currentDay < gameStatus.totalDays) {
+                    html += `<button style="${btnStyle('#2563eb','white')}" onclick="advanceDay()">➡️ 推進到第 ${gameStatus.currentDay + 1} 天</button>`;
+                } else {
+                    html += `<div style="padding:12px;background:#f0fdf4;border-radius:8px;color:#16a34a;font-weight:600;text-align:center;">🎉 所有天數已完成！可結束遊戲。</div>`;
+                }
             }
 
-            // Force end game (always available)
+            html += '</div>';
+
+            // Force end game
             html += `
-                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
-                    <button class="btn" style="background:#dc3545;color:white;" onclick="forceEndGame()">
-                        ⚠️ 強制結束遊戲
-                    </button>
+                <div style="margin-top:20px;padding-top:16px;border-top:1px dashed #e5e7eb;">
+                    <button style="${btnStyle('#dc2626','white')}font-size:13px;padding:8px 16px;" onclick="forceEndGame()">⚠️ 強制結束遊戲</button>
                 </div>
             `;
 

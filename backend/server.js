@@ -1240,19 +1240,17 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
             return res.status(400).json({ error: '請先推進到第一天' });
         }
         
-        // 更詳細的狀態檢查 - 使用正確的 status 欄位
+        // 狀態檢查 - 允許從 pending 或 buying_closed 重新開放買入
         const dayStatus = currentDay[0].status;
         if (dayStatus === 'buying_open') {
             return res.status(400).json({ error: '買入投標已經開放' });
-        } else if (dayStatus === 'buying_closed') {
-            return res.status(400).json({ error: '買入投標已結束，請開始賣出投標' });
         } else if (dayStatus === 'selling_open') {
             return res.status(400).json({ error: '正在賣出投標中' });
         } else if (dayStatus === 'selling_closed') {
             return res.status(400).json({ error: '請先執行結算' });
         } else if (dayStatus === 'settled') {
             return res.status(400).json({ error: '當日已結算，請推進到下一天' });
-        } else if (dayStatus !== 'pending') {
+        } else if (dayStatus !== 'pending' && dayStatus !== 'buying_closed') {
             return res.status(400).json({ error: `當前狀態(${dayStatus})不允許開始買入投標` });
         }
         
@@ -1430,8 +1428,8 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
             return res.status(400).json({ error: '請先推進到第一天' });
         }
         
-        // 使用正確的 status 欄位
-        if (currentDay[0].status !== 'buying_closed') {
+        // 允許從 buying_closed 或 selling_closed 重新開放賣出
+        if (currentDay[0].status !== 'buying_closed' && currentDay[0].status !== 'selling_closed') {
             return res.status(400).json({ error: '請先完成買入投標' });
         }
         
