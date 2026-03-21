@@ -2772,7 +2772,7 @@ app.get('/api/admin/games/:gameId/details', authenticateToken, requireAdmin, asy
         
         // 獲取最終排名
         const [finalRanking] = await pool.execute(
-            `SELECT u.team_name, dr.cumulative_profit, 
+            `SELECT u.team_name, u.username, dr.cumulative_profit,
                     (dr.cumulative_profit / (g.initial_budget + gp.total_loan_principal)) * 100 as roi
              FROM daily_results dr
              JOIN users u ON dr.team_id = u.id

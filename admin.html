@@ -2238,7 +2238,7 @@
                     data.finalRanking.forEach((t, i) => {
                         const roi = parseFloat(t.roi) || 0;
                         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1);
-                        html += `<tr><td>${medal}</td><td>${t.team_name}</td><td style="color:${parseFloat(t.cumulative_profit)>=0?'#16a34a':'#dc2626'}">$${Number(t.cumulative_profit).toLocaleString()}</td><td>${roi.toFixed(2)}%</td></tr>`;
+                        html += `<tr><td>${medal}</td><td>${t.team_name||t.username}</td><td style="color:${parseFloat(t.cumulative_profit)>=0?'#16a34a':'#dc2626'}">$${Number(t.cumulative_profit).toLocaleString()}</td><td>${roi.toFixed(2)}%</td></tr>`;
                     });
                     html += '</tbody></table>';
                 }
