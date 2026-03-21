@@ -253,6 +253,7 @@
         }
     </style>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -282,6 +283,7 @@
                 <div class="tab-item" onclick="switchTab('game-control')">🎮 遊戲控制</div>
                 <div class="tab-item" onclick="switchTab('bidding-results')">📊 競標結果</div>
                 <div class="tab-item" onclick="switchTab('daily-stats')">📈 每日統計</div>
+                <div class="tab-item" onclick="switchTab('charts')">📉 統計圖表</div>
                 <div class="tab-item" onclick="switchTab('game-history')">📋 歷史遊戲</div>
                 <div class="tab-item" onclick="switchTab('qr-code')">📱 QR Code</div>
             </div>
@@ -436,6 +438,51 @@
             <div id="daily-stats-content">
                 <div class="empty-state">
                     📈<br>請選擇天數查看每日統計
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Charts -->
+        <div id="charts" class="tab-pane">
+            <div class="card">
+                <h3>📉 統計圖表</h3>
+                <p style="color:#666;margin-bottom:12px;">需要有已結算的遊戲數據才能顯示圖表</p>
+                <div id="chartGameSelector" style="margin-bottom:16px;"></div>
+            </div>
+            <div id="chartContainer" style="display:none;">
+                <div class="card">
+                    <h4>📈 ROI 走勢圖</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：誰的策略最穩定？哪裡翻盤了？</p>
+                    <div style="position:relative;height:350px;"><canvas id="chartROI"></canvas></div>
+                </div>
+                <div class="card">
+                    <h4>💰 損益結構圖</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：錢花到哪了？為什麼虧？</p>
+                    <div style="margin-bottom:8px;">
+                        <label>選擇天數：</label>
+                        <select id="plDaySelect" onchange="renderPLChart()" style="padding:4px 8px;border-radius:4px;border:1px solid #d1d5db;"></select>
+                    </div>
+                    <div style="position:relative;height:350px;"><canvas id="chartPL"></canvas></div>
+                </div>
+                <div class="card">
+                    <h4>🔄 買賣價差分析</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：買貴了嗎？賣便宜了嗎？價差＝毛利</p>
+                    <div style="margin-bottom:8px;">
+                        <label>天數：</label>
+                        <select id="spreadDaySelect" onchange="renderSpreadChart()" style="padding:4px 8px;border-radius:4px;border:1px solid #d1d5db;"></select>
+                        <label style="margin-left:12px;">魚種：</label>
+                        <select id="spreadFishSelect" onchange="renderSpreadChart()" style="padding:4px 8px;border-radius:4px;border:1px solid #d1d5db;">
+                            <option value="all">全部</option>
+                            <option value="A">A 級魚</option>
+                            <option value="B">B 級魚</option>
+                        </select>
+                    </div>
+                    <div style="position:relative;height:350px;"><canvas id="chartSpread"></canvas></div>
+                </div>
+                <div class="card">
+                    <h4>⚔️ 市場競爭分析</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：市場搶不搶？多少人沒買到？</p>
+                    <div style="position:relative;height:350px;"><canvas id="chartMarket"></canvas></div>
                 </div>
             </div>
         </div>
@@ -662,6 +709,9 @@
                 case 'daily-stats':
                     // These tabs need active game data
                     loadActiveGameData(tabId);
+                    break;
+                case 'charts':
+                    loadChartGameSelector();
                     break;
                 case 'game-history':
                     loadGameHistory();
@@ -1761,16 +1811,6 @@
             contentDiv.innerHTML = html;
         }
 
-        // View game details
-        function viewGameDetails(gameId) {
-            showAlert('遊戲詳情功能開發中...', 'info');
-        }
-
-        // Export game data
-        function exportGameData() {
-            showAlert('資料匯出功能開發中...', 'info');
-        }
-
         // Utility function to show alerts
         function showAlert(message, type = 'info') {
             const alertClass = type === 'success' ? 'alert-success' : 
@@ -1943,6 +1983,276 @@
                 console.error('重置密碼錯誤:', error);
                 alert('❌ 重置密碼失敗: ' + error.message);
             }
+        }
+
+        // ===== P2: Charts =====
+        const CHART_COLORS = ['#2563eb','#dc2626','#16a34a','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1','#14b8a6','#e11d48'];
+        let chartData = null;
+        let chartInstances = {};
+
+        function destroyChart(id) {
+            if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+        }
+
+        async function loadChartGameSelector() {
+            const div = document.getElementById('chartGameSelector');
+            try {
+                const res = await fetch('/api/admin/games', { headers: { 'Authorization': `Bearer ${authToken}` } });
+                const games = await res.json();
+                if (!games.length) { div.innerHTML = '<p style="color:#999;">沒有遊戲資料</p>'; return; }
+                let html = '<label>選擇遊戲：</label><select id="chartGameSelect" onchange="loadChartData()" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;min-width:200px;">';
+                html += '<option value="">-- 請選擇 --</option>';
+                games.forEach(g => { html += `<option value="${g.id}">${g.name} (ID:${g.id}, ${g.status})</option>`; });
+                html += '</select>';
+                div.innerHTML = html;
+                // Auto-select active game if exists
+                const active = games.find(g => g.status === 'active');
+                if (active) {
+                    document.getElementById('chartGameSelect').value = active.id;
+                    loadChartData();
+                }
+            } catch (e) { div.innerHTML = '<p style="color:#dc2626;">載入遊戲列表失敗</p>'; }
+        }
+
+        async function loadChartData() {
+            const gameId = document.getElementById('chartGameSelect')?.value;
+            if (!gameId) { document.getElementById('chartContainer').style.display = 'none'; return; }
+            try {
+                const res = await fetch(`/api/admin/games/${gameId}/chart-data`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                chartData = await res.json();
+                if (!chartData.dailyResults.length) {
+                    document.getElementById('chartContainer').style.display = 'none';
+                    showAlert('此遊戲尚無結算數據', 'info');
+                    return;
+                }
+                document.getElementById('chartContainer').style.display = '';
+                // Populate day selectors
+                const days = chartData.days.map(d => d.day_number);
+                const settledDays = [...new Set(chartData.dailyResults.map(r => r.day_number))];
+                [document.getElementById('plDaySelect'), document.getElementById('spreadDaySelect')].forEach(sel => {
+                    sel.innerHTML = '';
+                    settledDays.forEach(d => { sel.innerHTML += `<option value="${d}">第 ${d} 天</option>`; });
+                    sel.value = settledDays[settledDays.length - 1]; // default to latest
+                });
+                renderROIChart();
+                renderPLChart();
+                renderSpreadChart();
+                renderMarketChart();
+            } catch (e) { showAlert('載入圖表數據失敗', 'error'); }
+        }
+
+        function renderROIChart() {
+            destroyChart('roi');
+            const ctx = document.getElementById('chartROI').getContext('2d');
+            const teams = chartData.teams;
+            const days = [...new Set(chartData.dailyResults.map(r => r.day_number))].sort((a,b) => a-b);
+            const datasets = teams.map((t, i) => {
+                const teamResults = chartData.dailyResults.filter(r => r.team_id === t.id);
+                return {
+                    label: t.team_name || t.username,
+                    data: days.map(d => { const r = teamResults.find(x => x.day_number === d); return r ? parseFloat(r.roi) : null; }),
+                    borderColor: CHART_COLORS[i % CHART_COLORS.length],
+                    backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '33',
+                    tension: 0.3, fill: false, pointRadius: 4
+                };
+            });
+            chartInstances.roi = new Chart(ctx, {
+                type: 'line',
+                data: { labels: days.map(d => '第' + d + '天'), datasets },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { title: { display: true, text: 'ROI (%)' }, ticks: { callback: v => v + '%' } } }
+                }
+            });
+        }
+
+        function renderPLChart() {
+            destroyChart('pl');
+            const day = parseInt(document.getElementById('plDaySelect').value);
+            if (!day) return;
+            const ctx = document.getElementById('chartPL').getContext('2d');
+            const dayResults = chartData.dailyResults.filter(r => r.day_number === day);
+            const labels = dayResults.map(r => r.team_name || 'Team');
+            const revenue = dayResults.map(r => parseFloat(r.revenue));
+            const cost = dayResults.map(r => -parseFloat(r.cost));
+            const unsold = dayResults.map(r => -parseFloat(r.unsold_fee));
+            const interest = dayResults.map(r => -parseFloat(r.interest_incurred));
+            chartInstances.pl = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: '收入', data: revenue, backgroundColor: '#22c55e' },
+                        { label: '成本', data: cost, backgroundColor: '#ef4444' },
+                        { label: '滯銷費', data: unsold, backgroundColor: '#f97316' },
+                        { label: '利息', data: interest, backgroundColor: '#a855f7' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, title: { display: true, text: '金額 ($)' },
+                            ticks: { callback: v => '$' + v.toLocaleString() } }
+                    }
+                }
+            });
+        }
+
+        function renderSpreadChart() {
+            destroyChart('spread');
+            const day = parseInt(document.getElementById('spreadDaySelect').value);
+            const fishFilter = document.getElementById('spreadFishSelect').value;
+            if (!day) return;
+            const ctx = document.getElementById('chartSpread').getContext('2d');
+            const dayBids = chartData.bidSummary.filter(b => b.day_number === day && (fishFilter === 'all' || b.fish_type === fishFilter));
+            // Group by team: avg buy price and avg sell price
+            const teamMap = {};
+            dayBids.forEach(b => {
+                if (!teamMap[b.team_id]) teamMap[b.team_id] = { name: b.team_name, buyTotal: 0, buyQty: 0, sellTotal: 0, sellQty: 0 };
+                const t = teamMap[b.team_id];
+                const avg = parseFloat(b.avg_price) || 0;
+                const qty = parseInt(b.total_qty_fulfilled) || 0;
+                if (b.bid_type === 'buy' && avg > 0) { t.buyTotal += avg * qty; t.buyQty += qty; }
+                if (b.bid_type === 'sell' && avg > 0) { t.sellTotal += avg * qty; t.sellQty += qty; }
+            });
+            const teams = Object.values(teamMap).filter(t => t.buyQty > 0 || t.sellQty > 0);
+            const labels = teams.map(t => t.name);
+            const buyPrices = teams.map(t => t.buyQty > 0 ? t.buyTotal / t.buyQty : null);
+            const sellPrices = teams.map(t => t.sellQty > 0 ? t.sellTotal / t.sellQty : null);
+            chartInstances.spread = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: '平均買入價', data: buyPrices, backgroundColor: '#3b82f6' },
+                        { label: '平均賣出價', data: sellPrices, backgroundColor: '#f59e0b' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { title: { display: true, text: '價格 ($/kg)' }, beginAtZero: false,
+                        ticks: { callback: v => '$' + v } } }
+                }
+            });
+        }
+
+        function renderMarketChart() {
+            destroyChart('market');
+            const ctx = document.getElementById('chartMarket').getContext('2d');
+            const days = chartData.days.map(d => d.day_number);
+            const buyOverview = days.map(d => chartData.marketOverview.find(m => m.day_number === d && m.bid_type === 'buy'));
+            const sellOverview = days.map(d => chartData.marketOverview.find(m => m.day_number === d && m.bid_type === 'sell'));
+            const supply = days.map(d => { const day = chartData.days.find(x => x.day_number === d); return day ? (parseInt(day.fish_a_supply) + parseInt(day.fish_b_supply)) : 0; });
+            chartInstances.market = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: days.map(d => '第' + d + '天'),
+                    datasets: [
+                        { label: '買入投標量 (kg)', data: buyOverview.map(b => b ? parseInt(b.total_submitted) : 0), backgroundColor: '#3b82f680' },
+                        { label: '實際供給量 (kg)', data: supply, backgroundColor: '#22c55e80' },
+                        { label: '買入成交率 (%)', data: buyOverview.map(b => b ? parseFloat(b.fill_rate) : 0),
+                          type: 'line', borderColor: '#dc2626', backgroundColor: '#dc262633', yAxisID: 'y1', pointRadius: 5, tension: 0.3 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        y: { title: { display: true, text: '數量 (kg)' }, position: 'left' },
+                        y1: { title: { display: true, text: '成交率 (%)' }, position: 'right', min: 0, max: 100,
+                            grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } }
+                    }
+                }
+            });
+        }
+
+        // ===== P3: CSV Export =====
+        function exportGameData() {
+            // Get the selected game from history or prompt
+            const gameId = prompt('請輸入要匯出的遊戲 ID:');
+            if (!gameId) return;
+            fetch(`/api/admin/games/${gameId}/chart-data`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+                .then(r => { if (!r.ok) throw new Error('載入失敗'); return r.json(); })
+                .then(data => {
+                    if (!data.dailyResults.length && !data.bidSummary.length) {
+                        showAlert('此遊戲沒有可匯出的數據', 'info'); return;
+                    }
+                    // CSV 1: Rankings
+                    let csv1 = '\uFEFF排名,組別,累積利潤,ROI(%)\n';
+                    const lastDay = Math.max(...data.dailyResults.map(r => r.day_number));
+                    const finalResults = data.dailyResults.filter(r => r.day_number === lastDay).sort((a,b) => parseFloat(b.roi) - parseFloat(a.roi));
+                    finalResults.forEach((r, i) => {
+                        csv1 += `${i+1},${r.team_name},${r.cumulative_profit},${parseFloat(r.roi).toFixed(2)}\n`;
+                    });
+                    downloadCSV(csv1, `遊戲${gameId}_排名總表.csv`);
+
+                    // CSV 2: Daily P&L
+                    let csv2 = '\uFEFF天數,組別,收入,成本,滯銷費,利息,日利潤,累積利潤,ROI(%)\n';
+                    data.dailyResults.forEach(r => {
+                        csv2 += `${r.day_number},${r.team_name},${r.revenue},${r.cost},${r.unsold_fee},${r.interest_incurred},${r.daily_profit},${r.cumulative_profit},${parseFloat(r.roi).toFixed(2)}\n`;
+                    });
+                    downloadCSV(csv2, `遊戲${gameId}_每日損益.csv`);
+
+                    // CSV 3: Bid details
+                    let csv3 = '\uFEFF天數,組別,類型,魚種,均價,投標量,成交量\n';
+                    data.bidSummary.forEach(b => {
+                        csv3 += `${b.day_number},${b.team_name},${b.bid_type === 'buy' ? '買入' : '賣出'},${b.fish_type}級,${b.avg_price ? parseFloat(b.avg_price).toFixed(1) : ''},${b.total_qty_submitted},${b.total_qty_fulfilled}\n`;
+                    });
+                    downloadCSV(csv3, `遊戲${gameId}_投標明細.csv`);
+
+                    showAlert('已匯出 3 個 CSV 檔案', 'success');
+                })
+                .catch(e => showAlert('匯出失敗: ' + e.message, 'error'));
+        }
+
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        // ===== P4: Game History Details =====
+        async function viewGameDetails(gameId) {
+            try {
+                const res = await fetch(`/api/admin/games/${gameId}/details`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                if (!res.ok) throw new Error('載入失敗');
+                const data = await res.json();
+                const g = data.game;
+                let html = `<div class="card" style="background:#f0f9ff;border:1px solid #bfdbfe;">
+                    <h3>📋 遊戲詳情 — ${g.name} (ID: ${g.id})</h3>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0;">
+                        <div><strong>狀態:</strong> ${g.status}</div>
+                        <div><strong>天數:</strong> ${g.total_days} 天</div>
+                        <div><strong>組數:</strong> ${g.num_teams} 組</div>
+                        <div><strong>初始資金:</strong> $${Number(g.initial_budget).toLocaleString()}</div>
+                        <div><strong>貸款利率:</strong> ${(parseFloat(g.loan_interest_rate) * 100).toFixed(1)}%</div>
+                        <div><strong>滯銷費:</strong> $${g.unsold_fee_per_kg}/kg</div>
+                        <div><strong>建立時間:</strong> ${new Date(g.created_at).toLocaleDateString()}</div>
+                    </div>`;
+                if (data.finalRanking && data.finalRanking.length > 0) {
+                    html += `<h4 style="margin-top:16px;">🏆 最終排名</h4>
+                    <table class="table"><thead><tr><th>#</th><th>組別</th><th>累積利潤</th><th>ROI</th></tr></thead><tbody>`;
+                    data.finalRanking.forEach((t, i) => {
+                        const roi = parseFloat(t.roi) || 0;
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1);
+                        html += `<tr><td>${medal}</td><td>${t.team_name}</td><td style="color:${parseFloat(t.cumulative_profit)>=0?'#16a34a':'#dc2626'}">$${Number(t.cumulative_profit).toLocaleString()}</td><td>${roi.toFixed(2)}%</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+                html += `<div style="margin-top:12px;">
+                    <button class="btn btn-primary" onclick="document.getElementById('chartGameSelect')&&(document.getElementById('chartGameSelect').value='${gameId}');switchTab('charts');loadChartData();">📉 查看圖表</button>
+                </div></div>`;
+                // Show in history area
+                const container = document.getElementById('game-history-details') || document.createElement('div');
+                container.id = 'game-history-details';
+                container.innerHTML = html;
+                const historyPane = document.getElementById('game-history');
+                if (!document.getElementById('game-history-details')) historyPane.appendChild(container);
+                container.scrollIntoView({ behavior: 'smooth' });
+            } catch (e) { showAlert('載入遊戲詳情失敗: ' + e.message, 'error'); }
         }
 
         // ===== Socket.io: sync countdown timer with students =====

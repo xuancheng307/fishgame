@@ -2682,6 +2682,67 @@ app.get('/api/admin/games/history', authenticateToken, requireAdmin, async (req,
     }
 });
 
+// 圖表數據 API
+app.get('/api/admin/games/:gameId/chart-data', authenticateToken, requireAdmin, async (req, res) => {
+    const { gameId } = req.params;
+    try {
+        // Teams
+        const [teams] = await pool.execute(
+            `SELECT u.id, u.username, u.team_name
+             FROM game_participants gp JOIN users u ON gp.team_id = u.id
+             WHERE gp.game_id = ? ORDER BY u.username`, [gameId]
+        );
+
+        // Game days
+        const [days] = await pool.execute(
+            `SELECT day_number, fish_a_supply, fish_b_supply,
+                    fish_a_restaurant_budget, fish_b_restaurant_budget
+             FROM game_days WHERE game_id = ? ORDER BY day_number`, [gameId]
+        );
+
+        // Daily results per team
+        const [dailyResults] = await pool.execute(
+            `SELECT dr.day_number, dr.team_id, u.team_name,
+                    dr.revenue, dr.cost, dr.unsold_fee, dr.interest_incurred,
+                    dr.daily_profit, dr.cumulative_profit, dr.roi
+             FROM daily_results dr JOIN users u ON dr.team_id = u.id
+             WHERE dr.game_id = ? ORDER BY dr.day_number, u.username`, [gameId]
+        );
+
+        // Bid summary: weighted avg price per team/day/type/fish
+        const [bidSummary] = await pool.execute(
+            `SELECT b.day_number, b.team_id, u.team_name, b.bid_type, b.fish_type,
+                    CASE WHEN SUM(b.quantity_fulfilled) > 0
+                         THEN SUM(b.price * b.quantity_fulfilled) / SUM(b.quantity_fulfilled)
+                         ELSE NULL END as avg_price,
+                    SUM(b.quantity_submitted) as total_qty_submitted,
+                    SUM(b.quantity_fulfilled) as total_qty_fulfilled
+             FROM bids b JOIN users u ON b.team_id = u.id
+             WHERE b.game_id = ?
+             GROUP BY b.day_number, b.team_id, u.team_name, b.bid_type, b.fish_type
+             ORDER BY b.day_number, u.username, b.bid_type, b.fish_type`, [gameId]
+        );
+
+        // Market overview: total submitted vs fulfilled per day/type
+        const [marketOverview] = await pool.execute(
+            `SELECT b.day_number, b.bid_type,
+                    SUM(b.quantity_submitted) as total_submitted,
+                    SUM(b.quantity_fulfilled) as total_fulfilled,
+                    CASE WHEN SUM(b.quantity_submitted) > 0
+                         THEN SUM(b.quantity_fulfilled) / SUM(b.quantity_submitted) * 100
+                         ELSE 0 END as fill_rate
+             FROM bids b WHERE b.game_id = ?
+             GROUP BY b.day_number, b.bid_type
+             ORDER BY b.day_number, b.bid_type`, [gameId]
+        );
+
+        res.json({ teams, days, dailyResults, bidSummary, marketOverview });
+    } catch (error) {
+        console.error('chart-data error:', error);
+        res.status(500).json({ error: '獲取圖表數據失敗' });
+    }
+});
+
 // 獲取遊戲詳細資料
 app.get('/api/admin/games/:gameId/details', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
