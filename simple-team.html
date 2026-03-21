@@ -39,7 +39,8 @@
         .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
         .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
-        .results-table { width: 100%; border-collapse: collapse; font-size: .9em; margin-top: 8px; }
+        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: .9em; margin-top: 8px; white-space: nowrap; }
         .results-table th, .results-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
         .results-table th { background: #f8fafc; font-weight: 600; color: #475569; }
         .name-input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1em; margin-bottom: 12px; }
@@ -310,21 +311,21 @@ function renderDashboard(data) {
             bhtml += `<h3 style="font-size:1em;margin:${day === days[0] ? '0' : '16px'} 0 8px;color:#1e293b;border-bottom:1px solid #e5e7eb;padding-bottom:4px;">${isEn ? 'Day ' + day : '第 ' + day + ' 天'}</h3>`;
             if (buyBids.length > 0) {
                 bhtml += `<h4 style="font-size:.9em;margin-bottom:4px;color:#1d4ed8;" data-i18n="st.bids.buy">買入投標</h4>`;
-                bhtml += '<table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
+                bhtml += '<div class="table-scroll"><table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
                 for (const b of buyBids) {
                     const filled = b.quantity_fulfilled != null ? b.quantity_fulfilled : '-';
                     bhtml += `<tr><td>${b.fish_type}</td><td>$${fmt(b.price)}</td><td>${b.quantity_submitted} kg</td><td>${filled === '-' ? '-' : filled + ' kg'}</td><td>${bidStatusText(b.status)}</td></tr>`;
                 }
-                bhtml += '</table>';
+                bhtml += '</table></div>';
             }
             if (sellBids.length > 0) {
                 bhtml += `<h4 style="font-size:.9em;margin:8px 0 4px;color:#92400e;" data-i18n="st.bids.sell">賣出投標</h4>`;
-                bhtml += '<table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
+                bhtml += '<div class="table-scroll"><table class="results-table"><tr><th data-i18n="st.bids.fish">魚種</th><th data-i18n="st.bids.price">出價</th><th data-i18n="st.bids.qty">數量</th><th data-i18n="st.bids.filled">成交</th><th data-i18n="st.bids.status">狀態</th></tr>';
                 for (const b of sellBids) {
                     const filled = b.quantity_fulfilled != null ? b.quantity_fulfilled : '-';
                     bhtml += `<tr><td>${b.fish_type}</td><td>$${fmt(b.price)}</td><td>${b.quantity_submitted} kg</td><td>${filled === '-' ? '-' : filled + ' kg'}</td><td>${bidStatusText(b.status)}</td></tr>`;
                 }
-                bhtml += '</table>';
+                bhtml += '</table></div>';
             }
         }
         document.getElementById('myBidsContent').innerHTML = bhtml;
@@ -334,7 +335,7 @@ function renderDashboard(data) {
 
     // Daily results
     if (data.history && data.history.length > 0) {
-        let html = '<table class="results-table"><tr><th data-i18n="st.th.day">天</th><th data-i18n="st.th.revenue">收入</th><th data-i18n="st.th.cost">成本</th><th data-i18n="st.th.unsold">滯銷費</th><th data-i18n="st.th.interest">利息</th><th data-i18n="st.th.daily">日利潤</th><th data-i18n="st.th.cum">累積利潤</th><th data-i18n="st.th.roi">ROI</th></tr>';
+        let html = '<div class="table-scroll"><table class="results-table"><tr><th data-i18n="st.th.day">天</th><th data-i18n="st.th.revenue">收入</th><th data-i18n="st.th.cost">成本</th><th data-i18n="st.th.unsold">滯銷費</th><th data-i18n="st.th.interest">利息</th><th data-i18n="st.th.daily">日利潤</th><th data-i18n="st.th.cum">累積利潤</th><th data-i18n="st.th.roi">ROI</th></tr>';
         for (const r of data.history) {
             html += `<tr>
                 <td>${r.day_number}</td>
@@ -347,7 +348,7 @@ function renderDashboard(data) {
                 <td>${Number(r.roi).toFixed(1)}%</td>
             </tr>`;
         }
-        html += '</table>';
+        html += '</table></div>';
         document.getElementById('dailyResults').innerHTML = html;
     }
     if (window.applyI18n) window.applyI18n();
