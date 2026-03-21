@@ -584,18 +584,27 @@
                 for (let i = 1; i <= currentDay; i++) {
                     biddingDaySelect.innerHTML += `<option value="${i}">第 ${i} 天</option>`;
                 }
-                // Auto-select current day
+                // Auto-select day & type based on current phase
+                // pending = new day started but no bids yet → show previous day (all)
+                // buying_open/closed = buy bids exist for current day → show current day (buy)
+                // selling_open/closed = sell bids exist for current day → show current day (sell)
+                // settled = full day done → show current day (all)
                 if (autoLoad === 'bidding-results') {
-                    biddingDaySelect.value = String(currentDay);
-                    // Auto-select bid type based on phase
                     const typeSelect = document.getElementById('biddingTypeSelect');
-                    if (typeSelect) {
-                        if (phase === 'buying_open' || phase === 'buying_closed') {
-                            typeSelect.value = 'buy';
-                        } else if (phase === 'selling_open' || phase === 'selling_closed') {
-                            typeSelect.value = 'sell';
-                        } else {
-                            typeSelect.value = 'all';
+                    if (phase === 'pending' && currentDay > 1) {
+                        // New day just started, no bids yet → show previous day's full results
+                        biddingDaySelect.value = String(currentDay - 1);
+                        if (typeSelect) typeSelect.value = 'all';
+                    } else {
+                        biddingDaySelect.value = String(currentDay);
+                        if (typeSelect) {
+                            if (phase === 'buying_open' || phase === 'buying_closed') {
+                                typeSelect.value = 'buy';
+                            } else if (phase === 'selling_open' || phase === 'selling_closed') {
+                                typeSelect.value = 'sell';
+                            } else {
+                                typeSelect.value = 'all';
+                            }
                         }
                     }
                     loadBiddingResults();
