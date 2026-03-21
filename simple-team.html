@@ -216,7 +216,10 @@ function showAlert(msg, type = 'info') {
 
 function fmt(n) { return Number(n || 0).toLocaleString('zh-TW', { maximumFractionDigits: 0 }); }
 function bidStatusText(s) {
-    const map = { pending: '待結算', fulfilled: '完全成交', partial: '部分成交', unfulfilled: '未成交' };
+    const isEn = localStorage.getItem('i18n_lang') === 'en';
+    const map = isEn
+        ? { pending: 'Pending', fulfilled: 'Filled', partial: 'Partial', unfulfilled: 'Unfilled' }
+        : { pending: '待結算', fulfilled: '完全成交', partial: '部分成交', unfulfilled: '未成交' };
     return map[s] || s;
 }
 
