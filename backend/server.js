@@ -2702,7 +2702,7 @@ app.get('/api/admin/games/:gameId/chart-data', authenticateToken, requireAdmin, 
 
         // Daily results per team
         const [dailyResults] = await pool.execute(
-            `SELECT dr.day_number, dr.team_id, u.team_name,
+            `SELECT dr.day_number, dr.team_id, u.team_name, u.username,
                     dr.revenue, dr.cost, dr.unsold_fee, dr.interest_incurred,
                     dr.daily_profit, dr.cumulative_profit, dr.roi
              FROM daily_results dr JOIN users u ON dr.team_id = u.id
@@ -2711,7 +2711,7 @@ app.get('/api/admin/games/:gameId/chart-data', authenticateToken, requireAdmin, 
 
         // Bid summary: weighted avg price per team/day/type/fish
         const [bidSummary] = await pool.execute(
-            `SELECT b.day_number, b.team_id, u.team_name, b.bid_type, b.fish_type,
+            `SELECT b.day_number, b.team_id, u.team_name, u.username, b.bid_type, b.fish_type,
                     CASE WHEN SUM(b.quantity_fulfilled) > 0
                          THEN SUM(b.price * b.quantity_fulfilled) / SUM(b.quantity_fulfilled)
                          ELSE NULL END as avg_price,
@@ -2719,7 +2719,7 @@ app.get('/api/admin/games/:gameId/chart-data', authenticateToken, requireAdmin, 
                     SUM(b.quantity_fulfilled) as total_qty_fulfilled
              FROM bids b JOIN users u ON b.team_id = u.id
              WHERE b.game_id = ?
-             GROUP BY b.day_number, b.team_id, u.team_name, b.bid_type, b.fish_type
+             GROUP BY b.day_number, b.team_id, u.team_name, u.username, b.bid_type, b.fish_type
              ORDER BY b.day_number, u.username, b.bid_type, b.fish_type`, [gameId]
         );
 

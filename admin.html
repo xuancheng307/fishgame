@@ -2072,7 +2072,7 @@
             if (!day) return;
             const ctx = document.getElementById('chartPL').getContext('2d');
             const dayResults = chartData.dailyResults.filter(r => r.day_number === day);
-            const labels = dayResults.map(r => r.team_name || 'Team');
+            const labels = dayResults.map(r => r.team_name || r.username || 'Team');
             const revenue = dayResults.map(r => parseFloat(r.revenue));
             const cost = dayResults.map(r => -parseFloat(r.cost));
             const unsold = dayResults.map(r => -parseFloat(r.unsold_fee));
@@ -2109,7 +2109,7 @@
             // Group by team: avg buy price and avg sell price
             const teamMap = {};
             dayBids.forEach(b => {
-                if (!teamMap[b.team_id]) teamMap[b.team_id] = { name: b.team_name, buyTotal: 0, buyQty: 0, sellTotal: 0, sellQty: 0 };
+                if (!teamMap[b.team_id]) teamMap[b.team_id] = { name: b.team_name || b.username || 'Team', buyTotal: 0, buyQty: 0, sellTotal: 0, sellQty: 0 };
                 const t = teamMap[b.team_id];
                 const avg = parseFloat(b.avg_price) || 0;
                 const qty = parseInt(b.total_qty_fulfilled) || 0;
@@ -2182,21 +2182,21 @@
                     const lastDay = Math.max(...data.dailyResults.map(r => r.day_number));
                     const finalResults = data.dailyResults.filter(r => r.day_number === lastDay).sort((a,b) => parseFloat(b.roi) - parseFloat(a.roi));
                     finalResults.forEach((r, i) => {
-                        csv1 += `${i+1},${r.team_name},${r.cumulative_profit},${parseFloat(r.roi).toFixed(2)}\n`;
+                        csv1 += `${i+1},${r.team_name||r.username},${r.cumulative_profit},${parseFloat(r.roi).toFixed(2)}\n`;
                     });
                     downloadCSV(csv1, `遊戲${gameId}_排名總表.csv`);
 
                     // CSV 2: Daily P&L
                     let csv2 = '\uFEFF天數,組別,收入,成本,滯銷費,利息,日利潤,累積利潤,ROI(%)\n';
                     data.dailyResults.forEach(r => {
-                        csv2 += `${r.day_number},${r.team_name},${r.revenue},${r.cost},${r.unsold_fee},${r.interest_incurred},${r.daily_profit},${r.cumulative_profit},${parseFloat(r.roi).toFixed(2)}\n`;
+                        csv2 += `${r.day_number},${r.team_name||r.username},${r.revenue},${r.cost},${r.unsold_fee},${r.interest_incurred},${r.daily_profit},${r.cumulative_profit},${parseFloat(r.roi).toFixed(2)}\n`;
                     });
                     downloadCSV(csv2, `遊戲${gameId}_每日損益.csv`);
 
                     // CSV 3: Bid details
                     let csv3 = '\uFEFF天數,組別,類型,魚種,均價,投標量,成交量\n';
                     data.bidSummary.forEach(b => {
-                        csv3 += `${b.day_number},${b.team_name},${b.bid_type === 'buy' ? '買入' : '賣出'},${b.fish_type}級,${b.avg_price ? parseFloat(b.avg_price).toFixed(1) : ''},${b.total_qty_submitted},${b.total_qty_fulfilled}\n`;
+                        csv3 += `${b.day_number},${b.team_name||b.username},${b.bid_type === 'buy' ? '買入' : '賣出'},${b.fish_type}級,${b.avg_price ? parseFloat(b.avg_price).toFixed(1) : ''},${b.total_qty_submitted},${b.total_qty_fulfilled}\n`;
                     });
                     downloadCSV(csv3, `遊戲${gameId}_投標明細.csv`);
 
