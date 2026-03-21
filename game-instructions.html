@@ -20,6 +20,7 @@
             color: white;
             text-align: center;
             padding: 48px 24px 40px;
+            position: relative;
         }
         .hero h1 { font-size: 2em; margin-bottom: 8px; }
         .hero p { font-size: 1.1em; opacity: .85; }
@@ -147,77 +148,78 @@
 
 <!-- 頂部 -->
 <div class="hero">
-    <h1>魚市場遊戲</h1>
-    <p>扮演魚貨批發商，買低賣高，賺取最高報酬率！</p>
+    <button id="langToggle" onclick="toggleLang()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.25);color:white;border:none;padding:4px 14px;border-radius:4px;cursor:pointer;font-size:.85em;">EN</button>
+    <h1 data-i18n="gi.hero.title">魚市場遊戲</h1>
+    <p data-i18n="gi.hero.sub">扮演魚貨批發商，買低賣高，賺取最高報酬率！</p>
 </div>
 
 <div class="wrap">
 
     <!-- 一句話 -->
-    <div class="tldr">
+    <div class="tldr" data-i18n="gi.tldr">
         用 <strong>低價向漁船買魚</strong>，再用 <strong>高價賣給餐廳</strong>，7 天後 <strong>ROI 最高的組別獲勝</strong>。
     </div>
 
     <!-- 你的身分 -->
     <section>
-        <h2>你的角色</h2>
-        <p>你是一個<strong>魚貨批發商（中盤商）</strong>，每天做兩件事：</p>
+        <h2 data-i18n="gi.role.title">你的角色</h2>
+        <p data-i18n="gi.role.desc">你是一個<strong>魚貨批發商（中盤商）</strong>，每天做兩件事：</p>
         <div class="cards">
             <div class="card">
-                <h4>早上：向漁船買魚</h4>
-                <p>出價越高越容易搶到貨，但成本也越高。市場有 A 級魚（高價）和 B 級魚（平價）兩種。</p>
+                <h4 data-i18n="gi.role.am.title">早上：向漁船買魚</h4>
+                <p data-i18n="gi.role.am.desc">出價越高越容易搶到貨，但成本也越高。市場有 A 級魚（高價）和 B 級魚（平價）兩種。</p>
             </div>
             <div class="card">
-                <h4>下午：賣魚給餐廳</h4>
-                <p>出價越低越容易成交，但賣太便宜就虧了。餐廳預算有限，賣不掉的魚要付處理費。</p>
+                <h4 data-i18n="gi.role.pm.title">下午：賣魚給餐廳</h4>
+                <p data-i18n="gi.role.pm.desc">出價越低越容易成交，但賣太便宜就虧了。餐廳預算有限，賣不掉的魚要付處理費。</p>
             </div>
         </div>
     </section>
 
     <!-- 每日流程 -->
     <section>
-        <h2>每日流程（6 步）</h2>
+        <h2 data-i18n="gi.flow.title">每日流程（6 步）</h2>
         <div class="steps">
             <div class="step">
                 <div class="step-num">1</div>
                 <div class="step-body">
-                    <h3>老師公布當日行情</h3>
-                    <p>今天漁船有多少魚、餐廳有多少預算</p>
+                    <h3 data-i18n="gi.flow.1.t">老師公布當日行情</h3>
+                    <p data-i18n="gi.flow.1.d">今天漁船有多少魚、餐廳有多少預算</p>
                 </div>
             </div>
             <div class="step">
                 <div class="step-num">2</div>
                 <div class="step-body">
-                    <h3>買入投標（約 7 分鐘）</h3>
-                    <p>填寫你想買的魚種、價格、數量，送出投標</p>
+                    <h3 data-i18n="gi.flow.2.t">買入投標（約 7 分鐘）</h3>
+                    <p data-i18n="gi.flow.2.d">填寫你想買的魚種、價格、數量，送出投標</p>
                 </div>
             </div>
             <div class="step">
                 <div class="step-num">3</div>
                 <div class="step-body">
-                    <h3>系統結算買入</h3>
-                    <p>出價高的先拿貨，供應量用完就沒了</p>
+                    <h3 data-i18n="gi.flow.3.t">系統結算買入</h3>
+                    <p data-i18n="gi.flow.3.d">出價高的先拿貨，供應量用完就沒了</p>
                 </div>
             </div>
             <div class="step">
                 <div class="step-num">4</div>
                 <div class="step-body">
-                    <h3>賣出投標（約 4 分鐘）</h3>
-                    <p>填寫你想賣的價格和數量，送出投標</p>
+                    <h3 data-i18n="gi.flow.4.t">賣出投標（約 4 分鐘）</h3>
+                    <p data-i18n="gi.flow.4.d">填寫你想賣的價格和數量，送出投標</p>
                 </div>
             </div>
             <div class="step">
                 <div class="step-num">5</div>
                 <div class="step-body">
-                    <h3>系統結算賣出</h3>
-                    <p>出價低的先成交，餐廳預算用完就停止</p>
+                    <h3 data-i18n="gi.flow.5.t">系統結算賣出</h3>
+                    <p data-i18n="gi.flow.5.d">出價低的先成交，餐廳預算用完就停止</p>
                 </div>
             </div>
             <div class="step">
                 <div class="step-num">6</div>
                 <div class="step-body">
-                    <h3>每日結算</h3>
-                    <p>計算利潤、扣利息和滯銷費、更新排行榜</p>
+                    <h3 data-i18n="gi.flow.6.t">每日結算</h3>
+                    <p data-i18n="gi.flow.6.d">計算利潤、扣利息和滯銷費、更新排行榜</p>
                 </div>
             </div>
         </div>
@@ -225,33 +227,33 @@
 
     <!-- 簡單範例 -->
     <section>
-        <h2>簡單範例</h2>
-        <p>3 組人買賣同一批魚，跟著數字走一遍：</p>
+        <h2 data-i18n="gi.ex.title">簡單範例</h2>
+        <p data-i18n="gi.ex.desc">3 組人買賣同一批魚，跟著數字走一遍：</p>
 
         <div class="example">
-            <h4>早上買魚 — 出價高的先拿貨（今日供應 200kg）</h4>
+            <h4 data-i18n="gi.ex.buy.title">早上買魚 — 出價高的先拿貨（今日供應 200kg）</h4>
             <table>
-                <tr><th>組別</th><th>出價</th><th>想買</th><th>結果</th></tr>
-                <tr><td>你</td><td>$200/kg</td><td>100kg</td><td class="result">買到 100kg，花 $20,000</td></tr>
-                <tr><td>B 組</td><td>$150/kg</td><td>100kg</td><td class="result">買到 100kg，花 $15,000</td></tr>
-                <tr><td>C 組</td><td>$100/kg</td><td>100kg</td><td class="fail">供應量用完，買到 0kg</td></tr>
+                <tr><th data-i18n="gi.ex.th.team">組別</th><th data-i18n="gi.ex.th.bid">出價</th><th data-i18n="gi.ex.th.want">想買</th><th data-i18n="gi.ex.th.result">結果</th></tr>
+                <tr><td data-i18n="gi.ex.buy.you">你</td><td>$200/kg</td><td>100kg</td><td class="result" data-i18n="gi.ex.buy.r1">買到 100kg，花 $20,000</td></tr>
+                <tr><td>B 組</td><td>$150/kg</td><td>100kg</td><td class="result" data-i18n="gi.ex.buy.r2">買到 100kg，花 $15,000</td></tr>
+                <tr><td>C 組</td><td>$100/kg</td><td>100kg</td><td class="fail" data-i18n="gi.ex.buy.r3">供應量用完，買到 0kg</td></tr>
             </table>
         </div>
 
         <div class="example">
-            <h4>下午賣魚 — 出價低的先成交（餐廳預算 $60,000）</h4>
+            <h4 data-i18n="gi.ex.sell.title">下午賣魚 — 出價低的先成交（餐廳預算 $60,000）</h4>
             <table>
-                <tr><th>組別</th><th>出價</th><th>想賣</th><th>結果</th></tr>
-                <tr><td>B 組</td><td>$300/kg</td><td>100kg</td><td class="result">全賣，收 $30,000（最低價先賣）</td></tr>
-                <tr><td>你</td><td>$400/kg</td><td>100kg</td><td class="fail">只賣 75kg（預算剩 $30,000）</td></tr>
+                <tr><th data-i18n="gi.ex.th.team">組別</th><th data-i18n="gi.ex.th.ask">出價</th><th data-i18n="gi.ex.th.want">想賣</th><th data-i18n="gi.ex.th.result">結果</th></tr>
+                <tr><td>B 組</td><td>$300/kg</td><td>100kg</td><td class="result" data-i18n="gi.ex.sell.r1">全賣，收 $30,000（最低價先賣）</td></tr>
+                <tr><td data-i18n="gi.ex.buy.you">你</td><td>$400/kg</td><td>100kg</td><td class="fail" data-i18n="gi.ex.sell.r2">只賣 75kg（預算剩 $30,000）</td></tr>
             </table>
             <p style="margin-top:10px;font-size:.88em;color:#64748b">
-                你賣 75kg 收 $30,000，剩 25kg 賣不掉 → 滯銷處理費 25 × $10 = $250<br>
-                <strong>今日利潤 = $30,000 - $20,000 - $250 = <span style="color:#15803d">+$9,750</span></strong>
+                <span data-i18n="gi.ex.sell.detail">你賣 75kg 收 $30,000，剩 25kg 賣不掉 → 滯銷處理費 25 × $10 = $250</span><br>
+                <span data-i18n="gi.ex.sell.profit"><strong>今日利潤 = $30,000 - $20,000 - $250 = <span style="color:#15803d">+$9,750</span></strong></span>
             </p>
         </div>
 
-        <div class="warn" style="margin-top:14px">
+        <div class="warn" style="margin-top:14px" data-i18n="gi.sell.warn">
             <strong>賣出兩大風險：</strong><br>
             ① <strong>預算用完</strong> — 餐廳錢花光就不買了，出價高的排後面，可能賣不掉（如上例）<br>
             ② <strong>最高價強制滯銷</strong> — 出最高價的人，2.5% 數量直接被判滯銷，就算預算還夠也沒用
@@ -260,40 +262,40 @@
 
     <!-- 關鍵規則 -->
     <section>
-        <h2>關鍵規則</h2>
+        <h2 data-i18n="gi.rules.title">關鍵規則</h2>
 
         <div class="cards">
             <div class="card">
-                <h4>錢不夠？自動借貸</h4>
-                <p>買魚金額超過現金時，系統自動借錢給你。上限 = 初始資金的 50%。</p>
+                <h4 data-i18n="gi.rules.loan.t">錢不夠？自動借貸</h4>
+                <p data-i18n="gi.rules.loan.d">買魚金額超過現金時，系統自動借錢給你。上限 = 初始資金的 50%。</p>
             </div>
             <div class="card">
-                <h4>借貸有利息</h4>
-                <p>每日利率 3%。借 $100,000 → 隔天多欠 $3,000。會複利滾動！</p>
+                <h4 data-i18n="gi.rules.int.t">借貸有利息</h4>
+                <p data-i18n="gi.rules.int.d">每日利率 3%。借 $100,000 → 隔天多欠 $3,000。會複利滾動！</p>
             </div>
             <div class="card">
-                <h4>魚不能隔夜</h4>
-                <p>每天結算後庫存歸零。沒賣掉的魚收 $10/kg 滯銷處理費。</p>
+                <h4 data-i18n="gi.rules.carry.t">魚不能隔夜</h4>
+                <p data-i18n="gi.rules.carry.d">每天結算後庫存歸零。沒賣掉的魚收 $10/kg 滯銷處理費。</p>
             </div>
             <div class="card">
-                <h4>最高價有風險</h4>
-                <p>賣出時，出最高價的人有 2.5% 數量直接被判滯銷（晚出價的先扣）。</p>
+                <h4 data-i18n="gi.rules.high.t">最高價有風險</h4>
+                <p data-i18n="gi.rules.high.d">賣出時，出最高價的人有 2.5% 數量直接被判滯銷（晚出價的先扣）。</p>
             </div>
         </div>
 
-        <div class="tip">
+        <div class="tip" data-i18n="gi.rules.tip">
             <strong>投標小技巧：</strong>每種魚可以出 2 個不同價格（共 4 張標單），分散風險。例如 A 級魚出一張 $200 × 80kg + 一張 $250 × 40kg。
         </div>
     </section>
 
     <!-- ROI -->
     <section>
-        <h2>怎麼算贏？</h2>
-        <p>遊戲結束時，<strong>ROI（投資報酬率）最高的組別獲勝</strong>：</p>
-        <div class="formula">ROI = 累積利潤 &divide; (初始資金 + 借貸本金) &times; 100%</div>
-        <p>每日利潤 = 賣出收入 - 買入成本 - 滯銷費 - 借貸利息</p>
+        <h2 data-i18n="gi.roi.title">怎麼算贏？</h2>
+        <p data-i18n="gi.roi.desc">遊戲結束時，<strong>ROI（投資報酬率）最高的組別獲勝</strong>：</p>
+        <div class="formula" data-i18n="gi.roi.formula">ROI = 累積利潤 &divide; (初始資金 + 借貸本金) &times; 100%</div>
+        <p data-i18n="gi.roi.daily">每日利潤 = 賣出收入 - 買入成本 - 滯銷費 - 借貸利息</p>
 
-        <div class="warn">
+        <div class="warn" data-i18n="gi.roi.warn">
             <strong>注意：</strong>借越多錢，分母越大，ROI 越難提高。借貸不是免費的！
         </div>
     </section>
@@ -301,5 +303,6 @@
 
 </div>
 
+<script src="i18n.js"></script>
 </body>
 </html>

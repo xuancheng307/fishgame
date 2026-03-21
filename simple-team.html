@@ -51,12 +51,13 @@
 
 <div class="header">
     <div>
-        <h1>魚市場遊戲</h1>
+        <h1 data-i18n="st.title">魚市場遊戲</h1>
         <span class="info" id="userInfo"></span>
     </div>
     <div>
-        <a href="game-instructions.html" style="color:white;margin-right:12px;font-size:.9em;">遊戲說明</a>
-        <button onclick="logout()">登出</button>
+        <button id="langToggle" onclick="toggleLang()" style="background:rgba(255,255,255,.2);color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;margin-right:8px;font-size:.85em;">EN</button>
+        <a href="game-instructions.html" style="color:white;margin-right:12px;font-size:.9em;" data-i18n="st.instructions">遊戲說明</a>
+        <button onclick="logout()" data-i18n="st.logout">登出</button>
     </div>
 </div>
 
@@ -65,97 +66,98 @@
 <div class="container">
     <!-- 加入遊戲 -->
     <div id="joinSection" class="card hidden">
-        <h2>加入遊戲</h2>
-        <p style="margin-bottom:12px;color:#64748b;">輸入你的組名，然後加入當前遊戲</p>
-        <input type="text" class="name-input" id="teamNameInput" placeholder="輸入組名（選填）">
-        <button class="btn btn-join" onclick="joinGame()">一鍵加入遊戲</button>
+        <h2 data-i18n="st.join.title">加入遊戲</h2>
+        <p style="margin-bottom:12px;color:#64748b;" data-i18n="st.join.desc">輸入你的組名，然後加入當前遊戲</p>
+        <input type="text" class="name-input" id="teamNameInput" placeholder="輸入組名（選填）" data-i18n-ph="st.ph.teamName">
+        <button class="btn btn-join" onclick="joinGame()" data-i18n="st.join.btn">一鍵加入遊戲</button>
     </div>
 
     <!-- 遊戲狀態 -->
     <div id="gameSection" class="hidden">
         <!-- 狀態概覽 -->
         <div class="card">
-            <h2>遊戲狀態</h2>
+            <h2 data-i18n="st.status.title">遊戲狀態</h2>
             <div id="gameStatus"></div>
             <div id="timerDisplay" class="timer hidden"></div>
         </div>
 
         <!-- 財務狀況 -->
         <div class="card">
-            <h2>我的財務</h2>
+            <h2 data-i18n="st.finance.title">我的財務</h2>
             <div id="financials" class="stats"></div>
         </div>
 
         <!-- 買入投標 -->
         <div id="buySection" class="card hidden">
-            <h2>買入投標</h2>
+            <h2 data-i18n="st.buy.title">買入投標</h2>
             <div id="marketInfo" class="alert alert-info" style="margin-bottom:12px;"></div>
             <div class="bid-form">
-                <p style="font-weight:600;margin-bottom:8px;">A 級魚</p>
+                <p style="font-weight:600;margin-bottom:8px;" data-i18n="st.fishA">A 級魚</p>
                 <div class="bid-row">
-                    <label>標單 1</label>
-                    <input type="number" id="buyA1Price" placeholder="價格" min="0">
-                    <input type="number" id="buyA1Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid1">標單 1</label>
+                    <input type="number" id="buyA1Price" placeholder="價格" data-i18n-ph="st.ph.price" min="0">
+                    <input type="number" id="buyA1Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
                 <div class="bid-row">
-                    <label>標單 2</label>
-                    <input type="number" id="buyA2Price" placeholder="價格（選填）" min="0">
-                    <input type="number" id="buyA2Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid2">標單 2</label>
+                    <input type="number" id="buyA2Price" placeholder="價格（選填）" data-i18n-ph="st.ph.priceOpt" min="0">
+                    <input type="number" id="buyA2Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
-                <p style="font-weight:600;margin:12px 0 8px;">B 級魚</p>
+                <p style="font-weight:600;margin:12px 0 8px;" data-i18n="st.fishB">B 級魚</p>
                 <div class="bid-row">
-                    <label>標單 1</label>
-                    <input type="number" id="buyB1Price" placeholder="價格" min="0">
-                    <input type="number" id="buyB1Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid1">標單 1</label>
+                    <input type="number" id="buyB1Price" placeholder="價格" data-i18n-ph="st.ph.price" min="0">
+                    <input type="number" id="buyB1Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
                 <div class="bid-row">
-                    <label>標單 2</label>
-                    <input type="number" id="buyB2Price" placeholder="價格（選填）" min="0">
-                    <input type="number" id="buyB2Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid2">標單 2</label>
+                    <input type="number" id="buyB2Price" placeholder="價格（選填）" data-i18n-ph="st.ph.priceOpt" min="0">
+                    <input type="number" id="buyB2Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
-                <button class="btn btn-primary" onclick="submitBuyBids()" style="margin-top:12px;width:100%;">送出買入投標</button>
+                <button class="btn btn-primary" onclick="submitBuyBids()" style="margin-top:12px;width:100%;" data-i18n="st.btn.buy">送出買入投標</button>
             </div>
         </div>
 
         <!-- 賣出投標 -->
         <div id="sellSection" class="card hidden">
-            <h2>賣出投標</h2>
+            <h2 data-i18n="st.sell.title">賣出投標</h2>
             <div id="inventoryInfo" class="alert alert-info" style="margin-bottom:12px;"></div>
             <div class="bid-form">
-                <p style="font-weight:600;margin-bottom:8px;">A 級魚</p>
+                <p style="font-weight:600;margin-bottom:8px;" data-i18n="st.fishA">A 級魚</p>
                 <div class="bid-row">
-                    <label>標單 1</label>
-                    <input type="number" id="sellA1Price" placeholder="價格" min="0">
-                    <input type="number" id="sellA1Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid1">標單 1</label>
+                    <input type="number" id="sellA1Price" placeholder="價格" data-i18n-ph="st.ph.price" min="0">
+                    <input type="number" id="sellA1Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
                 <div class="bid-row">
-                    <label>標單 2</label>
-                    <input type="number" id="sellA2Price" placeholder="價格（選填）" min="0">
-                    <input type="number" id="sellA2Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid2">標單 2</label>
+                    <input type="number" id="sellA2Price" placeholder="價格（選填）" data-i18n-ph="st.ph.priceOpt" min="0">
+                    <input type="number" id="sellA2Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
-                <p style="font-weight:600;margin:12px 0 8px;">B 級魚</p>
+                <p style="font-weight:600;margin:12px 0 8px;" data-i18n="st.fishB">B 級魚</p>
                 <div class="bid-row">
-                    <label>標單 1</label>
-                    <input type="number" id="sellB1Price" placeholder="價格" min="0">
-                    <input type="number" id="sellB1Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid1">標單 1</label>
+                    <input type="number" id="sellB1Price" placeholder="價格" data-i18n-ph="st.ph.price" min="0">
+                    <input type="number" id="sellB1Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
                 <div class="bid-row">
-                    <label>標單 2</label>
-                    <input type="number" id="sellB2Price" placeholder="價格（選填）" min="0">
-                    <input type="number" id="sellB2Qty" placeholder="數量 (kg)" min="0">
+                    <label data-i18n="st.bid2">標單 2</label>
+                    <input type="number" id="sellB2Price" placeholder="價格（選填）" data-i18n-ph="st.ph.priceOpt" min="0">
+                    <input type="number" id="sellB2Qty" placeholder="數量 (kg)" data-i18n-ph="st.ph.qty" min="0">
                 </div>
-                <button class="btn btn-success" onclick="submitSellBids()" style="margin-top:12px;width:100%;">送出賣出投標</button>
+                <button class="btn btn-success" onclick="submitSellBids()" style="margin-top:12px;width:100%;" data-i18n="st.btn.sell">送出賣出投標</button>
             </div>
         </div>
 
         <!-- 歷史結果 -->
         <div class="card">
-            <h2>每日結果</h2>
-            <div id="dailyResults"><p style="color:#94a3b8;">尚無結算資料</p></div>
+            <h2 data-i18n="st.results.title">每日結果</h2>
+            <div id="dailyResults"><p style="color:#94a3b8;" data-i18n="st.results.empty">尚無結算資料</p></div>
         </div>
     </div>
 </div>
 
+<script src="i18n.js"></script>
 <script>
 const API = '/api';
 const token = localStorage.getItem('token');
@@ -239,17 +241,17 @@ function renderDashboard(data) {
 
     document.getElementById('gameStatus').innerHTML = `
         <div class="stats">
-            <div class="stat"><div class="label">遊戲</div><div class="value">${gi.gameName || '進行中'}</div></div>
-            <div class="stat"><div class="label">目前天數</div><div class="value">第 ${gi.currentDay} 天</div></div>
-            <div class="stat"><div class="label">階段</div><div class="value"><span class="phase-badge phase-${phaseClass}">${phaseNames[phase] || phase}</span></div></div>
+            <div class="stat"><div class="label" data-i18n="st.label.game">遊戲</div><div class="value">${gi.gameName || '進行中'}</div></div>
+            <div class="stat"><div class="label" data-i18n="st.label.day">目前天數</div><div class="value" data-i18n="st.dayN" data-val-n="${gi.currentDay}">第 ${gi.currentDay} 天</div></div>
+            <div class="stat"><div class="label" data-i18n="st.label.phase">階段</div><div class="value"><span class="phase-badge phase-${phaseClass}" data-i18n="st.phase.${phase}">${phaseNames[phase] || phase}</span></div></div>
         </div>
     `;
 
     document.getElementById('financials').innerHTML = `
-        <div class="stat"><div class="label">現金</div><div class="value">$${fmt(fi.currentBudget)}</div></div>
-        <div class="stat"><div class="label">借貸</div><div class="value">$${fmt(fi.totalLoan)}</div></div>
-        <div class="stat"><div class="label">A 級魚庫存</div><div class="value">${fi.fishAInventory || 0} kg</div></div>
-        <div class="stat"><div class="label">B 級魚庫存</div><div class="value">${fi.fishBInventory || 0} kg</div></div>
+        <div class="stat"><div class="label" data-i18n="st.label.cash">現金</div><div class="value">$${fmt(fi.currentBudget)}</div></div>
+        <div class="stat"><div class="label" data-i18n="st.label.loan">借貸</div><div class="value">$${fmt(fi.totalLoan)}</div></div>
+        <div class="stat"><div class="label" data-i18n="st.label.invA">A 級魚庫存</div><div class="value">${fi.fishAInventory || 0} kg</div></div>
+        <div class="stat"><div class="label" data-i18n="st.label.invB">B 級魚庫存</div><div class="value">${fi.fishBInventory || 0} kg</div></div>
     `;
 
     // Show/hide bid sections based on phase
@@ -262,20 +264,20 @@ function renderDashboard(data) {
     if (phase === 'buying_open' && data.marketInfo) {
         const cd = data.marketInfo;
         document.getElementById('marketInfo').innerHTML =
-            `今日供應：A 級 <b>${cd.fishASupply || 0} kg</b>、B 級 <b>${cd.fishBSupply || 0} kg</b><br>` +
-            `餐廳預算：A 級 <b>$${fmt(cd.fishABudget)}</b>、B 級 <b>$${fmt(cd.fishBBudget)}</b><br>` +
-            `你的現金：<b>$${fmt(fi.currentBudget)}</b>`;
+            `<span data-i18n="st.supply" data-val-a="${cd.fishASupply || 0}" data-val-b="${cd.fishBSupply || 0}">今日供應：A 級 <b>${cd.fishASupply || 0} kg</b>、B 級 <b>${cd.fishBSupply || 0} kg</b></span><br>` +
+            `<span data-i18n="st.budget" data-val-a="${fmt(cd.fishABudget)}" data-val-b="${fmt(cd.fishBBudget)}">餐廳預算：A 級 <b>$${fmt(cd.fishABudget)}</b>、B 級 <b>$${fmt(cd.fishBBudget)}</b></span><br>` +
+            `<span data-i18n="st.yourCash" data-val-a="${fmt(fi.currentBudget)}">你的現金：<b>$${fmt(fi.currentBudget)}</b></span>`;
     }
 
     // Inventory info for selling
     if (phase === 'selling_open') {
         document.getElementById('inventoryInfo').innerHTML =
-            `你的庫存：A 級 <b>${fi.fishAInventory || 0} kg</b>、B 級 <b>${fi.fishBInventory || 0} kg</b>`;
+            `<span data-i18n="st.inventory" data-val-a="${fi.fishAInventory || 0}" data-val-b="${fi.fishBInventory || 0}">你的庫存：A 級 <b>${fi.fishAInventory || 0} kg</b>、B 級 <b>${fi.fishBInventory || 0} kg</b></span>`;
     }
 
     // Daily results
     if (data.history && data.history.length > 0) {
-        let html = '<table class="results-table"><tr><th>天</th><th>收入</th><th>成本</th><th>滯銷費</th><th>利息</th><th>日利潤</th><th>累積利潤</th><th>ROI</th></tr>';
+        let html = '<table class="results-table"><tr><th data-i18n="st.th.day">天</th><th data-i18n="st.th.revenue">收入</th><th data-i18n="st.th.cost">成本</th><th data-i18n="st.th.unsold">滯銷費</th><th data-i18n="st.th.interest">利息</th><th data-i18n="st.th.daily">日利潤</th><th data-i18n="st.th.cum">累積利潤</th><th data-i18n="st.th.roi">ROI</th></tr>';
         for (const r of data.history) {
             html += `<tr>
                 <td>${r.day_number}</td>
@@ -291,6 +293,7 @@ function renderDashboard(data) {
         html += '</table>';
         document.getElementById('dailyResults').innerHTML = html;
     }
+    if (window.applyI18n) window.applyI18n();
 }
 
 async function joinGame() {
