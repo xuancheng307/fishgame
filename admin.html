@@ -252,6 +252,7 @@
             color: #0050b3;
         }
     </style>
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -701,6 +702,8 @@
                 
                 if (response.ok) {
                     showGameCreationResult(result);
+                    // Auto-switch to game control after 1.5s
+                    setTimeout(() => loadGameInControl(result.gameId), 1500);
                     document.getElementById('create-game-form').reset();
                     // Set default values back
                     document.getElementById('totalDays').value = '7';
@@ -875,7 +878,9 @@
             `;
             
             // Game control buttons
-            html += `<div class="card"><h3>🎯 遊戲操作</h3><div id="game-control-buttons">`;
+            html += `<div class="card"><h3>🎯 遊戲操作</h3>`;
+            html += `<div id="adminTimerDisplay" style="display:none;text-align:center;padding:12px;margin-bottom:12px;background:#fef2f2;border-radius:8px;font-size:24px;font-weight:700;color:#dc2626;"></div>`;
+            html += `<div id="game-control-buttons">`;
             html += generateControlButtons(gameStatus);
             html += `</div></div>`;
             
@@ -1939,6 +1944,34 @@
                 alert('❌ 重置密碼失敗: ' + error.message);
             }
         }
+
+        // ===== Socket.io: sync countdown timer with students =====
+        const socket = io();
+
+        socket.on('timer', (data) => {
+            const el = document.getElementById('adminTimerDisplay');
+            if (!el) return;
+            if (data.remaining > 0) {
+                const min = Math.floor(data.remaining / 60);
+                const sec = data.remaining % 60;
+                el.textContent = `⏱ 投標倒數 ${min}:${String(sec).padStart(2, '0')}`;
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        });
+
+        socket.on('phaseChange', () => {
+            if (document.getElementById('game-control').classList.contains('active')) {
+                loadActiveGameData('game-control');
+            }
+        });
+
+        socket.on('gameUpdate', () => {
+            if (document.getElementById('game-control').classList.contains('active')) {
+                loadActiveGameData('game-control');
+            }
+        });
 
         // Initialize the page
         document.addEventListener('DOMContentLoaded', function() {
