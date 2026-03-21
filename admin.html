@@ -959,6 +959,10 @@
             }
         }
         
+        function stepNum(n, highlighted) {
+            return `display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${highlighted ? '#3b82f6' : '#d1d5db'};color:white;font-size:13px;font-weight:700;margin:0 auto;`;
+        }
+
         // Generate control buttons based on game status
         function generateControlButtons(gameStatus) {
             let html = '';
