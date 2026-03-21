@@ -65,6 +65,10 @@
         'st.bids.qty': 'Qty',
         'st.bids.filled': 'Filled',
         'st.bids.status': 'Status',
+        // Leaderboard
+        'st.leaderboard.title': 'Leaderboard',
+        'st.lb.team': 'Team',
+        'st.lb.profit': 'Profit',
         // Change password
         'st.changepw.btn': 'Password',
         'st.changepw.title': 'Change Password',

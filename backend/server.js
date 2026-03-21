@@ -1978,6 +1978,7 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
 
         res.json({
             gameInfo: {
+                gameId: gameId,
                 gameName: participant.name,
                 currentDay: participant.current_day,
                 status: participant.status,
@@ -2743,7 +2744,8 @@ app.get('/api/leaderboard/:gameId', async (req, res) => {
         }
         
         const [results] = await pool.execute(
-            `SELECT 
+            `SELECT
+                u.username,
                 u.team_name,
                 gp.current_budget,
                 gp.total_loan,

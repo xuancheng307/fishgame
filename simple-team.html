@@ -180,6 +180,12 @@
             <h2 data-i18n="st.results.title">每日結果</h2>
             <div id="dailyResults"><p style="color:#94a3b8;" data-i18n="st.results.empty">尚無結算資料</p></div>
         </div>
+
+        <!-- 排行榜 -->
+        <div class="card" id="leaderboardCard" style="display:none;">
+            <h2 data-i18n="st.leaderboard.title">排行榜</h2>
+            <div id="leaderboardContent"></div>
+        </div>
     </div>
 </div>
 
@@ -370,7 +376,38 @@ function renderDashboard(data) {
         html += '</table></div>';
         document.getElementById('dailyResults').innerHTML = html;
     }
+    // Leaderboard
+    if (gi.gameId) {
+        fetchLeaderboard(gi.gameId);
+    }
+
     if (window.applyI18n) window.applyI18n();
+}
+
+async function fetchLeaderboard(gameId) {
+    try {
+        const res = await fetch(`${API}/leaderboard/${gameId}`);
+        if (!res.ok) return;
+        const teams = await res.json();
+        const card = document.getElementById('leaderboardCard');
+        if (!teams || teams.length === 0) { card.style.display = 'none'; return; }
+        card.style.display = '';
+        const isEn = localStorage.getItem('i18n_lang') === 'en';
+        const myName = localStorage.getItem('username');
+        let html = '<div class="table-scroll"><table class="results-table">';
+        html += `<tr><th>#</th><th data-i18n="st.lb.team">${isEn ? 'Team' : '組別'}</th><th data-i18n="st.lb.profit">${isEn ? 'Profit' : '累積利潤'}</th><th>ROI</th></tr>`;
+        teams.forEach((t, i) => {
+            const isMe = t.username === myName;
+            const rowStyle = isMe ? 'background:#eff6ff;font-weight:700;' : '';
+            const roi = Number(t.roi) || 0;
+            const roiColor = roi >= 0 ? '#16a34a' : '#dc2626';
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+            html += `<tr style="${rowStyle}"><td>${medal}</td><td>${t.team_name || ('Team ' + (i+1))}</td><td>$${fmt(t.total_profit)}</td><td style="color:${roiColor}">${roi.toFixed(1)}%</td></tr>`;
+        });
+        html += '</table></div>';
+        document.getElementById('leaderboardContent').innerHTML = html;
+        if (window.applyI18n) window.applyI18n();
+    } catch (e) { /* silently fail */ }
 }
 
 async function joinGame() {
