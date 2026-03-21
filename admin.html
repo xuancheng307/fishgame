@@ -868,18 +868,20 @@
                 `;
                 
                 gameStatus.teams.forEach((team, index) => {
-                    const roiClass = (team.roi || 0) >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
-                    const profitClass = (team.cumulative_profit || 0) >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
-                    
+                    const roi = parseFloat(team.roi) || 0;
+                    const cumProfit = parseFloat(team.cumulative_profit) || 0;
+                    const roiClass = roi >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
+                    const profitClass = cumProfit >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
+
                     html += `
                         <tr>
                             <td><strong>${team.team_name || `團隊${team.username}`}</strong></td>
-                            <td>$${(team.current_budget || 0).toLocaleString()}</td>
-                            <td>$${(team.total_loan || 0).toLocaleString()}</td>
+                            <td>$${parseFloat(team.current_budget || 0).toLocaleString()}</td>
+                            <td>$${parseFloat(team.total_loan || 0).toLocaleString()}</td>
                             <td>${team.fish_a_inventory || 0} kg</td>
                             <td>${team.fish_b_inventory || 0} kg</td>
-                            <td ${profitClass}>$${(team.cumulative_profit || 0).toLocaleString()}</td>
-                            <td ${roiClass}>${(team.roi || 0).toFixed(2)}%</td>
+                            <td ${profitClass}>$${cumProfit.toLocaleString()}</td>
+                            <td ${roiClass}>${roi.toFixed(2)}%</td>
                         </tr>
                     `;
                 });
