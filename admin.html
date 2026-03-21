@@ -978,10 +978,8 @@
             };
             const phase = phaseMapping[gameStatus.phase] || gameStatus.phase;
 
-            const btnStyle = (bg, color) => `display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:${bg};color:${color};transition:opacity .15s;`;
-            const stepStyle = (active) => `display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:10px;background:${active ? '#f0f9ff' : '#fafafa'};border:2px solid ${active ? '#3b82f6' : '#e5e7eb'};margin-bottom:10px;`;
-            const stepNum = (n, active) => `display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:13px;font-weight:700;background:${active ? '#3b82f6' : '#d1d5db'};color:white;flex-shrink:0;`;
-            const stepLabel = (active) => `font-size:14px;color:${active ? '#1e293b' : '#94a3b8'};`;
+            const borderMap = {'#2563eb':'#1d4ed8','#f59e0b':'#d97706','#16a34a':'#15803d','#6366f1':'#4f46e5','#dc2626':'#b91c1c'};
+            const btnStyle = (bg) => `display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:200px;padding:14px 28px;border:2px solid ${borderMap[bg]||bg};border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:${bg};color:white;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.1);`;
 
             // Flow: pending → buying → buying_closed → selling → selling_closed → settle → settled
             const steps = [
@@ -1008,24 +1006,24 @@
             html += '<div style="display:flex;flex-direction:column;gap:10px;">';
 
             if (phase === 'pending') {
-                html += `<button style="${btnStyle('#2563eb','white')}" onclick="startBuying()">🛒 開始買入投標</button>`;
+                html += `<button style="${btnStyle('#2563eb')}" onclick="startBuying()">🛒 開始買入投標</button>`;
             } else if (phase === 'buying') {
-                html += `<button style="${btnStyle('#f59e0b','white')}" onclick="closeBuying()">⏹ 結束買入投標</button>`;
+                html += `<button style="${btnStyle('#f59e0b')}" onclick="closeBuying()">⏹ 結束買入投標</button>`;
             } else if (phase === 'buying_closed') {
                 html += `<div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button style="${btnStyle('#2563eb','white')}" onclick="startSelling()">💰 開始賣出投標</button>
-                    <button style="${btnStyle('#6366f1','white')}" onclick="startBuying()">🔄 重新開放買入投標</button>
+                    <button style="${btnStyle('#2563eb')}" onclick="startSelling()">💰 開始賣出投標</button>
+                    <button style="${btnStyle('#6366f1')}" onclick="startBuying()">🔄 重新開放買入投標</button>
                 </div>`;
             } else if (phase === 'selling') {
-                html += `<button style="${btnStyle('#f59e0b','white')}" onclick="closeSelling()">⏹ 結束賣出投標</button>`;
+                html += `<button style="${btnStyle('#f59e0b')}" onclick="closeSelling()">⏹ 結束賣出投標</button>`;
             } else if (phase === 'selling_closed') {
                 html += `<div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button style="${btnStyle('#16a34a','white')}" onclick="settleDailyResults()">📊 執行每日結算</button>
-                    <button style="${btnStyle('#6366f1','white')}" onclick="startSelling()">🔄 重新開放賣出投標</button>
+                    <button style="${btnStyle('#16a34a')}" onclick="settleDailyResults()">📊 執行每日結算</button>
+                    <button style="${btnStyle('#6366f1')}" onclick="startSelling()">🔄 重新開放賣出投標</button>
                 </div>`;
             } else if (phase === 'settled') {
                 if (gameStatus.currentDay < gameStatus.totalDays) {
-                    html += `<button style="${btnStyle('#2563eb','white')}" onclick="advanceDay()">➡️ 推進到第 ${gameStatus.currentDay + 1} 天</button>`;
+                    html += `<button style="${btnStyle('#2563eb')}" onclick="advanceDay()">➡️ 推進到第 ${gameStatus.currentDay + 1} 天</button>`;
                 } else {
                     html += `<div style="padding:12px;background:#f0fdf4;border-radius:8px;color:#16a34a;font-weight:600;text-align:center;">🎉 所有天數已完成！可結束遊戲。</div>`;
                 }
@@ -1036,7 +1034,7 @@
             // Force end game
             html += `
                 <div style="margin-top:20px;padding-top:16px;border-top:1px dashed #e5e7eb;">
-                    <button style="${btnStyle('#dc2626','white')}font-size:13px;padding:8px 16px;" onclick="forceEndGame()">⚠️ 強制結束遊戲</button>
+                    <button style="${btnStyle('#dc2626')}" onclick="forceEndGame()">⚠️ 強制結束遊戲</button>
                 </div>
             `;
 
