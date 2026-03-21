@@ -1960,14 +1960,27 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         );
         
         const [dailyResults] = await pool.execute(
-            `SELECT dr.*, gd.day_number 
+            `SELECT dr.*, gd.day_number
              FROM daily_results dr
              JOIN game_days gd ON dr.game_day_id = gd.id
              WHERE dr.team_id = ? AND gd.game_id = ?
              ORDER BY gd.day_number ASC`,
             [req.user.userId, currentGame.id]
         );
-        
+
+        // 查詢當天自己的投標紀錄
+        const myBids = [];
+        if (currentDay[0]) {
+            const [bids] = await pool.execute(
+                `SELECT bid_type, fish_type, price, quantity_submitted, quantity_fulfilled, status, created_at
+                 FROM bids
+                 WHERE game_day_id = ? AND team_id = ?
+                 ORDER BY bid_type, fish_type, price DESC`,
+                [currentDay[0].id, req.user.userId]
+            );
+            myBids.push(...bids);
+        }
+
         res.json({
             gameInfo: {
                 gameName: participant.name,
@@ -1987,7 +2000,8 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
                 fishABudget: currentDay[0].fish_a_restaurant_budget,
                 fishBBudget: currentDay[0].fish_b_restaurant_budget
             } : null,
-            history: dailyResults
+            history: dailyResults,
+            myBids: myBids
         });
     } catch (error) {
         console.error('獲取團隊資訊錯誤:', error);

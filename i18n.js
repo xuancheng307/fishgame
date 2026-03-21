@@ -56,6 +56,15 @@
         'st.ph.qty': 'Quantity (kg)',
         'st.ph.priceOpt': 'Price (optional)',
         'st.ph.teamName': 'Team name (optional)',
+        // Bid history
+        'st.bids.title': 'Today\'s Bids',
+        'st.bids.buy': 'Buy Bids',
+        'st.bids.sell': 'Sell Bids',
+        'st.bids.fish': 'Fish',
+        'st.bids.price': 'Price',
+        'st.bids.qty': 'Qty',
+        'st.bids.filled': 'Filled',
+        'st.bids.status': 'Status',
 
         // ===== login.html =====
         'login.title': 'Fish Market Game',
