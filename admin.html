@@ -1772,7 +1772,10 @@
                 const serverPort = serverInfo.port;
                 
                 // 生成學生登入 URL
-                const studentURL = `http://${serverIP}:${serverPort}/login.html`;
+                const isHTTPS = window.location.protocol === 'https:';
+                const studentURL = isHTTPS
+                    ? `${window.location.origin}/index.html`
+                    : `http://${serverIP}:${serverPort}/index.html`;
                 
                 // 更新顯示
                 document.getElementById('server-ip').textContent = `${serverIP}:${serverPort}`;

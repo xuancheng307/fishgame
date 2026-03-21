@@ -500,11 +500,11 @@ app.get('/api/qr/:gameId', async (req, res) => {
         // 生成遊戲連結：優先使用 Railway 公開域名，否則使用請求來源
         let gameUrl;
         if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-            gameUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/team?gameId=${gameId}`;
+            gameUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/index.html`;
         } else {
             const host = req.headers.host || `localhost:${process.env.PORT || 3000}`;
             const protocol = req.secure ? 'https' : 'http';
-            gameUrl = `${protocol}://${host}/team?gameId=${gameId}`;
+            gameUrl = `${protocol}://${host}/index.html`;
         }
         const serverIP = process.env.RAILWAY_PUBLIC_DOMAIN || req.headers.host || 'localhost';
         
