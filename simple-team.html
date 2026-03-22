@@ -286,8 +286,13 @@ function renderDashboard(data) {
         </div>
     `;
 
+    const pendingRev = parseFloat(fi.pendingRevenue) || 0;
+    const pendingRevHtml = pendingRev > 0
+        ? `<div class="stat"><div class="label">待結算收益</div><div class="value" style="color:#d97706">$${fmt(pendingRev)}</div></div>`
+        : '';
     document.getElementById('financials').innerHTML = `
         <div class="stat"><div class="label" data-i18n="st.label.cash">現金</div><div class="value">$${fmt(fi.currentBudget)}</div></div>
+        ${pendingRevHtml}
         <div class="stat"><div class="label" data-i18n="st.label.loan">借貸</div><div class="value">$${fmt(fi.totalLoan)}</div></div>
         <div class="stat"><div class="label" data-i18n="st.label.invA">A 級魚庫存</div><div class="value">${fi.fishAInventory || 0} kg</div></div>
         <div class="stat"><div class="label" data-i18n="st.label.invB">B 級魚庫存</div><div class="value">${fi.fishBInventory || 0} kg</div></div>

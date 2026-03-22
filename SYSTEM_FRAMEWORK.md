@@ -77,6 +77,7 @@ num_teams, initial_budget, daily_interest_rate, loan_interest_rate,
 max_loan_ratio, unsold_fee_per_kg, fixed_unsold_ratio,
 distributor_floor_price_a, distributor_floor_price_b,
 target_price_a, target_price_b, buying_duration, selling_duration,
+revenue_settlement,  -- ENUM('daily','end_of_game') DEFAULT 'end_of_game'
 created_at, updated_at, team_names, is_force_ended,
 force_ended_at, force_end_day
 ```
@@ -291,11 +292,23 @@ Railway MySQL
 ### 8.3 結算數據流
 ```
 後端 server.js
-  ↓ processBuyBids() or processSellBids()
-  ↓ 按價格排序，分配魚貨/買家
-  ↓ UPDATE bids SET quantity_fulfilled, status
-  ↓ UPDATE game_participants SET fish_a_inventory, fish_b_inventory, current_budget
-  ↓ INSERT INTO daily_results (revenue, cost, profit, roi, ...)
+  ↓ processBuyBids()
+  ↓   按價格由高到低排序，分配魚貨
+  ↓   UPDATE bids SET quantity_fulfilled, status
+  ↓   UPDATE game_participants SET fish_inventory+, current_budget-（扣買入成本）
+  ↓
+  ↓ processSellBids()
+  ↓   固定滯銷2.5% → 按價格由低到高排序 → 分配餐廳預算
+  ↓   UPDATE bids SET quantity_fulfilled, status
+  ↓   UPDATE game_participants SET fish_inventory-
+  ↓   【日結模式】current_budget += 賣出收入
+  ↓   【遊戲結束後結算模式】current_budget 不變（收入記錄在 bids/transactions）
+  ↓
+  ↓ enhancedDailySettlement()
+  ↓   計算利息、滯銷費 → current_budget -= (利息 + 滯銷費)
+  ↓   每日損益 = 賣出收入 - 買入成本 - 滯銷費 - 利息（兩種模式計算相同）
+  ↓   INSERT INTO daily_results
+  ↓   庫存歸零
 Railway MySQL
   ↓ 更新所有相關記錄
 WebSocket

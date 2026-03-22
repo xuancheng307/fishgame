@@ -174,6 +174,7 @@ async function initDatabase() {
                 buying_duration INT NOT NULL DEFAULT 7,
                 selling_duration INT NOT NULL DEFAULT 4,
                 enable_randomness TINYINT(1) NOT NULL DEFAULT 0,
+                revenue_settlement ENUM('daily', 'end_of_game') NOT NULL DEFAULT 'end_of_game',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 team_names JSON,
@@ -418,6 +419,16 @@ async function initDatabase() {
                     ADD COLUMN enable_randomness TINYINT(1) NOT NULL DEFAULT 0 AFTER selling_duration
                 `);
                 console.log('   ✅ games.enable_randomness 欄位已添加');
+            }
+
+            // 4. 檢查並添加 games.revenue_settlement 欄位（收益結算方式）
+            if (!gamesColumns.includes('revenue_settlement')) {
+                console.log('   添加 games.revenue_settlement 欄位...');
+                await pool.execute(`
+                    ALTER TABLE games
+                    ADD COLUMN revenue_settlement ENUM('daily', 'end_of_game') NOT NULL DEFAULT 'end_of_game' AFTER enable_randomness
+                `);
+                console.log('   ✅ games.revenue_settlement 欄位已添加');
             }
 
             console.log('✅ 資料庫架構檢查完成');
@@ -686,7 +697,8 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
         totalDays,  // 新增：可配置的遊戲天數
         buyingDuration,  // 買入階段時間（分鐘）
         sellingDuration,  // 賣出階段時間（分鐘）
-        enableRandomness  // 供需隨機開關（0=固定乘數表, 1=固定乘數表+±20%隨機）
+        enableRandomness,  // 供需隨機開關（0=固定乘數表, 1=固定乘數表+±20%隨機）
+        revenueSettlement  // 收益結算方式：'daily'=日結, 'end_of_game'=遊戲結束後結算（預設）
     } = req.body;
 
     // 詳細記錄請求參數（用於調試）
@@ -707,8 +719,8 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
                 name, initial_budget, loan_interest_rate,
                 unsold_fee_per_kg, fixed_unsold_ratio, distributor_floor_price_a, distributor_floor_price_b,
                 target_price_a, target_price_b, num_teams, total_days,
-                buying_duration, selling_duration, enable_randomness
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                buying_duration, selling_duration, enable_randomness, revenue_settlement
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 gameName,
                 initialBudget || defaultGameParameters.initialBudget,
@@ -723,7 +735,8 @@ app.post('/api/admin/games/create', authenticateToken, requireAdmin, async (req,
                 totalDays || defaultGameParameters.totalDays,
                 buyingDuration || 7,  // 買入階段時間（分鐘）
                 sellingDuration || 4,  // 賣出階段時間（分鐘）
-                enableRandomness ? 1 : 0  // 預設關閉
+                enableRandomness ? 1 : 0,  // 預設關閉
+                revenueSettlement === 'daily' ? 'daily' : 'end_of_game'  // 預設遊戲結束後結算
             ]
         );
         
@@ -1901,13 +1914,20 @@ app.post('/api/team/update-name', authenticateToken, async (req, res) => {
 // 團隊介面 - 獲取當前遊戲資訊（修正版）
 app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
     try {
-        // 獲取當前進行中的遊戲
+        // 獲取當前遊戲（active 優先，沒有則取最近 finished）
         const [activeGames] = await pool.execute(
             `SELECT * FROM games WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`
         );
-        
+        let useFinished = false;
         if (activeGames.length === 0) {
-            return res.status(404).json({ error: '目前沒有進行中的遊戲' });
+            const [finishedGames] = await pool.execute(
+                `SELECT * FROM games WHERE status IN ('finished', 'force_ended') ORDER BY updated_at DESC LIMIT 1`
+            );
+            if (finishedGames.length === 0) {
+                return res.status(404).json({ error: '目前沒有進行中的遊戲' });
+            }
+            activeGames.push(finishedGames[0]);
+            useFinished = true;
         }
         
         const currentGame = activeGames[0];
@@ -1922,6 +1942,10 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
         );
         
         if (participants.length === 0) {
+            if (useFinished) {
+                // 已結束的遊戲不自動加入
+                return res.status(404).json({ error: '目前沒有進行中的遊戲' });
+            }
             // 如果團隊編號在範圍內，自動加入
             const teamNumber = parseInt(req.user.username, 10);
             if (!isNaN(teamNumber) && teamNumber >= 1 && teamNumber <= currentGame.num_teams) {
@@ -1929,22 +1953,22 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
                     'INSERT INTO game_participants (game_id, team_id, current_budget) VALUES (?, ?, ?)',
                     [currentGame.id, req.user.userId, currentGame.initial_budget]
                 );
-                
+
                 // 重新查詢
                 const [newParticipants] = await pool.execute(
-                    `SELECT gp.*, g.* 
+                    `SELECT gp.*, g.*
                      FROM game_participants gp
                      JOIN games g ON gp.game_id = g.id
                      WHERE gp.team_id = ? AND g.id = ?`,
                     [req.user.userId, currentGame.id]
                 );
-                
+
                 if (newParticipants.length > 0) {
                     participants.push(newParticipants[0]);
                 }
             } else {
-                return res.status(403).json({ 
-                    error: `本局遊戲只開放 ${currentGame.num_teams} 組團隊，您的組別不在範圍內` 
+                return res.status(403).json({
+                    error: `本局遊戲只開放 ${currentGame.num_teams} 組團隊，您的組別不在範圍內`
                 });
             }
         }
@@ -1976,19 +2000,34 @@ app.get('/api/team/dashboard', authenticateToken, async (req, res) => {
             [currentGame.id, req.user.userId]
         );
 
+        // 計算待結算收益（end_of_game 模式下，賣出收入未回到資金池的總額）
+        let pendingRevenue = 0;
+        if (currentGame.revenue_settlement === 'end_of_game') {
+            const [revResult] = await pool.execute(
+                `SELECT COALESCE(SUM(b.price * b.quantity_fulfilled), 0) AS total_revenue
+                 FROM bids b
+                 WHERE b.game_id = ? AND b.team_id = ? AND b.bid_type = 'sell' AND b.quantity_fulfilled > 0`,
+                [gameId, req.user.userId]
+            );
+            pendingRevenue = parseFloat(revResult[0].total_revenue) || 0;
+        }
+
         res.json({
             gameInfo: {
                 gameId: gameId,
                 gameName: participant.name,
                 currentDay: participant.current_day,
                 status: participant.status,
-                dayStatus: currentDay[0]?.status || 'pending'
+                gameStatus: currentGame.status,
+                dayStatus: currentDay[0]?.status || 'pending',
+                revenueSettlement: currentGame.revenue_settlement || 'end_of_game'
             },
             financials: {
                 currentBudget: participant.current_budget,
                 totalLoan: participant.total_loan,
                 fishAInventory: participant.fish_a_inventory,
-                fishBInventory: participant.fish_b_inventory
+                fishBInventory: participant.fish_b_inventory,
+                pendingRevenue: pendingRevenue
             },
             marketInfo: currentDay[0] ? {
                 fishASupply: currentDay[0].fish_a_supply,
@@ -2936,11 +2975,12 @@ async function processSellBids(gameDay) {
     try {
         // 獲取遊戲設定
         const [gameInfo] = await connection.execute(
-            'SELECT unsold_fee_per_kg, fixed_unsold_ratio FROM games WHERE id = ?',
+            'SELECT unsold_fee_per_kg, fixed_unsold_ratio, revenue_settlement FROM games WHERE id = ?',
             [gameDay.game_id]
         );
         const fixedUnsoldRatio = gameInfo[0].fixed_unsold_ratio || 2.5; // 從資料庫讀取固定滯銷比例
         const unsoldFeePerKg = gameInfo[0].unsold_fee_per_kg || 10;
+        const revenueSettlement = gameInfo[0].revenue_settlement || 'end_of_game';
 
         console.log(`處理賣出投標 - 固定滯銷比例: ${fixedUnsoldRatio}%`);
 
@@ -3020,22 +3060,34 @@ async function processSellBids(gameDay) {
 
                 if (fulfilledQuantity > 0) {
                     remainingBudget = remainingBudget.minus(totalRevenue);
-                    
+
                     // 更新投標記錄
                     await connection.execute(
                         'UPDATE bids SET quantity_fulfilled = ?, status = ? WHERE id = ?',
                         [fulfilledQuantity, fulfilledQuantity >= availableQuantity ? 'fulfilled' : 'partial', bid.id]
                     );
-                    
-                    // 更新團隊現金和扣除庫存
-                    await connection.execute(
-                        `UPDATE game_participants 
-                         SET current_budget = current_budget + ?,
-                             ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} = 
-                             ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} - ?
-                         WHERE game_id = ? AND team_id = ?`,
-                        [totalRevenue, fulfilledQuantity, gameDay.game_id, bid.team_id]
-                    );
+
+                    // 更新團隊庫存（扣除已賣出的魚）；現金視結算方式而定
+                    if (revenueSettlement === 'daily') {
+                        // 日結：賣出收入立即回到資金池
+                        await connection.execute(
+                            `UPDATE game_participants
+                             SET current_budget = current_budget + ?,
+                                 ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} =
+                                 ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} - ?
+                             WHERE game_id = ? AND team_id = ?`,
+                            [totalRevenue, fulfilledQuantity, gameDay.game_id, bid.team_id]
+                        );
+                    } else {
+                        // 遊戲結束後結算：收入不回資金池，只扣庫存
+                        await connection.execute(
+                            `UPDATE game_participants
+                             SET ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} =
+                                 ${fishType === 'A' ? 'fish_a_inventory' : 'fish_b_inventory'} - ?
+                             WHERE game_id = ? AND team_id = ?`,
+                            [fulfilledQuantity, gameDay.game_id, bid.team_id]
+                        );
+                    }
                     
                     // 記錄交易到 transactions 表
                     await connection.execute(

@@ -43,6 +43,7 @@ CREATE TABLE games (
     target_price_b DECIMAL(10, 2),
     buying_duration INT,
     selling_duration INT,
+    revenue_settlement ENUM('daily', 'end_of_game') DEFAULT 'end_of_game',  -- 收益結算方式
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     team_names JSON,
@@ -57,6 +58,7 @@ CREATE TABLE games (
 - `name` 不是 `game_name` - 所有代碼必須使用 `name`
 - `status` 管理遊戲整體狀態
 - `phase` 管理遊戲當前階段（等待、買入、賣出等）
+- `revenue_settlement` - 收益結算方式：`daily`（賣出收入即時回到資金池）或 `end_of_game`（賣出收入不回到資金池，遊戲結束才結算，預設）
 
 **status ENUM 值**:
 - `pending` - 待開始

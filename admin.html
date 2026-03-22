@@ -359,6 +359,14 @@
                             </label>
                             <small style="color:#888;">關閉時使用固定乘數表，開啟後在固定乘數基礎上加 ±20% 隨機擾動</small>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">收益結算方式</label>
+                            <select class="form-input" id="revenueSettlement">
+                                <option value="end_of_game" selected>遊戲結束後結算（預設）</option>
+                                <option value="daily">每日結算</option>
+                            </select>
+                            <small style="color:#888;">「遊戲結束後結算」：賣出收入不回到資金池，考驗資金管理。「每日結算」：收入即時回到資金池，適合入門。</small>
+                        </div>
                     </div>
                     <div style="text-align: center; margin-top: 30px;">
                         <button type="submit" class="btn btn-primary" style="padding: 15px 40px; font-size: 16px;">
@@ -735,7 +743,8 @@
                 fixedUnsoldRatio: parseFloat(document.getElementById('fixedUnsoldRatio').value),
                 buyingDuration: parseInt(document.getElementById('buyingDuration').value),
                 sellingDuration: parseInt(document.getElementById('sellingDuration').value),
-                enableRandomness: document.getElementById('enableRandomness').checked
+                enableRandomness: document.getElementById('enableRandomness').checked,
+                revenueSettlement: document.getElementById('revenueSettlement').value
             };
 
             try {
@@ -767,6 +776,7 @@
                     document.getElementById('buyingDuration').value = '7';
                     document.getElementById('sellingDuration').value = '4';
                     document.getElementById('enableRandomness').checked = false;
+                    document.getElementById('revenueSettlement').value = 'end_of_game';
                 } else {
                     showAlert('遊戲創建失敗: ' + result.error, 'error');
                 }
