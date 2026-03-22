@@ -873,6 +873,7 @@ app.get('/api/admin/active-game', authenticateToken, requireAdmin, async (req, r
             numTeams: game.num_teams,
             createdAt: game.created_at,
             participantCount: game.participant_count,
+            revenueSettlement: game.revenue_settlement,
             phase: game.day_status || game.phase || 'waiting'  // 優先使用 day_status，回退到 games.phase
         };
 
@@ -937,6 +938,7 @@ app.get('/api/admin/games/:gameId/status', authenticateToken, requireAdmin, asyn
             targetPriceB: gameData.target_price_b,
             numTeams: gameData.num_teams,
             createdAt: gameData.created_at,
+            revenueSettlement: gameData.revenue_settlement,
             dayStatus: gameData.day_status,
             dayNumber: gameData.day_number,
             phase: gameData.day_status || gameData.phase || 'waiting'  // 優先使用 day_status，回退到 games.phase
