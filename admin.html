@@ -870,10 +870,11 @@
                 console.error('Error loading teams:', error);
             }
             
-            const statusClass = gameStatus.status === 'active' ? 'status-active' : 
-                              gameStatus.status === 'completed' ? 'status-completed' : 'status-pending';
+            const statusClass = gameStatus.status === 'active' ? 'status-active' :
+                              (gameStatus.status === 'finished' || gameStatus.status === 'force_ended') ? 'status-completed' : 'status-pending';
             const statusText = gameStatus.status === 'active' ? '進行中' :
-                             gameStatus.status === 'completed' ? '已結束' : '準備中';
+                             gameStatus.status === 'finished' ? '已結束' :
+                             gameStatus.status === 'force_ended' ? '已強制結束' : '準備中';
             
             // 映射後端phase值到前端期望的值
             const phaseMapping = {
@@ -1032,7 +1033,7 @@
         function generateControlButtons(gameStatus) {
             let html = '';
 
-            if (gameStatus.status === 'completed') {
+            if (gameStatus.status === 'finished' || gameStatus.status === 'force_ended') {
                 html += '<div class="alert alert-info">遊戲已結束</div>';
                 return html;
             }
@@ -1127,8 +1128,8 @@
         }
         
         function getStatusBackground(status) {
-            return status === 'active' ? '#f6ffed' : 
-                   status === 'completed' ? '#f0f0f0' : '#fff7e6';
+            return status === 'active' ? '#f6ffed' :
+                   (status === 'finished' || status === 'force_ended') ? '#f0f0f0' : '#fff7e6';
         }
         
         function getPhaseBackground(phase) {
@@ -1793,10 +1794,11 @@
             
             games.forEach(game => {
                 const gameId = game.game_id || game.id;
-                const statusClass = game.status === 'active' ? 'status-active' : 
-                                  game.status === 'completed' ? 'status-completed' : 'status-pending';
+                const statusClass = game.status === 'active' ? 'status-active' :
+                                  (game.status === 'finished' || game.status === 'force_ended') ? 'status-completed' : 'status-pending';
                 const statusText = game.status === 'active' ? '進行中' :
-                                 game.status === 'completed' ? '已結束' : '準備中';
+                                 game.status === 'finished' ? '已結束' :
+                                 game.status === 'force_ended' ? '已強制結束' : '準備中';
                 
                 const progress = `${game.current_day || 0}/${game.total_days || 7}`;
                 
