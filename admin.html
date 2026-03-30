@@ -1743,7 +1743,7 @@
                     <tr style="white-space:nowrap;">
                         <td><strong>${index + 1}</strong></td>
                         <td>${result.team_name || (_en() ? `Team ${result.username}` : `團隊${result.username}`)}</td>
-                        <td>$${(Number(result.closing_budget) - Number(result.daily_profit) || 0).toLocaleString()}</td>
+                        <td>$${(Number(result.opening_budget) || 0).toLocaleString()}</td>
                         <td>$${(Number(result.closing_budget) || 0).toLocaleString()}</td>
                         <td>$${(Number(result.cost) || 0).toLocaleString()}</td>
                         <td>$${(Number(result.revenue) || 0).toLocaleString()}</td>

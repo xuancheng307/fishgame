@@ -2400,11 +2400,18 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
             [gameDayId]
         );
 
-        // 獲取當日團隊結果
+        // 獲取當日團隊結果（含前一天 closing_budget 作為 opening_budget）
+        const dayNum = parseInt(day);
         const [teamResults] = await pool.execute(
-            `SELECT dr.*, u.team_name, u.username
+            `SELECT dr.*, u.team_name, u.username,
+                    COALESCE(prev.closing_budget, g.initial_budget) AS opening_budget
              FROM daily_results dr
              JOIN users u ON dr.team_id = u.id
+             JOIN games g ON dr.game_id = g.id
+             LEFT JOIN daily_results prev
+                    ON prev.game_id = dr.game_id
+                   AND prev.team_id = dr.team_id
+                   AND prev.day_number = dr.day_number - 1
              WHERE dr.game_day_id = ?
              ORDER BY dr.daily_profit DESC`,
             [gameDayId]
