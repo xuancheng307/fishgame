@@ -1059,15 +1059,15 @@ app.get('/api/admin/games/:gameId/current-bids', authenticateToken, requireAdmin
         const dayId = currentDay[0].id;
         
         const [buyBids] = await pool.execute(`
-            SELECT b.*, u.team_name 
+            SELECT b.*, u.team_name, u.username
             FROM bids b
             JOIN users u ON b.team_id = u.id
             WHERE b.game_day_id = ? AND b.bid_type = 'buy'
             ORDER BY b.fish_type, b.price DESC
         `, [dayId]);
-        
+
         const [sellBids] = await pool.execute(`
-            SELECT b.*, u.team_name 
+            SELECT b.*, u.team_name, u.username
             FROM bids b
             JOIN users u ON b.team_id = u.id
             WHERE b.game_day_id = ? AND b.bid_type = 'sell'
@@ -1376,7 +1376,7 @@ app.post('/api/admin/games/:gameId/close-buying', authenticateToken, requireAdmi
         
         // 獲取結算結果
         const [buyResults] = await pool.execute(
-            `SELECT b.*, u.team_name 
+            `SELECT b.*, u.team_name, u.username
              FROM bids b
              JOIN users u ON b.team_id = u.id
              WHERE b.game_day_id = ? AND b.bid_type = 'buy'
@@ -1553,7 +1553,7 @@ app.post('/api/admin/games/:gameId/close-selling', authenticateToken, requireAdm
         
         // 獲取結算結果
         const [sellResults] = await pool.execute(
-            `SELECT b.*, u.team_name 
+            `SELECT b.*, u.team_name, u.username
              FROM bids b
              JOIN users u ON b.team_id = u.id
              WHERE b.game_day_id = ? AND b.bid_type = 'sell'
@@ -2373,16 +2373,16 @@ app.get('/api/games/:gameId/bid-history', authenticateToken, async (req, res) =>
         const history = [];
         for (const day of days) {
             const [buyBids] = await pool.execute(
-                `SELECT b.*, u.team_name 
+                `SELECT b.*, u.team_name, u.username
                  FROM bids b
                  JOIN users u ON b.team_id = u.id
                  WHERE b.game_day_id = ? AND b.bid_type = 'buy'
                  ORDER BY b.fish_type, b.price DESC`,
                 [day.id]
             );
-            
+
             const [sellBids] = await pool.execute(
-                `SELECT b.*, u.team_name 
+                `SELECT b.*, u.team_name, u.username
                  FROM bids b
                  JOIN users u ON b.team_id = u.id
                  WHERE b.game_day_id = ? AND b.bid_type = 'sell'
@@ -2430,17 +2430,17 @@ app.get('/api/admin/games/:gameId/daily-results/:day', authenticateToken, requir
         // 獲取當日投標記錄
         const gameDayId = dayInfo[0].id;
         const [bids] = await pool.execute(
-            `SELECT b.*, u.team_name
+            `SELECT b.*, u.team_name, u.username
              FROM bids b
              JOIN users u ON b.team_id = u.id
              WHERE b.game_day_id = ?
              ORDER BY b.created_at`,
             [gameDayId]
         );
-        
+
         // 獲取當日團隊結果
         const [teamResults] = await pool.execute(
-            `SELECT dr.*, u.team_name
+            `SELECT dr.*, u.team_name, u.username
              FROM daily_results dr
              JOIN users u ON dr.team_id = u.id
              WHERE dr.game_day_id = ?

@@ -1492,7 +1492,7 @@
                     }
                     const unsoldLabel = isHighestPrice ? (E ? ' (incl. unsold)' : ' (含滯銷)') : '';
                     rows += `<tr ${isHighestPrice ? 'style="background-color: #ffebee;"' : ''}>
-                        <td>${bid.team_name || (E ? `Team ${bid.team_id}` : `團隊${bid.team_id}`)}</td>
+                        <td>${bid.team_name || (E ? `Team ${bid.username || bid.team_id}` : `團隊${bid.username || bid.team_id}`)}</td>
                         <td>$${bid.price.toLocaleString()} ${isHighestPrice ? '🔴' : ''}</td>
                         <td>${bid.quantity_submitted.toLocaleString()}${unsoldNote}</td>
                         <td>$${totalAmount.toLocaleString()}</td>
