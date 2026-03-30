@@ -3006,11 +3006,12 @@ async function processSellBids(gameDay) {
             const maxPrice = Math.max(...allBids.map(bid => Number(bid.price)));
             const highPriceBids = allBids.filter(bid => Number(bid.price) === maxPrice);
 
-            // 計算最高價投標的滯銷數量
+            // 計算滯銷數量：基數為全部賣出投標的總量，由最高價者承擔
+            const totalAllQuantity = allBids.reduce((sum, bid) => sum + bid.quantity_submitted, 0);
             const totalHighPriceQuantity = highPriceBids.reduce((sum, bid) => sum + bid.quantity_submitted, 0);
-            let unsoldQuantity = Math.ceil(totalHighPriceQuantity * fixedUnsoldRatio / 100);
+            let unsoldQuantity = Math.ceil(totalAllQuantity * fixedUnsoldRatio / 100);
 
-            console.log(`${fishType}級魚：最高價${maxPrice}，總量${totalHighPriceQuantity}kg，固定滯銷${unsoldQuantity}kg`);
+            console.log(`${fishType}級魚：最高價${maxPrice}，全部賣出量${totalAllQuantity}kg，最高價量${totalHighPriceQuantity}kg，固定滯銷${unsoldQuantity}kg`);
 
             // 步驟1b：預計算每個最高價投標的滯銷扣除量
             // 規格要求「同價位時，晚出價者優先滯銷」→ created_at DESC
