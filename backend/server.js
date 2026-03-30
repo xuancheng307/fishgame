@@ -1128,51 +1128,8 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
             let budgetMultiplierA = 1;
             let budgetMultiplierB = 1;
             
-            // 更新：供給量變動範圍從±30%改為±20%
-            switch(nextDay) {
-                case 1:
-                    supplyMultiplierA = 1.0;
-                    supplyMultiplierB = 1.0;
-                    budgetMultiplierA = 1.0;
-                    budgetMultiplierB = 1.0;
-                    break;
-                case 2:
-                    supplyMultiplierA = 0.85;  // 原0.7，現在改為更小的變動
-                    supplyMultiplierB = 1.05;
-                    budgetMultiplierA = 1.15;
-                    budgetMultiplierB = 0.95;
-                    break;
-                case 3:
-                    supplyMultiplierA = 1.05;
-                    supplyMultiplierB = 0.92;
-                    budgetMultiplierA = 0.95;
-                    budgetMultiplierB = 1.18;  // 原1.3，現在改為更小的變動
-                    break;
-                case 4:
-                    supplyMultiplierA = 1.15;  // 原1.3
-                    supplyMultiplierB = 1.20;  // 原1.4
-                    budgetMultiplierA = 1.08;
-                    budgetMultiplierB = 1.08;
-                    break;
-                case 5:
-                    supplyMultiplierA = 1.12;
-                    supplyMultiplierB = 1.12;
-                    budgetMultiplierA = 0.85;
-                    budgetMultiplierB = 0.82;
-                    break;
-                case 6:
-                    supplyMultiplierA = 0.88;
-                    supplyMultiplierB = 1.15;  // 原1.3
-                    budgetMultiplierA = 1.20;  // 原1.4
-                    budgetMultiplierB = 0.92;
-                    break;
-                case 7:
-                    supplyMultiplierA = 0.92;
-                    supplyMultiplierB = 0.90;
-                    budgetMultiplierA = 1.20;  // 原1.5
-                    budgetMultiplierB = 1.18;  // 原1.4
-                    break;
-            }
+            // 所有天數使用固定乘數 1.0（不再每日變動供需）
+            // 如需恢復每日變動，可在此處重新加入 switch(nextDay) 分支
             
             // 隨機因子：enable_randomness=1 時 ±20%，否則無隨機
             const useRandom = !!game[0].enable_randomness;
