@@ -254,21 +254,23 @@
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="i18n.js"></script>
 </head>
 <body>
     <!-- Header -->
     <div class="header">
         <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <h1>🐟 魚市場遊戲管理控制台</h1>
-                <div class="subtitle">Fish Market Game Management Dashboard</div>
+                <h1 data-i18n="ad.title">🐟 魚市場遊戲管理控制台</h1>
+                <div class="subtitle" data-i18n="ad.subtitle">Fish Market Game Management Dashboard</div>
             </div>
             <div style="display: flex; gap: 10px;">
+                <button id="langToggle" onclick="toggleLang()" style="background: #fff; color: #1890ff; border: 2px solid #1890ff; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 700; min-width: 44px;">EN</button>
                 <button onclick="resetAllPasswords()" class="btn btn-warning" style="background: #faad14; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
-                    🔄 重置所有密碼
+                    <span data-i18n="ad.btn.resetPw">🔄 重置所有密碼</span>
                 </button>
                 <button onclick="logout()" class="btn btn-danger" style="background: #ff4d4f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
-                    🚪 登出
+                    <span data-i18n="ad.btn.logout">🚪 登出</span>
                 </button>
             </div>
         </div>
@@ -278,13 +280,13 @@
     <div class="tab-navigation">
         <div class="tab-nav-container">
             <div class="tab-nav">
-                <div class="tab-item active" onclick="switchTab('game-instructions')">🎯 遊戲介紹</div>
-                <div class="tab-item" onclick="switchTab('create-game')">📝 創建遊戲</div>
-                <div class="tab-item" onclick="switchTab('game-control')">🎮 遊戲控制</div>
-                <div class="tab-item" onclick="switchTab('bidding-results')">📊 競標結果</div>
-                <div class="tab-item" onclick="switchTab('daily-stats')">📈 每日統計</div>
-                <div class="tab-item" onclick="switchTab('charts')">📉 統計圖表</div>
-                <div class="tab-item" onclick="switchTab('game-history')">📋 歷史遊戲</div>
+                <div class="tab-item active" onclick="switchTab('game-instructions')" data-i18n="ad.tab.intro">🎯 遊戲介紹</div>
+                <div class="tab-item" onclick="switchTab('create-game')" data-i18n="ad.tab.create">📝 創建遊戲</div>
+                <div class="tab-item" onclick="switchTab('game-control')" data-i18n="ad.tab.control">🎮 遊戲控制</div>
+                <div class="tab-item" onclick="switchTab('bidding-results')" data-i18n="ad.tab.bids">📊 競標結果</div>
+                <div class="tab-item" onclick="switchTab('daily-stats')" data-i18n="ad.tab.stats">📈 每日統計</div>
+                <div class="tab-item" onclick="switchTab('charts')" data-i18n="ad.tab.charts">📉 統計圖表</div>
+                <div class="tab-item" onclick="switchTab('game-history')" data-i18n="ad.tab.history">📋 歷史遊戲</div>
                 <div class="tab-item" onclick="switchTab('qr-code')">📱 QR Code</div>
             </div>
         </div>
@@ -295,7 +297,7 @@
         <!-- Tab 0: Game Instructions -->
         <div id="game-instructions" class="tab-pane active">
             <div class="card">
-                <h3>🎯 遊戲介紹</h3>
+                <h3 data-i18n="ad.intro.title">🎯 遊戲介紹</h3>
                 <div style="padding: 20px;">
                     <iframe src="game-instructions.html" style="width: 100%; height: 800px; border: none; border-radius: 8px;"></iframe>
                 </div>
@@ -305,71 +307,71 @@
         <!-- Tab 1: Create Game -->
         <div id="create-game" class="tab-pane">
             <div class="card">
-                <h3>創建新遊戲</h3>
+                <h3 data-i18n="ad.create.title">創建新遊戲</h3>
                 <form id="create-game-form">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label class="form-label">遊戲名稱 *</label>
-                            <input type="text" class="form-input" id="gameName" placeholder="輸入遊戲名稱" required>
+                            <label class="form-label" data-i18n="ad.create.gameName">遊戲名稱 *</label>
+                            <input type="text" class="form-input" id="gameName" placeholder="輸入遊戲名稱" data-i18n-ph="ad.create.ph.gameName" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">遊戲天數</label>
+                            <label class="form-label" data-i18n="ad.create.totalDays">遊戲天數</label>
                             <input type="number" class="form-input" id="totalDays" value="7" min="1" max="30">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">參與組數</label>
+                            <label class="form-label" data-i18n="ad.create.numTeams">參與組數</label>
                             <input type="number" class="form-input" id="numTeams" value="12" min="1" max="20">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">初始資金 (元)</label>
+                            <label class="form-label" data-i18n="ad.create.budget">初始資金 (元)</label>
                             <input type="number" class="form-input" id="initialBudget" value="1000000" min="100000">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">每日貸款利率 (%)</label>
+                            <label class="form-label" data-i18n="ad.create.loanRate">每日貸款利率 (%)</label>
                             <input type="number" class="form-input" id="loanInterestRate" value="3" min="0" max="10" step="0.1">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">滯銷處理費 (元/kg)</label>
+                            <label class="form-label" data-i18n="ad.create.unsoldFee">滯銷處理費 (元/kg)</label>
                             <input type="number" class="form-input" id="unsoldFeePerKg" value="10" min="0">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">A級魚目標價格 (元/kg)</label>
+                            <label class="form-label" data-i18n="ad.create.targetA">A級魚目標價格 (元/kg)</label>
                             <input type="number" class="form-input" id="targetPriceA" value="500" min="100">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">B級魚目標價格 (元/kg)</label>
+                            <label class="form-label" data-i18n="ad.create.targetB">B級魚目標價格 (元/kg)</label>
                             <input type="number" class="form-input" id="targetPriceB" value="300" min="100">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">固定滯銷比例 (%)</label>
+                            <label class="form-label" data-i18n="ad.create.unsoldRatio">固定滯銷比例 (%)</label>
                             <input type="number" class="form-input" id="fixedUnsoldRatio" value="2.5" min="0" max="10" step="0.1">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">買入投標時間 (分鐘)</label>
+                            <label class="form-label" data-i18n="ad.create.buyDur">買入投標時間 (分鐘)</label>
                             <input type="number" class="form-input" id="buyingDuration" value="7" min="1" max="30">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">賣出投標時間 (分鐘)</label>
+                            <label class="form-label" data-i18n="ad.create.sellDur">賣出投標時間 (分鐘)</label>
                             <input type="number" class="form-input" id="sellingDuration" value="4" min="1" max="30">
                         </div>
                         <div class="form-group">
                             <label class="form-label" style="display:flex;align-items:center;gap:8px;">
                                 <input type="checkbox" id="enableRandomness">
-                                啟用供需隨機 (±20%)
+                                <span data-i18n="ad.create.randomness">啟用供需隨機 (±20%)</span>
                             </label>
-                            <small style="color:#888;">關閉時使用固定乘數表，開啟後在固定乘數基礎上加 ±20% 隨機擾動</small>
+                            <small style="color:#888;" data-i18n="ad.create.randomHint">關閉時使用固定乘數表，開啟後在固定乘數基礎上加 ±20% 隨機擾動</small>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">收益結算方式</label>
+                            <label class="form-label" data-i18n="ad.create.settlement">收益結算方式</label>
                             <select class="form-input" id="revenueSettlement">
-                                <option value="end_of_game" selected>遊戲結束後結算（預設）</option>
-                                <option value="daily">每日結算</option>
+                                <option value="end_of_game" selected data-i18n="ad.create.settle.endgame">遊戲結束後結算（預設）</option>
+                                <option value="daily" data-i18n="ad.create.settle.daily">每日結算</option>
                             </select>
-                            <small style="color:#888;">「遊戲結束後結算」：賣出收入不回到資金池，考驗資金管理。「每日結算」：收入即時回到資金池，適合入門。</small>
+                            <small style="color:#888;" data-i18n="ad.create.settleHint">「遊戲結束後結算」：賣出收入不回到資金池，考驗資金管理。「每日結算」：收入即時回到資金池，適合入門。</small>
                         </div>
                     </div>
                     <div style="text-align: center; margin-top: 30px;">
-                        <button type="submit" class="btn btn-primary" style="padding: 15px 40px; font-size: 16px;">
+                        <button type="submit" class="btn btn-primary" style="padding: 15px 40px; font-size: 16px;" data-i18n="ad.create.submit">
                             🚀 創建遊戲
                         </button>
                     </div>
@@ -383,7 +385,7 @@
         <!-- Tab 2: Game Control -->
         <div id="game-control" class="tab-pane">
             <div class="card">
-                <h3>遊戲控制面板</h3>
+                <h3 data-i18n="ad.ctrl.title">遊戲控制面板</h3>
             </div>
 
             <!-- Game Control Panel (will be populated dynamically) -->
@@ -393,25 +395,25 @@
         <!-- Tab 3: Bidding Results -->
         <div id="bidding-results" class="tab-pane">
             <div class="card">
-                <h3>競標結果查看</h3>
+                <h3 data-i18n="ad.bids.title">競標結果查看</h3>
                 <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                     <div class="form-group" style="min-width: 120px;">
-                        <label class="form-label">選擇天數</label>
+                        <label class="form-label" data-i18n="ad.bids.selDay">選擇天數</label>
                         <select class="form-select" id="biddingDaySelect">
-                            <option value="">請選擇天數</option>
+                            <option value="" data-i18n="ad.bids.phDay">請選擇天數</option>
                         </select>
                     </div>
                     <div class="form-group" style="min-width: 120px;">
-                        <label class="form-label">投標類型</label>
+                        <label class="form-label" data-i18n="ad.bids.selType">投標類型</label>
                         <select class="form-select" id="biddingTypeSelect">
-                            <option value="all">全部投標</option>
-                            <option value="buy">買入投標</option>
-                            <option value="sell">賣出投標</option>
+                            <option value="all" data-i18n="ad.bids.typeAll">全部投標</option>
+                            <option value="buy" data-i18n="ad.bids.typeBuy">買入投標</option>
+                            <option value="sell" data-i18n="ad.bids.typeSell">賣出投標</option>
                         </select>
                     </div>
                     <div class="form-group" style="min-width: 100px;">
                         <label class="form-label">&nbsp;</label>
-                        <button class="btn btn-primary" onclick="loadBiddingResults()">查詢結果</button>
+                        <button class="btn btn-primary" onclick="loadBiddingResults()" data-i18n="ad.bids.query">查詢結果</button>
                     </div>
                 </div>
             </div>
@@ -419,7 +421,7 @@
             <!-- Bidding Results Table -->
             <div id="bidding-results-content">
                 <div class="empty-state">
-                    📊<br>請選擇天數查看競標結果
+                    📊<br><span data-i18n="ad.bids.empty">請選擇天數查看競標結果</span>
                 </div>
             </div>
         </div>
@@ -427,17 +429,17 @@
         <!-- Tab 4: Daily Stats -->
         <div id="daily-stats" class="tab-pane">
             <div class="card">
-                <h3>每日統計報表</h3>
+                <h3 data-i18n="ad.stats.title">每日統計報表</h3>
                 <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                     <div class="form-group" style="min-width: 120px;">
-                        <label class="form-label">選擇天數</label>
+                        <label class="form-label" data-i18n="ad.stats.selDay">選擇天數</label>
                         <select class="form-select" id="statsDaySelect">
-                            <option value="">請選擇天數</option>
+                            <option value="" data-i18n="ad.stats.phDay">請選擇天數</option>
                         </select>
                     </div>
                     <div class="form-group" style="min-width: 100px;">
                         <label class="form-label">&nbsp;</label>
-                        <button class="btn btn-primary" onclick="loadDailyStats()">查看統計</button>
+                        <button class="btn btn-primary" onclick="loadDailyStats()" data-i18n="ad.stats.query">查看統計</button>
                     </div>
                 </div>
             </div>
@@ -445,7 +447,7 @@
             <!-- Daily Stats Content -->
             <div id="daily-stats-content">
                 <div class="empty-state">
-                    📈<br>請選擇天數查看每日統計
+                    📈<br><span data-i18n="ad.stats.empty">請選擇天數查看每日統計</span>
                 </div>
             </div>
         </div>
@@ -453,43 +455,43 @@
         <!-- Tab: Charts -->
         <div id="charts" class="tab-pane">
             <div class="card">
-                <h3>📉 統計圖表</h3>
-                <p style="color:#666;margin-bottom:12px;">需要有已結算的遊戲數據才能顯示圖表</p>
+                <h3 data-i18n="ad.chart.title">📉 統計圖表</h3>
+                <p style="color:#666;margin-bottom:12px;" data-i18n="ad.chart.hint">需要有已結算的遊戲數據才能顯示圖表</p>
                 <div id="chartGameSelector" style="margin-bottom:16px;"></div>
             </div>
             <div id="chartContainer" style="display:none;">
                 <div class="card">
-                    <h4>📈 ROI 走勢圖</h4>
-                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：誰的策略最穩定？哪裡翻盤了？</p>
+                    <h4 data-i18n="ad.chart.roi">📈 ROI 走勢圖</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;" data-i18n="ad.chart.roiHint">教學問題：誰的策略最穩定？哪裡翻盤了？</p>
                     <div style="position:relative;height:350px;"><canvas id="chartROI"></canvas></div>
                 </div>
                 <div class="card">
-                    <h4>💰 損益結構圖</h4>
-                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：錢花到哪了？為什麼虧？</p>
+                    <h4 data-i18n="ad.chart.pl">💰 損益結構圖</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;" data-i18n="ad.chart.plHint">教學問題：錢花到哪了？為什麼虧？</p>
                     <div style="margin-bottom:8px;">
-                        <label>選擇天數：</label>
+                        <label data-i18n="ad.chart.selDay">選擇天數：</label>
                         <select id="plDaySelect" onchange="renderPLChart()" style="padding:4px 8px;border-radius:4px;border:1px solid #d1d5db;"></select>
                     </div>
                     <div style="position:relative;height:350px;"><canvas id="chartPL"></canvas></div>
                 </div>
                 <div class="card">
-                    <h4>🔄 買賣價差分析</h4>
-                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：買貴了嗎？賣便宜了嗎？價差＝毛利</p>
+                    <h4 data-i18n="ad.chart.spread">🔄 買賣價差分析</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;" data-i18n="ad.chart.spreadHint">教學問題：買貴了嗎？賣便宜了嗎？價差＝毛利</p>
                     <div style="margin-bottom:8px;">
-                        <label>天數：</label>
+                        <label data-i18n="ad.chart.day">天數：</label>
                         <select id="spreadDaySelect" onchange="renderSpreadChart()" style="padding:4px 8px;border-radius:4px;border:1px solid #d1d5db;"></select>
-                        <label style="margin-left:12px;">魚種：</label>
+                        <label style="margin-left:12px;" data-i18n="ad.chart.fish">魚種：</label>
                         <select id="spreadFishSelect" onchange="renderSpreadChart()" style="padding:4px 8px;border-radius:4px;border:1px solid #d1d5db;">
-                            <option value="all">全部</option>
-                            <option value="A">A 級魚</option>
-                            <option value="B">B 級魚</option>
+                            <option value="all" data-i18n="ad.chart.fishAll">全部</option>
+                            <option value="A" data-i18n="ad.chart.fishA">A 級魚</option>
+                            <option value="B" data-i18n="ad.chart.fishB">B 級魚</option>
                         </select>
                     </div>
                     <div style="position:relative;height:350px;"><canvas id="chartSpread"></canvas></div>
                 </div>
                 <div class="card">
-                    <h4>⚔️ 市場競爭分析</h4>
-                    <p style="color:#888;font-size:13px;margin-bottom:8px;">教學問題：市場搶不搶？多少人沒買到？</p>
+                    <h4 data-i18n="ad.chart.market">⚔️ 市場競爭分析</h4>
+                    <p style="color:#888;font-size:13px;margin-bottom:8px;" data-i18n="ad.chart.marketHint">教學問題：市場搶不搶？多少人沒買到？</p>
                     <div style="position:relative;height:350px;"><canvas id="chartMarket"></canvas></div>
                 </div>
             </div>
@@ -498,39 +500,39 @@
         <!-- Tab 5: Game History -->
         <div id="game-history" class="tab-pane">
             <div class="card">
-                <h3>遊戲歷史管理</h3>
+                <h3 data-i18n="ad.hist.title">遊戲歷史管理</h3>
                 <div style="margin-bottom: 20px;">
-                    <button class="btn btn-info" onclick="loadGameHistory()">🔄 重新載入</button>
-                    <button class="btn btn-secondary" onclick="exportGameData()">📤 匯出資料</button>
+                    <button class="btn btn-info" onclick="loadGameHistory()" data-i18n="ad.hist.reload">🔄 重新載入</button>
+                    <button class="btn btn-secondary" onclick="exportGameData()" data-i18n="ad.hist.export">📤 匯出資料</button>
                 </div>
             </div>
 
             <!-- Game History Table -->
             <div id="game-history-content">
-                <div class="loading">載入中...</div>
+                <div class="loading" data-i18n="ad.loading">載入中...</div>
             </div>
         </div>
 
         <!-- Tab 6: QR Code -->
         <div id="qr-code" class="tab-pane">
             <div class="card">
-                <h3>📱 學生登入 QR Code</h3>
+                <h3 data-i18n="ad.qr.title">📱 學生登入 QR Code</h3>
                 <div style="text-align: center; padding: 20px;">
                     <div id="server-info" style="margin-bottom: 20px;">
-                        <p style="font-size: 18px; font-weight: bold;">伺服器 IP 位址：</p>
-                        <p id="server-ip" style="font-size: 24px; color: #1890ff; margin: 10px 0;">偵測中...</p>
-                        <p style="font-size: 16px; color: #666;">學生登入網址：</p>
+                        <p style="font-size: 18px; font-weight: bold;" data-i18n="ad.qr.ipLabel">伺服器 IP 位址：</p>
+                        <p id="server-ip" style="font-size: 24px; color: #1890ff; margin: 10px 0;" data-i18n="ad.qr.detecting">偵測中...</p>
+                        <p style="font-size: 16px; color: #666;" data-i18n="ad.qr.urlLabel">學生登入網址：</p>
                         <p id="student-url" style="font-size: 18px; color: #52c41a; margin: 10px 0;"></p>
                     </div>
                     <div id="qrcode-container" style="display: inline-block; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                         <!-- QR Code will be generated here -->
                     </div>
                     <div style="margin-top: 20px;">
-                        <button class="btn btn-primary" onclick="refreshQRCode()">🔄 重新整理</button>
-                        <button class="btn btn-secondary" onclick="downloadQRCode()">📥 下載 QR Code</button>
+                        <button class="btn btn-primary" onclick="refreshQRCode()" data-i18n="ad.qr.refresh">🔄 重新整理</button>
+                        <button class="btn btn-secondary" onclick="downloadQRCode()" data-i18n="ad.qr.download">📥 下載 QR Code</button>
                     </div>
                     <div style="margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 5px;">
-                        <p style="font-size: 14px; color: #666;">
+                        <p style="font-size: 14px; color: #666;" data-i18n="ad.qr.instructions">
                             <strong>使用說明：</strong><br>
                             1. 學生使用手機掃描上方 QR Code<br>
                             2. 會自動開啟登入頁面<br>
@@ -612,9 +614,9 @@
             if (tabContent) {
                 tabContent.innerHTML = `
                     <div class="alert alert-warning" style="margin: 20px; padding: 20px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
-                        <h4 style="color: #856404; margin-bottom: 10px;">目前沒有進行中的遊戲</h4>
-                        <p style="color: #856404; margin-bottom: 15px;">請先創建一個新遊戲後再使用此功能。</p>
-                        <button onclick="switchTab('create-game')" class="btn btn-primary">前往創建遊戲</button>
+                        <h4 style="color: #856404; margin-bottom: 10px;" data-i18n="ad.noGame.title">目前沒有進行中的遊戲</h4>
+                        <p style="color: #856404; margin-bottom: 15px;" data-i18n="ad.noGame.desc">請先創建一個新遊戲後再使用此功能。</p>
+                        <button onclick="switchTab('create-game')" class="btn btn-primary" data-i18n="ad.noGame.btn">前往創建遊戲</button>
                     </div>
                 `;
             }
@@ -797,17 +799,17 @@
             
             resultDiv.innerHTML = `
                 <div class="card" style="background: #f6ffed; border: 1px solid #b7eb8f;">
-                    <h3 style="color: #389e0d; border-bottom-color: #d9f7be;">✅ 遊戲創建成功！</h3>
+                    <h3 style="color: #389e0d; border-bottom-color: #d9f7be;" data-i18n="ad.created.title">✅ 遊戲創建成功！</h3>
                     <div>
-                        <p><strong>遊戲 ID:</strong> ${result.gameId}</p>
-                        <p><strong>遊戲名稱:</strong> ${result.gameName}</p>
-                        <p><strong>遊戲連結:</strong> <a href="${gameUrl}" target="_blank">${gameUrl}</a></p>
-                        <p><strong>伺服器 IP:</strong> ${serverIP}:${port}</p>
+                        <p><strong data-i18n="ad.created.id">遊戲 ID:</strong> ${result.gameId}</p>
+                        <p><strong data-i18n="ad.created.name">遊戲名稱:</strong> ${result.gameName}</p>
+                        <p><strong data-i18n="ad.created.link">遊戲連結:</strong> <a href="${gameUrl}" target="_blank">${gameUrl}</a></p>
+                        <p><strong data-i18n="ad.created.ip">伺服器 IP:</strong> ${serverIP}:${port}</p>
                         <div style="margin-top: 15px;">
-                            <button class="btn btn-primary" onclick="loadGameInControl(${result.gameId})">
+                            <button class="btn btn-primary" onclick="loadGameInControl(${result.gameId})" data-i18n="ad.created.ctrl">
                                 🎮 立即控制此遊戲
                             </button>
-                            <button class="btn btn-info" onclick="copyGameInfo('${gameUrl}')">
+                            <button class="btn btn-info" onclick="copyGameInfo('${gameUrl}')" data-i18n="ad.created.copy">
                                 📋 複製遊戲連結
                             </button>
                         </div>
@@ -894,52 +896,52 @@
             
             let html = `
                 <div class="card">
-                    <h3>🎮 遊戲控制 - ${gameStatus.gameName}</h3>
+                    <h3>🎮 <span data-i18n="ad.gc.title">遊戲控制</span> - ${gameStatus.gameName}</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
                         <div style="text-align: center; padding: 15px; background: #f0f9ff; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold; color: #1890ff;">${currentGameId}</div>
-                            <div style="color: #666;">遊戲 ID</div>
+                            <div style="color: #666;" data-i18n="ad.gc.gameId">遊戲 ID</div>
                         </div>
                         <div style="text-align: center; padding: 15px; background: ${getStatusBackground(gameStatus.status)}; border-radius: 8px;">
                             <div style="font-size: 18px; font-weight: bold;"><span class="status-badge ${statusClass}">${statusText}</span></div>
-                            <div style="color: #666;">遊戲狀態</div>
+                            <div style="color: #666;" data-i18n="ad.gc.status">遊戲狀態</div>
                         </div>
                         <div style="text-align: center; padding: 15px; background: ${getPhaseBackground(gameStatus.phase)}; border-radius: 8px;">
                             <div style="font-size: 18px; font-weight: bold;"><span class="status-badge ${phaseClass}">${phaseText}</span></div>
-                            <div style="color: #666;">當前階段</div>
+                            <div style="color: #666;" data-i18n="ad.gc.phase">當前階段</div>
                         </div>
                         <div style="text-align: center; padding: 15px; background: #f5f5f5; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold; color: #595959;">${gameStatus.currentDay}/${gameStatus.totalDays}</div>
-                            <div style="color: #666;">遊戲進度</div>
+                            <div style="color: #666;" data-i18n="ad.gc.progress">遊戲進度</div>
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
                         <div style="text-align: center; padding: 10px; background: #fafafa; border-radius: 6px;">
                             <div style="font-size: 16px; font-weight: bold; color: #333;">${gameStatus.participantCount || 0} 組</div>
-                            <div style="font-size: 12px; color: #888;">參加組數</div>
+                            <div style="font-size: 12px; color: #888;" data-i18n="ad.gc.teams">參加組數</div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fafafa; border-radius: 6px;">
                             <div style="font-size: 16px; font-weight: bold; color: #333;">$${Number(gameStatus.initialBudget || 0).toLocaleString()}</div>
-                            <div style="font-size: 12px; color: #888;">初始資金</div>
+                            <div style="font-size: 12px; color: #888;" data-i18n="ad.gc.initBudget">初始資金</div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fafafa; border-radius: 6px;">
                             <div style="font-size: 16px; font-weight: bold; color: #333;">${((gameStatus.loanInterestRate || 0) * 100).toFixed(1)}%</div>
-                            <div style="font-size: 12px; color: #888;">貸款日利率</div>
+                            <div style="font-size: 12px; color: #888;" data-i18n="ad.gc.loanRate">貸款日利率</div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fafafa; border-radius: 6px;">
                             <div style="font-size: 16px; font-weight: bold; color: #333;">$${Number(gameStatus.unsoldFeePerKg || 0).toLocaleString()}/kg</div>
-                            <div style="font-size: 12px; color: #888;">滯銷處理費</div>
+                            <div style="font-size: 12px; color: #888;" data-i18n="ad.gc.unsoldFee">滯銷處理費</div>
                         </div>
                         <div style="text-align: center; padding: 10px; background: #fafafa; border-radius: 6px;">
                             <div style="font-size: 16px; font-weight: bold; color: #333;">${parseFloat(gameStatus.fixedUnsoldRatio || 0).toFixed(1)}%</div>
-                            <div style="font-size: 12px; color: #888;">固定滯銷比例</div>
+                            <div style="font-size: 12px; color: #888;" data-i18n="ad.gc.unsoldRatio">固定滯銷比例</div>
                         </div>
                     </div>
                 </div>
             `;
             
             // Game control buttons
-            html += `<div class="card"><h3>🎯 遊戲操作</h3>`;
+            html += `<div class="card"><h3 data-i18n="ad.gc.ops">🎯 遊戲操作</h3>`;
             html += `<div id="adminTimerDisplay" style="display:none;text-align:center;padding:12px;margin-bottom:12px;background:#fef2f2;border-radius:8px;font-size:24px;font-weight:700;color:#dc2626;"></div>`;
             html += `<div id="game-control-buttons">`;
             html += generateControlButtons(gameStatus);
@@ -949,22 +951,22 @@
             if (gameStatus.currentDayData) {
                 html += `
                     <div class="card">
-                        <h3>📊 當日市場參數 - 第 ${gameStatus.currentDay} 天</h3>
+                        <h3>📊 <span data-i18n="ad.gc.marketParams">當日市場參數</span> - <span data-i18n="ad.gc.dayN">第</span> ${gameStatus.currentDay} <span data-i18n="ad.gc.dayUnit">天</span></h3>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                             <div style="padding: 15px; background: #e6f7ff; border-radius: 8px;">
-                                <div style="font-weight: bold; color: #1890ff;">A級魚供給</div>
+                                <div style="font-weight: bold; color: #1890ff;" data-i18n="ad.gc.supplyA">A級魚供給</div>
                                 <div style="font-size: 20px; margin-top: 5px;">${(gameStatus.currentDayData.fishASupply || 0).toLocaleString()} kg</div>
                             </div>
                             <div style="padding: 15px; background: #f6ffed; border-radius: 8px;">
-                                <div style="font-weight: bold; color: #52c41a;">B級魚供給</div>
+                                <div style="font-weight: bold; color: #52c41a;" data-i18n="ad.gc.supplyB">B級魚供給</div>
                                 <div style="font-size: 20px; margin-top: 5px;">${(gameStatus.currentDayData.fishBSupply || 0).toLocaleString()} kg</div>
                             </div>
                             <div style="padding: 15px; background: #fff7e6; border-radius: 8px;">
-                                <div style="font-weight: bold; color: #fa8c16;">A級魚餐廳預算</div>
+                                <div style="font-weight: bold; color: #fa8c16;" data-i18n="ad.gc.budgetA">A級魚餐廳預算</div>
                                 <div style="font-size: 20px; margin-top: 5px;">$${(gameStatus.currentDayData.fishARestaurantBudget || 0).toLocaleString()}</div>
                             </div>
                             <div style="padding: 15px; background: #fff2f0; border-radius: 8px;">
-                                <div style="font-weight: bold; color: #ff4d4f;">B級魚餐廳預算</div>
+                                <div style="font-weight: bold; color: #ff4d4f;" data-i18n="ad.gc.budgetB">B級魚餐廳預算</div>
                                 <div style="font-size: 20px; margin-top: 5px;">$${(gameStatus.currentDayData.fishBRestaurantBudget || 0).toLocaleString()}</div>
                             </div>
                         </div>
@@ -976,16 +978,16 @@
             if (gameStatus.teams && gameStatus.teams.length > 0) {
                 html += `
                     <div class="card">
-                        <h3>👥 團隊概況 (${gameStatus.teams.length} 組)</h3>
+                        <h3>👥 <span data-i18n="ad.gc.teamOverview">團隊概況</span> (${gameStatus.teams.length} 組)</h3>
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>團隊</th>
-                                    <th>當前現金</th>
-                                    <th>總借貸</th>
-                                    <th>A級魚庫存</th>
-                                    <th>B級魚庫存</th>
-                                    <th>累積收益</th>
+                                    <th data-i18n="ad.gc.th.team">團隊</th>
+                                    <th data-i18n="ad.gc.th.cash">當前現金</th>
+                                    <th data-i18n="ad.gc.th.loan">總借貸</th>
+                                    <th data-i18n="ad.gc.th.invA">A級魚庫存</th>
+                                    <th data-i18n="ad.gc.th.invB">B級魚庫存</th>
+                                    <th data-i18n="ad.gc.th.cumProfit">累積收益</th>
                                     <th>ROI (%)</th>
                                 </tr>
                             </thead>
@@ -1034,7 +1036,7 @@
             let html = '';
 
             if (gameStatus.status === 'finished' || gameStatus.status === 'force_ended') {
-                html += '<div class="alert alert-info">遊戲已結束</div>';
+                html += `<div class="alert alert-info" data-i18n="ad.gc.gameEnded">遊戲已結束</div>`;
                 return html;
             }
 
@@ -1053,9 +1055,9 @@
 
             // Flow: pending → buying → buying_closed → selling → selling_closed → settle → settled
             const steps = [
-                { id: 'buy', label: '買入投標', phases: ['pending', 'buying', 'buying_closed'] },
-                { id: 'sell', label: '賣出投標', phases: ['buying_closed', 'selling', 'selling_closed'] },
-                { id: 'settle', label: '每日結算', phases: ['selling_closed', 'settled'] }
+                { id: 'buy', label: '買入投標', labelEn: 'Buy Bids', phases: ['pending', 'buying', 'buying_closed'] },
+                { id: 'sell', label: '賣出投標', labelEn: 'Sell Bids', phases: ['buying_closed', 'selling', 'selling_closed'] },
+                { id: 'settle', label: '每日結算', labelEn: 'Daily Settle', phases: ['selling_closed', 'settled'] }
             ];
             const currentStep = steps.findIndex(s => s.phases.includes(phase));
 
@@ -1067,7 +1069,7 @@
                 const dotBg = done ? '#22c55e' : active ? '#3b82f6' : '#d1d5db';
                 html += `<div style="flex:1;text-align:center;padding:8px;border-radius:8px;background:${done ? '#f0fdf4' : active ? '#eff6ff' : '#f9fafb'};border:1px solid ${done ? '#bbf7d0' : active ? '#bfdbfe' : '#e5e7eb'};">
                     <div style="${stepNum(i+1, done || active)}">${done ? '✓' : i+1}</div>
-                    <div style="font-size:12px;margin-top:4px;color:${done ? '#16a34a' : active ? '#2563eb' : '#9ca3af'};font-weight:${active ? '700' : '500'};">${s.label}</div>
+                    <div style="font-size:12px;margin-top:4px;color:${done ? '#16a34a' : active ? '#2563eb' : '#9ca3af'};font-weight:${active ? '700' : '500'};">${localStorage.getItem('i18n_lang') === 'en' ? s.labelEn : s.label}</div>
                 </div>`;
             });
             html += '</div>';
@@ -1076,22 +1078,22 @@
             html += '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
 
             if (phase === 'pending') {
-                html += `<button style="${btnStyle('#2563eb')}" onclick="startBuying()">🛒 開始買入投標</button>`;
+                html += `<button style="${btnStyle('#2563eb')}" onclick="startBuying()" data-i18n="ad.gc.btn.startBuy">🛒 開始買入投標</button>`;
             } else if (phase === 'buying') {
-                html += `<button style="${btnStyle('#f59e0b')}" onclick="closeBuying()">⏹ 結束買入投標</button>`;
+                html += `<button style="${btnStyle('#f59e0b')}" onclick="closeBuying()" data-i18n="ad.gc.btn.closeBuy">⏹ 結束買入投標</button>`;
             } else if (phase === 'buying_closed') {
-                html += `<button style="${btnStyle('#2563eb')}" onclick="startSelling()">💰 開始賣出投標</button>`;
-                html += `<button style="${btnStyle('#6366f1')}" onclick="startBuying()">🔄 重新開放買入</button>`;
+                html += `<button style="${btnStyle('#2563eb')}" onclick="startSelling()" data-i18n="ad.gc.btn.startSell">💰 開始賣出投標</button>`;
+                html += `<button style="${btnStyle('#6366f1')}" onclick="startBuying()" data-i18n="ad.gc.btn.reopenBuy">🔄 重新開放買入</button>`;
             } else if (phase === 'selling') {
-                html += `<button style="${btnStyle('#f59e0b')}" onclick="closeSelling()">⏹ 結束賣出投標</button>`;
+                html += `<button style="${btnStyle('#f59e0b')}" onclick="closeSelling()" data-i18n="ad.gc.btn.closeSell">⏹ 結束賣出投標</button>`;
             } else if (phase === 'selling_closed') {
-                html += `<button style="${btnStyle('#16a34a')}" onclick="settleDailyResults()">📊 執行每日結算</button>`;
-                html += `<button style="${btnStyle('#6366f1')}" onclick="startSelling()">🔄 重新開放賣出</button>`;
+                html += `<button style="${btnStyle('#16a34a')}" onclick="settleDailyResults()" data-i18n="ad.gc.btn.settle">📊 執行每日結算</button>`;
+                html += `<button style="${btnStyle('#6366f1')}" onclick="startSelling()" data-i18n="ad.gc.btn.reopenSell">🔄 重新開放賣出</button>`;
             } else if (phase === 'settled') {
                 if (gameStatus.currentDay < gameStatus.totalDays) {
-                    html += `<button style="${btnStyle('#2563eb')}" onclick="advanceDay()">➡️ 推進到第 ${gameStatus.currentDay + 1} 天</button>`;
+                    html += `<button style="${btnStyle('#2563eb')}" onclick="advanceDay()" data-i18n="ad.gc.btn.advance">➡️ 推進到第 ${gameStatus.currentDay + 1} 天</button>`;
                 } else {
-                    html += `<div style="padding:12px;background:#f0fdf4;border-radius:8px;color:#16a34a;font-weight:600;text-align:center;">🎉 所有天數已完成！可結束遊戲。</div>`;
+                    html += `<div style="padding:12px;background:#f0fdf4;border-radius:8px;color:#16a34a;font-weight:600;text-align:center;" data-i18n="ad.gc.allDone">🎉 所有天數已完成！可結束遊戲。</div>`;
                 }
             }
 
@@ -1100,7 +1102,7 @@
             // Force end game
             html += `
                 <div style="margin-top:20px;padding-top:16px;border-top:1px dashed #e5e7eb;">
-                    <button style="${btnStyle('#dc2626')}" onclick="forceEndGame()">⚠️ 強制結束遊戲</button>
+                    <button style="${btnStyle('#dc2626')}" onclick="forceEndGame()" data-i18n="ad.gc.btn.forceEnd">⚠️ 強制結束遊戲</button>
                 </div>
             `;
 
@@ -1653,33 +1655,33 @@
             const contentDiv = document.getElementById('daily-stats-content');
             
             if (!data.results || data.results.length === 0) {
-                contentDiv.innerHTML = '<div class="empty-state">📈<br>該天尚無統計資料</div>';
+                contentDiv.innerHTML = '<div class="empty-state">📈<br><span data-i18n="ad.ds.noData">該天尚無統計資料</span></div>';
                 return;
             }
-            
+
             let html = `
                 <div class="card">
-                    <h4>第 ${day} 天 - 每日統計報表</h4>
+                    <h4><span data-i18n="ad.ds.dayN">第</span> ${day} <span data-i18n="ad.ds.dayUnit">天</span> - <span data-i18n="ad.ds.report">每日統計報表</span></h4>
                     <div style="margin: 20px 0;">
-                        <strong>市場參數：</strong>
-                        A級魚供給: ${data.dayInfo.fish_a_supply || 0} kg | 
-                        B級魚供給: ${data.dayInfo.fish_b_supply || 0} kg | 
-                        A級魚餐廳預算: $${(data.dayInfo.fish_a_restaurant_budget || 0).toLocaleString()} | 
-                        B級魚餐廳預算: $${(data.dayInfo.fish_b_restaurant_budget || 0).toLocaleString()}
+                        <strong data-i18n="ad.ds.params">市場參數：</strong>
+                        <span data-i18n="ad.ds.supplyA">A級魚供給:</span> ${data.dayInfo.fish_a_supply || 0} kg |
+                        <span data-i18n="ad.ds.supplyB">B級魚供給:</span> ${data.dayInfo.fish_b_supply || 0} kg |
+                        <span data-i18n="ad.ds.budgetA">A級魚餐廳預算:</span> $${(data.dayInfo.fish_a_restaurant_budget || 0).toLocaleString()} |
+                        <span data-i18n="ad.ds.budgetB">B級魚餐廳預算:</span> $${(data.dayInfo.fish_b_restaurant_budget || 0).toLocaleString()}
                     </div>
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>排名</th>
-                                <th>團隊</th>
-                                <th>期初現金</th>
-                                <th>期末現金</th>
-                                <th>買入成本</th>
-                                <th>賣出收入</th>
-                                <th>滯銷費用</th>
-                                <th>利息支出</th>
-                                <th>當日損益</th>
-                                <th>累積損益</th>
+                                <th data-i18n="ad.ds.th.rank">排名</th>
+                                <th data-i18n="ad.ds.th.team">團隊</th>
+                                <th data-i18n="ad.ds.th.openCash">期初現金</th>
+                                <th data-i18n="ad.ds.th.closeCash">期末現金</th>
+                                <th data-i18n="ad.ds.th.cost">買入成本</th>
+                                <th data-i18n="ad.ds.th.revenue">賣出收入</th>
+                                <th data-i18n="ad.ds.th.unsold">滯銷費用</th>
+                                <th data-i18n="ad.ds.th.interest">利息支出</th>
+                                <th data-i18n="ad.ds.th.dailyPL">當日損益</th>
+                                <th data-i18n="ad.ds.th.cumPL">累積損益</th>
                                 <th>ROI (%)</th>
                             </tr>
                         </thead>
@@ -1719,23 +1721,23 @@
             
             html += `
                 <div class="card">
-                    <h4>市場總結</h4>
+                    <h4 data-i18n="ad.ds.summary">市場總結</h4>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                         <div style="text-align: center; padding: 15px; background: #f0f9ff; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold; color: #1890ff;">$${totalRevenue.toLocaleString()}</div>
-                            <div style="color: #666;">總賣出收入</div>
+                            <div style="color: #666;" data-i18n="ad.ds.totalRevenue">總賣出收入</div>
                         </div>
                         <div style="text-align: center; padding: 15px; background: #fff7e6; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold; color: #fa8c16;">$${totalCost.toLocaleString()}</div>
-                            <div style="color: #666;">總買入成本</div>
+                            <div style="color: #666;" data-i18n="ad.ds.totalCost">總買入成本</div>
                         </div>
                         <div style="text-align: center; padding: 15px; background: ${totalProfit >= 0 ? '#f6ffed' : '#fff2f0'}; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold; color: ${totalProfit >= 0 ? '#52c41a' : '#ff4d4f'};">$${totalProfit.toLocaleString()}</div>
-                            <div style="color: #666;">市場總損益</div>
+                            <div style="color: #666;" data-i18n="ad.ds.totalPL">市場總損益</div>
                         </div>
                         <div style="text-align: center; padding: 15px; background: #f5f5f5; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold; color: #595959;">${data.results.length}</div>
-                            <div style="color: #666;">參與團隊數</div>
+                            <div style="color: #666;" data-i18n="ad.ds.teamCount">參與團隊數</div>
                         </div>
                     </div>
                 </div>
@@ -1771,22 +1773,22 @@
             const contentDiv = document.getElementById('game-history-content');
             
             if (!games || games.length === 0) {
-                contentDiv.innerHTML = '<div class="empty-state">📋<br>尚無遊戲記錄</div>';
+                contentDiv.innerHTML = '<div class="empty-state">📋<br><span data-i18n="ad.hist.empty">尚無遊戲記錄</span></div>';
                 return;
             }
-            
+
             let html = `
                 <div class="card">
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>遊戲 ID</th>
-                                <th>遊戲名稱</th>
-                                <th>狀態</th>
-                                <th>進度</th>
-                                <th>參與組數</th>
-                                <th>創建時間</th>
-                                <th>操作</th>
+                                <th data-i18n="ad.hist.th.id">遊戲 ID</th>
+                                <th data-i18n="ad.hist.th.name">遊戲名稱</th>
+                                <th data-i18n="ad.hist.th.status">狀態</th>
+                                <th data-i18n="ad.hist.th.progress">進度</th>
+                                <th data-i18n="ad.hist.th.teams">參與組數</th>
+                                <th data-i18n="ad.hist.th.created">創建時間</th>
+                                <th data-i18n="ad.hist.th.actions">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1811,9 +1813,9 @@
                         <td>${game.num_teams || 12} 組</td>
                         <td>${new Date(game.created_at).toLocaleString('zh-TW')}</td>
                         <td>
-                            <button class="btn btn-info btn-sm" onclick="viewGameDetails(${gameId})">查看詳情</button>
-                            ${game.status === 'active' ? 
-                              `<button class="btn btn-primary btn-sm" onclick="loadGameInControl(${gameId})">控制遊戲</button>` : ''}
+                            <button class="btn btn-info btn-sm" onclick="viewGameDetails(${gameId})" data-i18n="ad.hist.details">查看詳情</button>
+                            ${game.status === 'active' ?
+                              `<button class="btn btn-primary btn-sm" onclick="loadGameInControl(${gameId})" data-i18n="ad.hist.control">控制遊戲</button>` : ''}
                         </td>
                     </tr>
                 `;

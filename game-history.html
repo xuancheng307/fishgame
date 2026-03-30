@@ -307,46 +307,48 @@
             }
         }
     </style>
+    <script src="i18n.js"></script>
 </head>
 <body>
-    <a href="javascript:window.close()" class="back-btn">← 關閉</a>
+    <button id="langToggle" onclick="toggleLang()" style="position:fixed;top:20px;right:20px;z-index:1000;background:#667eea;color:white;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;font-weight:bold;font-size:14px;">EN</button>
+    <a href="javascript:window.close()" class="back-btn" data-i18n="gh.close">← 關閉</a>
     
     <div class="container">
         <div class="header">
-            <h1>📊 歷史遊戲記錄</h1>
-            <p>查看所有已完成和進行中的遊戲</p>
+            <h1 data-i18n="gh.title">📊 歷史遊戲記錄</h1>
+            <p data-i18n="gh.subtitle">查看所有已完成和進行中的遊戲</p>
         </div>
         
         <div class="content">
             <!-- 搜尋篩選器 -->
             <div class="search-filters">
                 <div class="filter-group">
-                    <label>遊戲狀態</label>
+                    <label data-i18n="gh.filter.status">遊戲狀態</label>
                     <select id="statusFilter" class="filter-input">
-                        <option value="">全部狀態</option>
-                        <option value="active">進行中</option>
-                        <option value="finished">已結束</option>
+                        <option value="" data-i18n="gh.filter.allStatus">全部狀態</option>
+                        <option value="active" data-i18n="gh.filter.active">進行中</option>
+                        <option value="finished" data-i18n="gh.filter.finished">已結束</option>
                     </select>
                 </div>
-                
+
                 <div class="filter-group">
-                    <label>遊戲名稱</label>
-                    <input type="text" id="nameFilter" class="filter-input" placeholder="搜尋遊戲名稱">
+                    <label data-i18n="gh.filter.name">遊戲名稱</label>
+                    <input type="text" id="nameFilter" class="filter-input" placeholder="搜尋遊戲名稱" data-i18n-ph="gh.filter.phName">
                 </div>
-                
+
                 <div class="filter-group">
-                    <label>日期範圍</label>
+                    <label data-i18n="gh.filter.dateRange">日期範圍</label>
                     <input type="date" id="dateFromFilter" class="filter-input">
                 </div>
-                
+
                 <div class="filter-group">
-                    <label>至</label>
+                    <label data-i18n="gh.filter.dateTo">至</label>
                     <input type="date" id="dateToFilter" class="filter-input">
                 </div>
-                
+
                 <div class="filter-group" style="margin-top: 20px;">
-                    <button class="btn btn-primary" onclick="applyFilters()">🔍 搜尋</button>
-                    <button class="btn btn-secondary" onclick="clearFilters()">清除</button>
+                    <button class="btn btn-primary" onclick="applyFilters()" data-i18n="gh.filter.search">🔍 搜尋</button>
+                    <button class="btn btn-secondary" onclick="clearFilters()" data-i18n="gh.filter.clear">清除</button>
                 </div>
             </div>
             
@@ -354,7 +356,7 @@
             <div id="errorMessage" style="display: none;"></div>
             
             <!-- 載入中 -->
-            <div id="loadingMessage" class="loading">載入歷史遊戲中...</div>
+            <div id="loadingMessage" class="loading" data-i18n="gh.loading">載入歷史遊戲中...</div>
             
             <!-- 遊戲列表 -->
             <div id="gamesContainer">
@@ -366,8 +368,8 @@
             
             <!-- 無資料 -->
             <div id="noDataMessage" class="no-data" style="display: none;">
-                <h3>📝 暫無遊戲記錄</h3>
-                <p>還沒有任何遊戲記錄，開始您的第一場遊戲吧！</p>
+                <h3 data-i18n="gh.noData.title">📝 暫無遊戲記錄</h3>
+                <p data-i18n="gh.noData.desc">還沒有任何遊戲記錄，開始您的第一場遊戲吧！</p>
             </div>
         </div>
     </div>
@@ -459,7 +461,7 @@
                         <span>(${(team.roi * 100).toFixed(1)}%)</span>
                     </div>
                 `).join('')
-                : '<div style="text-align: center; color: #999;">尚無排名資料</div>';
+                : '<div style="text-align: center; color: #999;" data-i18n="gh.card.noRank">尚無排名資料</div>';
             
             return `
                 <div class="game-card ${statusClass}" onclick="viewGameDetails(${game.id})">
@@ -470,33 +472,33 @@
                     
                     <div class="game-info">
                         <div class="info-item">
-                            <span class="info-label">遊戲ID:</span>
+                            <span class="info-label" data-i18n="gh.card.id">遊戲ID:</span>
                             <span class="info-value">#${game.id}</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">參與隊伍:</span>
+                            <span class="info-label" data-i18n="gh.card.teams">參與隊伍:</span>
                             <span class="info-value">${game.num_teams} 隊</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">遊戲天數:</span>
+                            <span class="info-label" data-i18n="gh.card.totalDays">遊戲天數:</span>
                             <span class="info-value">${game.total_days} 天</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">當前天數:</span>
+                            <span class="info-label" data-i18n="gh.card.curDay">當前天數:</span>
                             <span class="info-value">${game.current_day} 天</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">開始時間:</span>
+                            <span class="info-label" data-i18n="gh.card.startDate">開始時間:</span>
                             <span class="info-value">${startDate}</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">結束時間:</span>
+                            <span class="info-label" data-i18n="gh.card.endDate">結束時間:</span>
                             <span class="info-value">${endDate}</span>
                         </div>
                     </div>
                     
                     <div class="game-stats">
-                        <div class="stats-title">🏆 最終排名 (前三名)</div>
+                        <div class="stats-title" data-i18n="gh.card.ranking">🏆 最終排名 (前三名)</div>
                         <div class="top-teams">
                             ${topTeamsHtml}
                         </div>
@@ -561,7 +563,7 @@
             
             // 上一頁
             if (current > 1) {
-                html += `<button class="page-btn" onclick="loadGameHistory(${current - 1})">« 上一頁</button>`;
+                html += `<button class="page-btn" onclick="loadGameHistory(${current - 1})" data-i18n="gh.page.prev">« 上一頁</button>`;
             }
             
             // 頁碼
@@ -572,7 +574,7 @@
             
             // 下一頁
             if (current < total) {
-                html += `<button class="page-btn" onclick="loadGameHistory(${current + 1})">下一頁 »</button>`;
+                html += `<button class="page-btn" onclick="loadGameHistory(${current + 1})" data-i18n="gh.page.next">下一頁 »</button>`;
             }
             
             pagination.innerHTML = html;
