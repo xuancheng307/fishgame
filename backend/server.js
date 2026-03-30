@@ -1012,23 +1012,27 @@ app.get('/api/games/:gameId/timer-status', async (req, res) => {
         
         const day = currentDay[0];
         const now = new Date();
-        
+
         let timeRemaining = null;
         let isActive = false;
-        
-        if (day.end_time) {
-            const endTime = new Date(day.end_time);
+
+        // 根據當前階段選擇正確的結束時間欄位
+        const relevantEndTime = day.status === 'selling_open' ? day.sell_end_time : day.buy_end_time;
+        const relevantStartTime = day.status === 'selling_open' ? day.sell_start_time : day.buy_start_time;
+
+        if (relevantEndTime) {
+            const endTime = new Date(relevantEndTime);
             const msRemaining = Math.max(0, endTime - now);
-            timeRemaining = Math.floor(msRemaining / 1000); // Convert to seconds
+            timeRemaining = Math.floor(msRemaining / 1000);
             isActive = msRemaining > 0 && (day.status === 'buying_open' || day.status === 'selling_open');
         }
-        
+
         res.json({
             serverTime: now.toISOString(),
             status: day.status,
             dayNumber: day.day_number,
-            startTime: day.start_time ? new Date(day.start_time).toISOString() : null,
-            endTime: day.end_time ? new Date(day.end_time).toISOString() : null,
+            startTime: relevantStartTime ? new Date(relevantStartTime).toISOString() : null,
+            endTime: relevantEndTime ? new Date(relevantEndTime).toISOString() : null,
             timeRemaining: timeRemaining,
             isActive: isActive
         });
@@ -1274,10 +1278,10 @@ app.post('/api/admin/games/:gameId/start-buying', authenticateToken, requireAdmi
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 buying_open - 同時更新 game_days.status 和 games.phase
+        // 更新狀態為 buying_open - 同時更新 game_days.status, start/end times 和 games.phase
         await pool.execute(
-            'UPDATE game_days SET status = ? WHERE id = ?',
-            ['buying_open', currentDay[0].id]
+            'UPDATE game_days SET status = ?, buy_start_time = ?, buy_end_time = ? WHERE id = ?',
+            ['buying_open', startTime, endTime, currentDay[0].id]
         );
 
         await pool.execute(
@@ -1453,10 +1457,10 @@ app.post('/api/admin/games/:gameId/start-selling', authenticateToken, requireAdm
         const startTime = new Date();
         const endTime = new Date(startTime.getTime() + biddingDuration * 60 * 1000); // 轉換為毫秒
         
-        // 更新狀態為 selling_open - 同時更新 game_days.status 和 games.phase
+        // 更新狀態為 selling_open - 同時更新 game_days.status, start/end times 和 games.phase
         await pool.execute(
-            'UPDATE game_days SET status = ? WHERE id = ?',
-            ['selling_open', currentDay[0].id]
+            'UPDATE game_days SET status = ?, sell_start_time = ?, sell_end_time = ? WHERE id = ?',
+            ['selling_open', startTime, endTime, currentDay[0].id]
         );
 
         await pool.execute(
@@ -3619,22 +3623,110 @@ async function calculateFinalROI(connection, gameId, dayNumber) {
 // Socket.io 連線處理
 io.on('connection', (socket) => {
     console.log('新用戶連接');
-    
+
+    // 立即發送所有活躍計時器的當前狀態給新連線的客戶端
+    for (const [timerId, timerData] of timers.entries()) {
+        const remaining = Math.max(0, Math.floor((timerData.endTime - Date.now()) / 1000));
+        if (remaining > 0) {
+            socket.emit('timer', { gameId: timerId, remaining });
+        }
+    }
+
     socket.on('joinGame', (gameId) => {
         socket.join(`game-${gameId}`);
         console.log(`用戶加入遊戲房間: game-${gameId}`);
     });
-    
+
     socket.on('disconnect', () => {
         console.log('用戶斷開連接');
     });
 });
 
+// 伺服器啟動時恢復活躍的計時器
+async function restoreActiveTimers() {
+    try {
+        // 找出所有正在 buying_open 或 selling_open 的遊戲日
+        const [activeDays] = await pool.execute(`
+            SELECT gd.*, g.id as game_id_ref
+            FROM game_days gd
+            JOIN games g ON gd.game_id = g.id
+            WHERE g.status = 'active'
+            AND (gd.status = 'buying_open' OR gd.status = 'selling_open')
+        `);
+
+        for (const day of activeDays) {
+            const isSelling = day.status === 'selling_open';
+            const endTimeCol = isSelling ? day.sell_end_time : day.buy_end_time;
+
+            if (!endTimeCol) {
+                console.log(`⚠ 遊戲 ${day.game_id} Day ${day.day_number} 狀態為 ${day.status} 但無結束時間，跳過`);
+                continue;
+            }
+
+            const endTime = new Date(endTimeCol);
+            const remainingMs = endTime - Date.now();
+            const remainingSec = Math.floor(remainingMs / 1000);
+
+            if (remainingSec <= 0) {
+                // 時間已過，立即執行回呼（處理投標 + 關閉階段）
+                console.log(`⏰ 遊戲 ${day.game_id} Day ${day.day_number} 計時器已過期，立即結算...`);
+                try {
+                    if (isSelling) {
+                        await processSellBids(day);
+                        await pool.execute('UPDATE game_days SET status = ? WHERE id = ?', ['selling_closed', day.id]);
+                        await pool.execute('UPDATE games SET phase = ? WHERE id = ?', ['selling_closed', day.game_id]);
+                        io.emit('phaseChange', { gameId: day.game_id, phase: 'selling_closed', dayNumber: day.day_number });
+                    } else {
+                        await processBuyBids(day);
+                        await pool.execute('UPDATE game_days SET status = ? WHERE id = ?', ['buying_closed', day.id]);
+                        await pool.execute('UPDATE games SET phase = ? WHERE id = ?', ['buying_closed', day.game_id]);
+                        io.emit('phaseChange', { gameId: day.game_id, phase: 'buying_closed', dayNumber: day.day_number });
+                    }
+                    console.log(`✅ 遊戲 ${day.game_id} Day ${day.day_number} 過期計時器已結算`);
+                } catch (err) {
+                    console.error(`❌ 恢復結算失敗 (遊戲 ${day.game_id}):`, err);
+                }
+            } else {
+                // 還有剩餘時間，重新啟動計時器
+                const timerId = isSelling ? `${day.game_id}-selling` : String(day.game_id);
+                console.log(`🔄 恢復計時器: 遊戲 ${day.game_id} Day ${day.day_number} (${day.status}), 剩餘 ${remainingSec} 秒`);
+
+                startTimer(timerId, remainingSec, async () => {
+                    try {
+                        if (isSelling) {
+                            await processSellBids(day);
+                            await pool.execute('UPDATE game_days SET status = ? WHERE id = ?', ['selling_closed', day.id]);
+                            await pool.execute('UPDATE games SET phase = ? WHERE id = ?', ['selling_closed', day.game_id]);
+                            io.emit('phaseChange', { gameId: day.game_id, phase: 'selling_closed', dayNumber: day.day_number });
+                        } else {
+                            await processBuyBids(day);
+                            await pool.execute('UPDATE game_days SET status = ? WHERE id = ?', ['buying_closed', day.id]);
+                            await pool.execute('UPDATE games SET phase = ? WHERE id = ?', ['buying_closed', day.game_id]);
+                            io.emit('phaseChange', { gameId: day.game_id, phase: 'buying_closed', dayNumber: day.day_number });
+                        }
+                        console.log(`✅ 遊戲 ${day.game_id} Day ${day.day_number} 恢復計時器已完成`);
+                    } catch (err) {
+                        console.error(`❌ 恢復計時器回呼失敗 (遊戲 ${day.game_id}):`, err);
+                    }
+                });
+            }
+        }
+
+        if (activeDays.length === 0) {
+            console.log('📋 無活躍計時器需要恢復');
+        }
+    } catch (err) {
+        console.error('❌ 恢復計時器失敗:', err);
+    }
+}
+
 const PORT = process.env.PORT || 3000;
 
-initDatabase().then(() => {
-    server.listen(PORT, '0.0.0.0', () => {
+initDatabase().then(async () => {
+    server.listen(PORT, '0.0.0.0', async () => {
         console.log(`伺服器運行在 http://0.0.0.0:${PORT}`);
         console.log(`可從網路訪問: http://192.168.1.104:${PORT}`);
+        // 伺服器啟動後恢復活躍計時器
+        await restoreActiveTimers();
     });
 });
