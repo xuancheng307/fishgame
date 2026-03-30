@@ -24,7 +24,10 @@
         .phase-selling { background: #fef3c7; color: #92400e; }
         .phase-settled { background: #d1fae5; color: #065f46; }
         .phase-waiting { background: #f1f5f9; color: #475569; }
-        .timer { font-size: 1.8em; font-weight: 700; color: #dc2626; text-align: center; padding: 12px; }
+        .timer { font-size: 1.8em; font-weight: 700; color: #dc2626; text-align: center; padding: 12px; transition: background .3s; }
+        .timer.urgent { animation: pulse-urgent .8s ease-in-out infinite; background: #fef2f2; border-radius: 8px; }
+        @keyframes pulse-urgent { 0%,100% { background: #fef2f2; } 50% { background: #fee2e2; } }
+        .timer-warning { text-align: center; font-size: .9em; font-weight: 600; color: #dc2626; padding: 4px 0; }
         .bid-form { margin-top: 12px; }
         .bid-row { display: grid; grid-template-columns: 80px 1fr 1fr; gap: 8px; margin-bottom: 8px; align-items: center; }
         .bid-row label { font-weight: 600; font-size: .9em; }
@@ -203,13 +206,13 @@ const socket = io({ auth: { token } });
 let dashboardData = null;
 
 // --- Socket events ---
-socket.on('phaseChange', () => refreshDashboard());
+socket.on('phaseChange', () => { _warned30s = false; refreshDashboard(); });
 socket.on('gameUpdate', () => refreshDashboard());
 socket.on('buyingResults', () => refreshDashboard());
 socket.on('sellingResults', () => refreshDashboard());
+let _warned30s = false;
 socket.on('timer', (data) => {
     const timerEl = document.getElementById('timerDisplay');
-    // 只顯示當前遊戲的計時器
     const myGameId = dashboardData?.gameInfo?.gameId;
     if (myGameId && String(data.gameId) !== String(myGameId) && data.gameId !== `${myGameId}-selling`) return;
     if (data.remaining > 0) {
@@ -217,11 +220,47 @@ socket.on('timer', (data) => {
         const sec = data.remaining % 60;
         timerEl.textContent = `⏱ ${min}:${String(sec).padStart(2, '0')}`;
         timerEl.classList.remove('hidden');
+        // 30 秒提醒（僅未提交的組）
+        if (data.remaining <= 30 && !_warned30s) {
+            _warned30s = true;
+            if (!hasSubmittedCurrentPhase()) {
+                timerEl.classList.add('urgent');
+                playBeep();
+                const isEn = localStorage.getItem('i18n_lang') === 'en';
+                showAlert(isEn ? '⚠️ 30 seconds left! Submit your bids now!' : '⚠️ 剩餘 30 秒！請盡快送出標單！', 'error');
+            }
+        }
+        if (data.remaining > 30) { _warned30s = false; timerEl.classList.remove('urgent'); }
     } else {
         timerEl.classList.add('hidden');
+        timerEl.classList.remove('urgent');
+        _warned30s = false;
         refreshDashboard();
     }
 });
+
+function hasSubmittedCurrentPhase() {
+    if (!dashboardData) return false;
+    const phase = dashboardData.gameInfo?.dayStatus;
+    const day = dashboardData.gameInfo?.currentDay;
+    const bids = dashboardData.myBids || [];
+    const type = phase === 'buying_open' ? 'buy' : phase === 'selling_open' ? 'sell' : null;
+    if (!type) return true; // not in bidding phase, no warning needed
+    return bids.some(b => b.day_number === day && b.bid_type === type);
+}
+
+function playBeep() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.value = 0.3;
+        osc.start(); osc.stop(ctx.currentTime + 0.15);
+        setTimeout(() => { osc.start?.(0); }, 200);
+    } catch (e) {}
+}
 
 // --- API helpers ---
 async function apiFetch(url, options = {}) {
