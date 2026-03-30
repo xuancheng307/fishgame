@@ -988,7 +988,8 @@
                 html += `
                     <div class="card">
                         <h3>👥 <span data-i18n="ad.gc.teamOverview">團隊概況</span> (${gameStatus.teams.length} ${_isEn ? 'teams' : '組'})</h3>
-                        <table class="table">
+                        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                        <table class="table" style="min-width:700px;">
                             <thead>
                                 <tr>
                                     <th data-i18n="ad.gc.th.team">團隊</th>
@@ -1021,8 +1022,8 @@
                         </tr>
                     `;
                 });
-                
-                html += '</tbody></table></div>';
+
+                html += '</tbody></table></div></div>';
             }
             
             panelDiv.innerHTML = html;
@@ -1632,10 +1633,10 @@
                     <div style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
                         ${renderStats(statsA)}
                     </div>
-                    <table class="table"><thead>${thRow}</thead><tbody>
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="table" style="min-width:700px;"><thead>${thRow}</thead><tbody>
                 `;
                 html += renderBidRows(fishABids, fishABids);
-                html += '</tbody></table>';
+                html += '</tbody></table></div>';
             }
 
             if (fishBBids.length > 0) {
@@ -1645,10 +1646,10 @@
                     <div style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
                         ${renderStats(statsB)}
                     </div>
-                    <table class="table"><thead>${thRow}</thead><tbody>
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="table" style="min-width:700px;"><thead>${thRow}</thead><tbody>
                 `;
                 html += renderBidRows(fishBBids, fishBBids);
-                html += '</tbody></table>';
+                html += '</tbody></table></div>';
             }
             
             html += '</div>';
@@ -1710,7 +1711,8 @@
                         <span data-i18n="ad.ds.budgetA">A級魚餐廳預算:</span> $${(data.dayInfo.fish_a_restaurant_budget || 0).toLocaleString()} |
                         <span data-i18n="ad.ds.budgetB">B級魚餐廳預算:</span> $${(data.dayInfo.fish_b_restaurant_budget || 0).toLocaleString()}
                     </div>
-                    <table class="table">
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                    <table class="table" style="min-width:900px;">
                         <thead>
                             <tr>
                                 <th data-i18n="ad.ds.th.rank">排名</th>
@@ -1753,9 +1755,9 @@
                     </tr>
                 `;
             });
-            
-            html += '</tbody></table></div>';
-            
+
+            html += '</tbody></table></div></div>';
+
             // Add summary statistics
             const totalRevenue = data.results.reduce((sum, r) => sum + (Number(r.revenue) || 0), 0);
             const totalCost = data.results.reduce((sum, r) => sum + (Number(r.cost) || 0), 0);
