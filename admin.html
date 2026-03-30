@@ -874,9 +874,10 @@
             
             const statusClass = gameStatus.status === 'active' ? 'status-active' :
                               (gameStatus.status === 'finished' || gameStatus.status === 'force_ended') ? 'status-completed' : 'status-pending';
-            const statusText = gameStatus.status === 'active' ? '進行中' :
-                             gameStatus.status === 'finished' ? '已結束' :
-                             gameStatus.status === 'force_ended' ? '已強制結束' : '準備中';
+            const _isEn = localStorage.getItem('i18n_lang') === 'en';
+            const statusText = gameStatus.status === 'active' ? (_isEn ? 'Active' : '進行中') :
+                             gameStatus.status === 'finished' ? (_isEn ? 'Finished' : '已結束') :
+                             gameStatus.status === 'force_ended' ? (_isEn ? 'Force Ended' : '已強制結束') : (_isEn ? 'Pending' : '準備中');
             
             // 映射後端phase值到前端期望的值
             const phaseMapping = {
@@ -1111,7 +1112,16 @@
         
         // Helper functions for styling
         function getPhaseText(phase) {
-            const phaseMap = {
+            const isEn = localStorage.getItem('i18n_lang') === 'en';
+            const phaseMap = isEn ? {
+                'pending': 'Waiting',
+                'buying': 'Buy Bidding',
+                'buying_closed': 'Buy Closed',
+                'selling': 'Sell Bidding',
+                'selling_closed': 'Sell Closed',
+                'settled': 'Settled',
+                'day_ended': 'Day Ended'
+            } : {
                 'pending': '等待開始',
                 'buying': '買入投標中',
                 'buying_closed': '買入已結束',
@@ -1798,20 +1808,21 @@
                 const gameId = game.game_id || game.id;
                 const statusClass = game.status === 'active' ? 'status-active' :
                                   (game.status === 'finished' || game.status === 'force_ended') ? 'status-completed' : 'status-pending';
-                const statusText = game.status === 'active' ? '進行中' :
-                                 game.status === 'finished' ? '已結束' :
-                                 game.status === 'force_ended' ? '已強制結束' : '準備中';
-                
+                const _e = localStorage.getItem('i18n_lang') === 'en';
+                const statusText = game.status === 'active' ? (_e ? 'Active' : '進行中') :
+                                 game.status === 'finished' ? (_e ? 'Finished' : '已結束') :
+                                 game.status === 'force_ended' ? (_e ? 'Force Ended' : '已強制結束') : (_e ? 'Pending' : '準備中');
+
                 const progress = `${game.current_day || 0}/${game.total_days || 7}`;
-                
+
                 html += `
                     <tr>
                         <td>${gameId}</td>
-                        <td>${game.name || '未命名遊戲'}</td>
+                        <td>${game.name || (_e ? 'Unnamed Game' : '未命名遊戲')}</td>
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>${progress} 天</td>
-                        <td>${game.num_teams || 12} 組</td>
-                        <td>${new Date(game.created_at).toLocaleString('zh-TW')}</td>
+                        <td>${progress} ${_e ? 'days' : '天'}</td>
+                        <td>${game.num_teams || 12} ${_e ? 'teams' : '組'}</td>
+                        <td>${new Date(game.created_at).toLocaleString(_e ? 'en-US' : 'zh-TW')}</td>
                         <td>
                             <button class="btn btn-info btn-sm" onclick="viewGameDetails(${gameId})" data-i18n="ad.hist.details">查看詳情</button>
                             ${game.status === 'active' ?

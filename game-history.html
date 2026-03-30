@@ -444,32 +444,35 @@
         
         // 創建遊戲卡片
         function createGameCard(game) {
+            const _e = localStorage.getItem('i18n_lang') === 'en';
             const statusClass = game.status === 'finished' ? 'finished' : 'active';
-            const statusText = game.status === 'finished' ? '已結束' : '進行中';
+            const statusText = game.status === 'finished' ? (_e ? 'Finished' : '已結束') : (_e ? 'Active' : '進行中');
             const statusStyle = game.status === 'finished' ? 'status-finished' : 'status-active';
-            
-            const startDate = new Date(game.created_at).toLocaleDateString('zh-TW');
-            const endDate = game.ended_at ? new Date(game.ended_at).toLocaleDateString('zh-TW') : '進行中';
-            
+
+            const startDate = new Date(game.created_at).toLocaleDateString(_e ? 'en-US' : 'zh-TW');
+            const endDate = game.ended_at ? new Date(game.ended_at).toLocaleDateString(_e ? 'en-US' : 'zh-TW') : (_e ? 'In Progress' : '進行中');
+
             // 獲取前三名團隊
             const topTeams = (game.final_rankings || []).slice(0, 3);
-            const topTeamsHtml = topTeams.length > 0 
+            const topTeamsHtml = topTeams.length > 0
                 ? topTeams.map((team, index) => `
                     <div class="team-rank">
                         <span class="rank-medal rank-${index + 1}">${index + 1}</span>
-                        <span>${team.team_name || `團隊${team.team_id}`}</span>
+                        <span>${team.team_name || (_e ? `Team ${team.team_id}` : `團隊${team.team_id}`)}</span>
                         <span>(${(team.roi * 100).toFixed(1)}%)</span>
                     </div>
                 `).join('')
-                : '<div style="text-align: center; color: #999;" data-i18n="gh.card.noRank">尚無排名資料</div>';
-            
+                : `<div style="text-align: center; color: #999;" data-i18n="gh.card.noRank">${_e ? 'No ranking data' : '尚無排名資料'}</div>`;
+
+            const _d = _e ? 'days' : '天';
+            const _t = _e ? 'teams' : '隊';
             return `
                 <div class="game-card ${statusClass}" onclick="viewGameDetails(${game.id})">
                     <div class="game-header">
                         <div class="game-title">${game.name}</div>
                         <span class="game-status ${statusStyle}">${statusText}</span>
                     </div>
-                    
+
                     <div class="game-info">
                         <div class="info-item">
                             <span class="info-label" data-i18n="gh.card.id">遊戲ID:</span>
@@ -477,15 +480,15 @@
                         </div>
                         <div class="info-item">
                             <span class="info-label" data-i18n="gh.card.teams">參與隊伍:</span>
-                            <span class="info-value">${game.num_teams} 隊</span>
+                            <span class="info-value">${game.num_teams} ${_t}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label" data-i18n="gh.card.totalDays">遊戲天數:</span>
-                            <span class="info-value">${game.total_days} 天</span>
+                            <span class="info-value">${game.total_days} ${_d}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label" data-i18n="gh.card.curDay">當前天數:</span>
-                            <span class="info-value">${game.current_day} 天</span>
+                            <span class="info-value">${game.current_day} ${_d}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label" data-i18n="gh.card.startDate">開始時間:</span>
