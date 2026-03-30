@@ -2209,6 +2209,8 @@
         socket.on('timer', (data) => {
             const el = document.getElementById('adminTimerDisplay');
             if (!el) return;
+            // 只顯示當前遊戲的計時器，忽略其他遊戲的 timer 事件
+            if (currentGameId && String(data.gameId) !== String(currentGameId) && data.gameId !== `${currentGameId}-selling`) return;
             if (data.remaining > 0) {
                 const min = Math.floor(data.remaining / 60);
                 const sec = data.remaining % 60;
