@@ -1138,8 +1138,13 @@ app.post('/api/admin/games/:gameId/advance-day', authenticateToken, requireAdmin
 
             fishASupply = Math.round(baselineSupplyA * supplyMultiplierA * randomFactorA);
             fishBSupply = Math.round(baselineSupplyB * supplyMultiplierB * randomFactorB);
-            fishABudget = Math.ceil(baselineBudgetA * budgetMultiplierA * randomFactorA / 50000) * 50000;
-            fishBBudget = Math.ceil(baselineBudgetB * budgetMultiplierB * randomFactorB / 50000) * 50000;
+            if (useRandom) {
+                fishABudget = Math.ceil(baselineBudgetA * budgetMultiplierA * randomFactorA / 50000) * 50000;
+                fishBBudget = Math.ceil(baselineBudgetB * budgetMultiplierB * randomFactorB / 50000) * 50000;
+            } else {
+                fishABudget = Math.round(baselineBudgetA * budgetMultiplierA);
+                fishBBudget = Math.round(baselineBudgetB * budgetMultiplierB);
+            }
         }
         
         // 使用正確的欄位名稱和初始狀態
