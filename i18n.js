@@ -322,6 +322,10 @@
         'ad.qr.refresh': '\uD83D\uDD04 Refresh',
         'ad.qr.download': '\uD83D\uDCE5 Download QR Code',
         'ad.qr.instructions': '<strong>Instructions:</strong><br>1. Students scan the QR code above with their phone<br>2. The login page opens automatically<br>3. Enter username and password to join the game',
+        'ad.qr.instrTitle': 'Instructions:',
+        'ad.qr.instr1': '1. Students scan the QR code above with their phone',
+        'ad.qr.instr2': '2. The login page opens automatically',
+        'ad.qr.instr3': '3. Enter username and password to join the game',
 
         // ===== game-history.html =====
         'gh.close': '\u2190 Close',
