@@ -407,7 +407,7 @@ async function fetchLeaderboard(gameId) {
             const roi = Number(t.roi) || 0;
             const roiColor = roi >= 0 ? '#16a34a' : '#dc2626';
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
-            html += `<tr style="${rowStyle}"><td>${medal}</td><td>${t.team_name || ('Team ' + (i+1))}</td><td>$${fmt(t.total_profit)}</td><td style="color:${roiColor}">${roi.toFixed(1)}%</td></tr>`;
+            html += `<tr style="${rowStyle}"><td>${medal}</td><td>${t.team_name || ('Team ' + t.username)}</td><td>$${fmt(t.total_profit)}</td><td style="color:${roiColor}">${roi.toFixed(1)}%</td></tr>`;
         });
         html += '</table></div>';
         document.getElementById('leaderboardContent').innerHTML = html;

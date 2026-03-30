@@ -1762,7 +1762,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         if (existing.length > 0) {
             // 已經加入，返回遊戲資訊和團隊名稱
             const teamNames = JSON.parse(game.team_names || '{}');
-            const existingTeamName = teamNames[teamNumber] || `第${teamNumber}組`;
+            const existingTeamName = teamNames[teamNumber] || `Team ${req.user.username}`;
             
             // 如果提供了新的團隊名稱，更新它
             if (customTeamName && customTeamName.trim()) {
@@ -1812,7 +1812,7 @@ app.post('/api/team/join-current', authenticateToken, async (req, res) => {
         
         // 處理團隊名稱
         const teamNames = JSON.parse(game.team_names || '{}');
-        const finalTeamName = customTeamName?.trim() || teamNames[teamNumber] || `第${teamNumber}組`;
+        const finalTeamName = customTeamName?.trim() || teamNames[teamNumber] || `Team ${req.user.username}`;
         teamNames[teamNumber] = finalTeamName;
         
         // 更新遊戲的團隊名稱記錄
