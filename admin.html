@@ -1711,21 +1711,21 @@
                         <span data-i18n="ad.ds.budgetA">A級魚餐廳預算:</span> $${(data.dayInfo.fish_a_restaurant_budget || 0).toLocaleString()} |
                         <span data-i18n="ad.ds.budgetB">B級魚餐廳預算:</span> $${(data.dayInfo.fish_b_restaurant_budget || 0).toLocaleString()}
                     </div>
-                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-                    <table class="table" style="min-width:900px;">
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;">
+                    <table class="table" style="min-width:900px;width:max-content;">
                         <thead>
                             <tr>
-                                <th data-i18n="ad.ds.th.rank">排名</th>
-                                <th data-i18n="ad.ds.th.team">團隊</th>
-                                <th data-i18n="ad.ds.th.openCash">期初現金</th>
-                                <th data-i18n="ad.ds.th.closeCash">期末現金</th>
-                                <th data-i18n="ad.ds.th.cost">買入成本</th>
-                                <th data-i18n="ad.ds.th.revenue">賣出收入</th>
-                                <th data-i18n="ad.ds.th.unsold">滯銷費用</th>
-                                <th data-i18n="ad.ds.th.interest">利息支出</th>
-                                <th data-i18n="ad.ds.th.dailyPL">當日損益</th>
-                                <th data-i18n="ad.ds.th.cumPL">累積損益</th>
-                                <th>ROI (%)</th>
+                                <th style="white-space:nowrap;">排名</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.team">團隊</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.openCash">期初現金</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.closeCash">期末現金</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.cost">買入成本</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.revenue">賣出收入</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.unsold">滯銷費用</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.interest">利息支出</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.dailyPL">當日損益</th>
+                                <th style="white-space:nowrap;" data-i18n="ad.ds.th.cumPL">累積損益</th>
+                                <th style="white-space:nowrap;">ROI (%)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1735,12 +1735,12 @@
                 const dp = Number(result.daily_profit) || 0;
                 const cp = Number(result.cumulative_profit) || 0;
                 const roiVal = Number(result.roi) || 0;
-                const profitClass = dp >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
-                const cumProfitClass = cp >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
-                const roiClass = roiVal >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
+                const profitClass = dp >= 0 ? 'style="white-space:nowrap;color:#52c41a;"' : 'style="white-space:nowrap;color:#ff4d4f;"';
+                const cumProfitClass = cp >= 0 ? 'style="white-space:nowrap;color:#52c41a;"' : 'style="white-space:nowrap;color:#ff4d4f;"';
+                const roiClass = roiVal >= 0 ? 'style="white-space:nowrap;color:#52c41a;"' : 'style="white-space:nowrap;color:#ff4d4f;"';
                 
                 html += `
-                    <tr>
+                    <tr style="white-space:nowrap;">
                         <td><strong>${index + 1}</strong></td>
                         <td>${result.team_name || (_en() ? `Team ${result.username}` : `團隊${result.username}`)}</td>
                         <td>$${(Number(result.closing_budget) - Number(result.daily_profit) || 0).toLocaleString()}</td>
