@@ -1455,7 +1455,15 @@
                 const totalSubmitted = bids.reduce((sum, b) => sum + (b.quantity_submitted || 0), 0);
                 const totalFulfilled = bids.reduce((sum, b) => sum + (b.quantity_fulfilled || 0), 0);
                 const rate = totalSubmitted > 0 ? ((totalFulfilled / totalSubmitted) * 100).toFixed(1) : '0';
-                return { totalSubmitted, totalFulfilled, rate, count: bids.length };
+                const fulfilledBids = bids.filter(b => (b.quantity_fulfilled || 0) > 0);
+                let extremePrice = null;
+                if (fulfilledBids.length > 0) {
+                    extremePrice = isBuy
+                        ? Math.min(...fulfilledBids.map(b => b.price))
+                        : Math.max(...fulfilledBids.map(b => b.price));
+                }
+                const totalTransactionAmount = fulfilledBids.reduce((sum, b) => sum + (b.price * (b.quantity_fulfilled || 0)), 0);
+                return { totalSubmitted, totalFulfilled, rate, count: bids.length, extremePrice, totalTransactionAmount };
             };
 
             const bidStatusText = (status) => {
@@ -1506,8 +1514,13 @@
             };
 
             const renderStats = (stats) => {
-                if (E) return `<strong>Summary:</strong> Total Bids: ${stats.count} | Submitted: ${stats.totalSubmitted} kg | Filled: ${stats.totalFulfilled} kg | Fill Rate: ${stats.rate}%`;
-                return `<strong>統計摘要：</strong> 總投標數：${stats.count} | 總提交量：${stats.totalSubmitted} kg | 總成交量：${stats.totalFulfilled} kg | 成交率：${stats.rate}%`;
+                const extremeLabel = isBuy ? (E ? 'Lowest Deal Price' : '最低成交價') : (E ? 'Highest Deal Price' : '最高成交價');
+                const extremeHtml = stats.extremePrice !== null
+                    ? `<span style="color: #e00; font-weight: bold;">$${stats.extremePrice.toLocaleString()}/kg</span>`
+                    : (E ? '<span style="color:#999;">N/A</span>' : '<span style="color:#999;">尚無</span>');
+                const txAmtHtml = `<span style="color: #e00; font-weight: bold;">$${stats.totalTransactionAmount.toLocaleString()}</span>`;
+                if (E) return `<strong>Summary:</strong> Total Bids: ${stats.count} | Submitted: ${stats.totalSubmitted} kg | Filled: ${stats.totalFulfilled} kg | Fill Rate: ${stats.rate}% | ${extremeLabel}: ${extremeHtml} | Total Deal Amount: ${txAmtHtml}`;
+                return `<strong>統計摘要：</strong> 總投標數：${stats.count} | 總提交量：${stats.totalSubmitted} kg | 總成交量：${stats.totalFulfilled} kg | 成交率：${stats.rate}% | ${extremeLabel}：${extremeHtml} | 成交總金額：${txAmtHtml}`;
             };
 
             if (fishABids.length > 0) {
