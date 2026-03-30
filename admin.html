@@ -1033,13 +1033,17 @@
 
         // Bid status tracker — shows which teams haven't submitted bids
         let bidStatusInterval = null;
+        let _bidStatusGameStatus = null; // stored for refresh button
         async function refreshBidStatus(gameStatus) {
+            if (gameStatus) _bidStatusGameStatus = gameStatus;
+            else gameStatus = _bidStatusGameStatus;
+            if (!gameStatus) return;
+
             const tracker = document.getElementById('bid-status-tracker');
             if (!tracker) return;
 
-            const phase = gameStatus.phase; // 'buying_open' or 'selling_open'
+            const phase = gameStatus.phase;
             const isBuying = phase === 'buying_open';
-            const bidType = isBuying ? 'buy' : 'sell';
             const _isEn = localStorage.getItem('i18n_lang') === 'en';
 
             try {
@@ -1074,8 +1078,10 @@
                 let html = `<div style="padding:12px;border-radius:8px;background:${allDone ? '#f0fdf4' : '#fffbeb'};border:1px solid ${allDone ? '#bbf7d0' : '#fde68a'};">`;
                 html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">`;
                 html += `<span style="font-weight:600;font-size:14px;">${isBuying ? (_isEn ? 'Buy Bid Status' : '買入投標狀態') : (_isEn ? 'Sell Bid Status' : '賣出投標狀態')}</span>`;
+                html += `<div style="display:flex;align-items:center;gap:8px;">`;
                 html += `<span style="font-size:13px;color:#666;">${doneCount}/${total} ${_isEn ? 'submitted' : '已提交'}</span>`;
-                html += `</div>`;
+                html += `<button onclick="refreshBidStatus()" style="padding:2px 8px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;line-height:1.4;" title="${_isEn ? 'Refresh' : '重新整理'}">🔄</button>`;
+                html += `</div></div>`;
 
                 // Progress bar
                 const pct = total > 0 ? (doneCount / total) * 100 : 0;
@@ -2341,6 +2347,10 @@
             if (document.getElementById('game-control').classList.contains('active')) {
                 loadActiveGameData('game-control');
             }
+        });
+
+        socket.on('bidsUpdated', () => {
+            refreshBidStatus();
         });
 
         // Initialize the page
