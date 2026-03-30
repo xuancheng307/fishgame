@@ -370,7 +370,7 @@
             // Backup original on first encounter
             if (!originals.has(el)) originals.set(el, el.innerHTML);
 
-            if (lang === 'en' && en[key]) {
+            if (lang === 'en' && en.hasOwnProperty(key)) {
                 var val = en[key];
                 // Replace {name} with data-val-name attribute
                 val = val.replace(/\{(\w+)\}/g, function (_, name) {
