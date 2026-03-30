@@ -2581,6 +2581,46 @@ function calculateBidStatistics(bids) {
     };
 }
 
+// 管理員修改某天的市場參數（供應量/餐廳預算）
+app.post('/api/admin/games/:gameId/update-day-params', authenticateToken, requireAdmin, async (req, res) => {
+    const { gameId } = req.params;
+    const { dayNumber, fishASupply, fishBSupply, fishABudget, fishBBudget, updateAll } = req.body;
+
+    try {
+        if (updateAll) {
+            // 更新該遊戲所有天數的參數
+            const [result] = await pool.execute(
+                `UPDATE game_days SET
+                    fish_a_supply = ?, fish_b_supply = ?,
+                    fish_a_restaurant_budget = ?, fish_b_restaurant_budget = ?
+                 WHERE game_id = ?`,
+                [fishASupply, fishBSupply, fishABudget, fishBBudget, gameId]
+            );
+            console.log(`遊戲 ${gameId} 所有天數參數已更新: A=${fishASupply}, B=${fishBSupply}, A_budget=${fishABudget}, B_budget=${fishBBudget}, affected=${result.affectedRows}`);
+            res.json({ success: true, message: `已更新 ${result.affectedRows} 天的參數`, affectedRows: result.affectedRows });
+        } else {
+            // 更新指定天數
+            const [result] = await pool.execute(
+                `UPDATE game_days SET
+                    fish_a_supply = ?, fish_b_supply = ?,
+                    fish_a_restaurant_budget = ?, fish_b_restaurant_budget = ?
+                 WHERE game_id = ? AND day_number = ?`,
+                [fishASupply, fishBSupply, fishABudget, fishBBudget, gameId, dayNumber]
+            );
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: `找不到第${dayNumber}天的資料` });
+            }
+            console.log(`遊戲 ${gameId} 第${dayNumber}天參數已更新`);
+            res.json({ success: true, message: `第${dayNumber}天參數已更新` });
+        }
+
+        io.emit('gameUpdate', { gameId: parseInt(gameId), event: 'dayParamsUpdated' });
+    } catch (error) {
+        console.error('更新天數參數錯誤:', error);
+        res.status(500).json({ error: '更新失敗', details: error.message });
+    }
+});
+
 // 暫停遊戲
 app.post('/api/admin/games/:gameId/pause', authenticateToken, requireAdmin, async (req, res) => {
     const { gameId } = req.params;
