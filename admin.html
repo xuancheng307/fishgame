@@ -1728,6 +1728,7 @@
                 const cp = Number(result.cumulative_profit) || 0;
                 const roiVal = Number(result.roi) || 0;
                 const profitClass = dp >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
+                const cumProfitClass = cp >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
                 const roiClass = roiVal >= 0 ? 'style="color: #52c41a;"' : 'style="color: #ff4d4f;"';
                 
                 html += `
@@ -1741,7 +1742,7 @@
                         <td>$${(Number(result.unsold_fee) || 0).toLocaleString()}</td>
                         <td>$${(Number(result.interest_incurred) || 0).toLocaleString()}</td>
                         <td ${profitClass}>$${dp.toLocaleString()}</td>
-                        <td ${profitClass}>$${cp.toLocaleString()}</td>
+                        <td ${cumProfitClass}>$${cp.toLocaleString()}</td>
                         <td ${roiClass}>${roiVal.toFixed(2)}%</td>
                     </tr>
                 `;
