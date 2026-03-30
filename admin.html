@@ -951,8 +951,11 @@
             html += `<div id="adminTimerDisplay" style="display:none;text-align:center;padding:12px;margin-bottom:12px;background:#fef2f2;border-radius:8px;font-size:24px;font-weight:700;color:#dc2626;"></div>`;
             html += `<div id="game-control-buttons">`;
             html += generateControlButtons(gameStatus);
-            html += `</div></div>`;
-            
+            html += `</div>`;
+            // Bid status tracker (visible during buying/selling phases)
+            html += `<div id="bid-status-tracker" style="margin-top:12px;"></div>`;
+            html += `</div>`;
+
             // Market parameters (if current day exists)
             if (gameStatus.currentDayData) {
                 html += `
@@ -1023,8 +1026,101 @@
             }
             
             panelDiv.innerHTML = html;
+
+            // Start/stop bid status polling based on phase
+            startBidStatusPolling(gameStatus);
         }
-        
+
+        // Bid status tracker — shows which teams haven't submitted bids
+        let bidStatusInterval = null;
+        async function refreshBidStatus(gameStatus) {
+            const tracker = document.getElementById('bid-status-tracker');
+            if (!tracker) return;
+
+            const phase = gameStatus.phase; // 'buying_open' or 'selling_open'
+            const isBuying = phase === 'buying_open';
+            const bidType = isBuying ? 'buy' : 'sell';
+            const _isEn = localStorage.getItem('i18n_lang') === 'en';
+
+            try {
+                const [bidsRes, teamsRes] = await Promise.all([
+                    fetch(`/api/admin/games/${currentGameId}/current-bids`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    }),
+                    fetch(`/api/admin/games/${currentGameId}/teams`, {
+                        headers: { 'Authorization': `Bearer ${authToken}` }
+                    })
+                ]);
+                if (!bidsRes.ok || !teamsRes.ok) return;
+
+                const bidsData = await bidsRes.json();
+                const teams = await teamsRes.json();
+
+                const bids = isBuying ? bidsData.buyBids : bidsData.sellBids;
+                const biddedTeamIds = new Set(bids.map(b => b.team_id));
+
+                // For sell phase: only consider teams that have inventory
+                const relevantTeams = isBuying
+                    ? teams
+                    : teams.filter(t => (t.fish_a_inventory || 0) > 0 || (t.fish_b_inventory || 0) > 0);
+
+                const missing = relevantTeams.filter(t => !biddedTeamIds.has(t.team_id));
+                const submitted = relevantTeams.filter(t => biddedTeamIds.has(t.team_id));
+
+                const total = relevantTeams.length;
+                const doneCount = submitted.length;
+                const allDone = missing.length === 0;
+
+                let html = `<div style="padding:12px;border-radius:8px;background:${allDone ? '#f0fdf4' : '#fffbeb'};border:1px solid ${allDone ? '#bbf7d0' : '#fde68a'};">`;
+                html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">`;
+                html += `<span style="font-weight:600;font-size:14px;">${isBuying ? (_isEn ? 'Buy Bid Status' : '買入投標狀態') : (_isEn ? 'Sell Bid Status' : '賣出投標狀態')}</span>`;
+                html += `<span style="font-size:13px;color:#666;">${doneCount}/${total} ${_isEn ? 'submitted' : '已提交'}</span>`;
+                html += `</div>`;
+
+                // Progress bar
+                const pct = total > 0 ? (doneCount / total) * 100 : 0;
+                html += `<div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-bottom:10px;">`;
+                html += `<div style="height:100%;width:${pct}%;background:${allDone ? '#22c55e' : '#f59e0b'};border-radius:4px;transition:width .3s;"></div>`;
+                html += `</div>`;
+
+                // Team chips
+                html += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+                relevantTeams.forEach(t => {
+                    const done = biddedTeamIds.has(t.team_id);
+                    const name = t.team_name || `Team ${t.username}`;
+                    html += `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:16px;font-size:12px;font-weight:500;background:${done ? '#dcfce7' : '#fef3c7'};color:${done ? '#166534' : '#92400e'};border:1px solid ${done ? '#bbf7d0' : '#fde68a'};">${done ? '✓' : '⏳'} ${name}</span>`;
+                });
+                html += `</div>`;
+
+                if (!isBuying && teams.length > relevantTeams.length) {
+                    const skipped = teams.length - relevantTeams.length;
+                    html += `<div style="font-size:11px;color:#9ca3af;margin-top:6px;">${_isEn ? `${skipped} team(s) skipped (no inventory)` : `${skipped} 組無庫存，不需賣出`}</div>`;
+                }
+
+                html += `</div>`;
+                tracker.innerHTML = html;
+            } catch (err) {
+                console.error('Bid status refresh error:', err);
+            }
+        }
+
+        function startBidStatusPolling(gameStatus) {
+            stopBidStatusPolling();
+            if (gameStatus.phase === 'buying_open' || gameStatus.phase === 'selling_open') {
+                refreshBidStatus(gameStatus);
+                bidStatusInterval = setInterval(() => refreshBidStatus(gameStatus), 5000);
+            }
+        }
+
+        function stopBidStatusPolling() {
+            if (bidStatusInterval) {
+                clearInterval(bidStatusInterval);
+                bidStatusInterval = null;
+            }
+            const tracker = document.getElementById('bid-status-tracker');
+            if (tracker) tracker.innerHTML = '';
+        }
+
         // Update game control panel (for refresh)
         function updateGameControlPanel(gameStatus) {
             const buttonsDiv = document.getElementById('game-control-buttons');
@@ -1518,7 +1614,7 @@
                 const extremeHtml = stats.extremePrice !== null
                     ? `<span style="color: #e00; font-weight: bold;">$${stats.extremePrice.toLocaleString()}/kg</span>`
                     : (E ? '<span style="color:#999;">N/A</span>' : '<span style="color:#999;">尚無</span>');
-                const txAmtHtml = `<span style="color: #e00; font-weight: bold;">$${stats.totalTransactionAmount.toLocaleString()}</span>`;
+                const txAmtHtml = `$${stats.totalTransactionAmount.toLocaleString()}`;
                 if (E) return `<strong>Summary:</strong> Total Bids: ${stats.count} | Submitted: ${stats.totalSubmitted} kg | Filled: ${stats.totalFulfilled} kg | Fill Rate: ${stats.rate}% | ${extremeLabel}: ${extremeHtml} | Total Deal Amount: ${txAmtHtml}`;
                 return `<strong>統計摘要：</strong> 總投標數：${stats.count} | 總提交量：${stats.totalSubmitted} kg | 總成交量：${stats.totalFulfilled} kg | 成交率：${stats.rate}% | ${extremeLabel}：${extremeHtml} | 成交總金額：${txAmtHtml}`;
             };
